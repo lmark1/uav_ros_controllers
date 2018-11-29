@@ -7,7 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
 	INCLUDE_DIRS include
-	LIBRARIES pid)
+	LIBRARIES pid nfilt)
 
 include_directories(
 	include
@@ -16,3 +16,7 @@ include_directories(
 # PID controller library
 add_library(pid src/PID.cpp)
 target_link_libraries(pid ${catkin_LIBRARIES})
+
+# Nonlinear filters library
+add_library(nfilt src/NonlinearFilters.cpp)
+target_link_libraries(nfilt ${catkin_LIBRARIES})
