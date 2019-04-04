@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>crobots_med_control</name>
+  <name>bebop_control</name>
   <version>0.0.0</version>
-  <description>The crobots_med_control package</description>
+  <description>The bebop control package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
