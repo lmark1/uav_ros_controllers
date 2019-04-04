@@ -12,7 +12,8 @@
   <node 
     pkg="bebop_control" 
     type="bebop_joy_command_node.py" 
-    name="bebop_joy_node">
+    name="bebop_joy_node"
+    output="screen">
   </node>
 
   <node pkg="teleop_twist_joy" name="teleop_twist_joy" type="teleop_node">

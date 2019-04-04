@@ -34,8 +34,22 @@ class LaunchBebop:
         self.wind_controller = rospy.get_param("~wind", False)
         self.hoover = rospy.get_param("~hoover", False)
 
+          # define vector for measured and setopint values
+        if self.hoover == True:
+            self.pose_sp = Vector3(0., 0., 1.)
+        else:
+            self.pose_sp = Vector3(0., 0., 0.)
+        self.euler_sp = Vector3(0., 0., 0.)
+        self.euler_mv = Vector3(0., 0., 0.)
+        self.euler_rate_mv = Vector3(0., 0., 0.)
+
+        self.t_old = 0
+
+        # define PID for height control
+        self.z_mv = 0
+        
         self.odom_subscriber = rospy.Subscriber(
-            "bebop/odometry",
+            "bebop/odometry_gt",
             Odometry,
             self.odometry_callback)
         self.pose_subscriber = rospy.Subscriber(
@@ -74,18 +88,6 @@ class LaunchBebop:
             queue_size=10)
         self.actuator_msg = Actuators()
         
-        # define vector for measured and setopint values
-        if self.hoover == True:
-            self.pose_sp = Vector3(0., 0., 1.)
-        else:
-            self.pose_sp = Vector3(0., 0., 0.)
-        self.euler_sp = Vector3(0., 0., 0.)
-        self.euler_mv = Vector3(0., 0., 0.)
-        self.euler_rate_mv = Vector3(0., 0., 0.)
-        self.t_old = 0
-
-        # define PID for height control
-        self.z_mv = 0
 
         # Crontroller rate
         self.controller_rate = 50

@@ -2,20 +2,22 @@
 import rospy
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Vector3
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, Point
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Joy
 
 class Commander():
     #carrot following controller for z axis requires knowing the position of the UAV 
     
+    # Bebop magic number
+    # TODO: When LIDAR is added on bebop publishing odometry as reference lowers bebop height
+    BEBOP_MAGIC_NUMBER = 0.061
 
     def __init__(self):
         # Create a publisher for roll pitch yaw cmnds
-        self.UAV_pose = Vector3(0.0, 0.0, 1.0)
+        self.UAV_pose = PointStamped()
         self.angle_pub = rospy.Publisher('bebop/angle_ref', Vector3, queue_size=1)
         self.pos_pub = rospy.Publisher('bebop/pos_ref', Vector3, queue_size=1)
-        # Initialize message variables.
 
         # Create a subscriber for color msg
         rospy.Subscriber("cmd_vel", Twist, self.cmd_vel_callback)
@@ -34,21 +36,25 @@ class Commander():
         cmd_yaw.z = data.angular.z
         self.angle_pub.publish(cmd_yaw)
 
+        if abs(data.linear.z) <= 0.0:
+            data.linear.z = 0
+
         cmd_position = Vector3()
-        cmd_position.x = self.UAV_pose.x + 10*data.linear.x #5ms for 20Hz
-        cmd_position.y = self.UAV_pose.y + 10*data.linear.y #5ms for 20Hz
-        cmd_position.z = self.UAV_pose.z + 10*data.linear.z #5ms for 20Hz
+        cmd_position.x = self.UAV_pose.point.x + 10*data.linear.x #5ms for 20Hz
+        cmd_position.y = self.UAV_pose.point.y + 10*data.linear.y #5ms for 20Hz
+        print("current pose: {}".format(self.UAV_pose.point.z))
+        cmd_position.z = self.UAV_pose.point.z + 10*data.linear.z + Commander.BEBOP_MAGIC_NUMBER
+        print("command pose: {}\n".format(data.linear.z))
         self.pos_pub.publish(cmd_position)
     
     def position_callback(self,data):
-        self.UAV_pose.x = data.pose.pose.position.x
-        self.UAV_pose.y = data.pose.pose.position.y
-        self.UAV_pose.z = data.pose.pose.position.z
-    
-
+        self.UAV_pose.point.x = data.pose.pose.position.x
+        self.UAV_pose.point.y = data.pose.pose.position.y
+        self.UAV_pose.point.z = data.pose.pose.position.z
+        
 if __name__ == '__main__':
     # Initialize the node and name it.
-    rospy.init_node('morusCommander')
+    rospy.init_node('bebopCommander')
     # Go to class functions that do all the heavy lifting.
     # Do error checking.
     try:
