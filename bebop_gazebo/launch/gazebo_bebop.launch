@@ -9,7 +9,7 @@
     <arg name="wind_direction_x" default="1.0"/>
     <arg name="wind_direction_y" default="0.0"/>
     <arg name="wind_direction_z" default="0.0"/>
-    <arg name="enable_velodyne" default="false"/>
+    <arg name="enable_velodyne" default="true"/>
     
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
         <arg name="paused" value="false" />
