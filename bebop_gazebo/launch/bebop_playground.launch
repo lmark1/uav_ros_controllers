@@ -16,7 +16,7 @@
         <arg name="use_sim_time" value="true"/>
     </include>
     
-    <include file="$(find med_uav_description)/launch/spawn_bebop.launch">
+    <include file="$(find bebop_gazebo)/launch/spawn_bebop.launch">
         <arg name="name" value="$(arg name)" />
         <arg name="x" value="$(arg x)"/>
         <arg name="y" value="$(arg y)"/>
@@ -32,12 +32,12 @@
     
     
     <!-- Spawn wind turbine -->
-    <include file="$(find med_uav_description)/launch/spawn_wind_turbine.launch"/>
+    <include file="$(find bebop_gazebo)/launch/spawn_wind_turbine.launch"/>
     
     <!-- Bebop control -->
     <include file="$(find bebop_control)/launch/bebop_control.launch"/>
     
-    <!-- Include bebop joy control -->
+    <!-- Bebop control -->
     <include file="$(find bebop_control)/launch/bebop_joy.launch"/>
     
 </launch>

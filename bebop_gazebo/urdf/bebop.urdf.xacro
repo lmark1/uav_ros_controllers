@@ -11,7 +11,7 @@
   <xacro:property name="wind_direction_z" value="$(arg wind_direction_z)" />
 
   <!-- Instantiate bebop "mechanics" -->
-  	<xacro:include filename="$(find med_uav_description)/urdf/bebop_base.urdf.xacro" />
+  	<xacro:include filename="$(find bebop_gazebo)/urdf/bebop_base.urdf.xacro" />
   	<xacro:include filename="$(find rotors_description)/urdf/component_snippets.xacro" />
     
 
@@ -77,24 +77,7 @@
 		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
 	</xacro:odometry_plugin_macro>
 
-	<!-- Instantiate a wind plugin -->
-	<gazebo>
-	    <!-- wind plugin -->
-	    <plugin name="wind_plugin" filename="librotors_gazebo_wind_plugin.so">
-	      <robotNamespace>$(arg namespace)/</robotNamespace>
-	      <xyzOffset>0 0 0</xyzOffset>
-	      <frameId>base_link</frameId>
-	      <linkName>base_link</linkName>
-	      <windDirection>1 1 -0.3</windDirection>
-	      <windForceMean>0</windForceMean>
-	      <windForceVariance>0.0</windForceVariance>
-	      <windGustDirection>$(arg wind_direction_x) $(arg wind_direction_y) $(arg wind_direction_z)</windGustDirection>
-	      <windGustStart>$(arg wind_start)</windGustStart>
-	      <windGustDuration>$(arg wind_duration)</windGustDuration>
-	      <windGustForceMean>$(arg wind_force)</windGustForceMean>
-	      <windGustForceVariance>0</windGustForceVariance>
-	    </plugin>
-	</gazebo>
+
 
     <link name="laser1D_link">
       <inertial>

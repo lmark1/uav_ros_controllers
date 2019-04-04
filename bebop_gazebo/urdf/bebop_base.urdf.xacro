@@ -39,7 +39,7 @@
   </xacro:property>
 
   <!-- Included URDF Files -->
-  <xacro:include filename="$(find med_uav_description)/urdf/multirotor_base.urdf.xacro" />
+  <xacro:include filename="$(find bebop_gazebo)/urdf/multirotor_base.urdf.xacro" />
 
   <!-- Instantiate multirotor_base_macro once -->
   <xacro:multirotor_base_macro

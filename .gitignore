@@ -3,3 +3,4 @@ bebop_gazebo/launch/task*
 .cproject
 .project
 .settings
+*.pyc
