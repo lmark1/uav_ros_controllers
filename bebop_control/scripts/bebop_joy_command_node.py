@@ -12,7 +12,7 @@ class Commander():
 
     def __init__(self):
         # Create a publisher for roll pitch yaw cmnds
-        self.UAV_pose = PointStamped()
+        self.UAV_pose = Vector3(0.0, 0.0, 1.0)
         self.angle_pub = rospy.Publisher('bebop/angle_ref', Vector3, queue_size=1)
         self.pos_pub = rospy.Publisher('bebop/pos_ref', Vector3, queue_size=1)
         # Initialize message variables.
@@ -41,7 +41,9 @@ class Commander():
         self.pos_pub.publish(cmd_position)
     
     def position_callback(self,data):
-        self.UAV_pose = data.pose.pose.position
+        self.UAV_pose.x = data.pose.pose.position.x
+        self.UAV_pose.y = data.pose.pose.position.y
+        self.UAV_pose.z = data.pose.pose.position.z
     
 
 if __name__ == '__main__':

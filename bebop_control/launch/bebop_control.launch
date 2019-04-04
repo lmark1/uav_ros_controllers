@@ -8,9 +8,10 @@
         type="launch_bebop.py"
         name="bebop_launch"
         output="screen">
-
+    
         <param name="verbose" value="False" type="bool" />
         <param name="wind" value="False" type="bool"    />
+        <param name="hoover" value="True" type="bool"    />
     </node>
     
 </launch>

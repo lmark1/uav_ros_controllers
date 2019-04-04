@@ -1,9 +1,9 @@
 axis_linear:
-  x: 2
-  y: 3
+  x: 3
+  y: 2
   z: 1
 scale_linear:
-  x: -0.1
+  x: 0.1
   y: 0.1
   z: 0.2
 axis_angular:
