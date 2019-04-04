@@ -29,5 +29,15 @@
         <arg name="wind_direction_z" value="$(arg wind_direction_z)"/>
         <arg name="enable_velodyne" value="$(arg enable_velodyne)" />
     </include>
-
+    
+    
+    <!-- Spawn wind turbine -->
+    <include file="$(find med_uav_description)/launch/spawn_wind_turbine.launch"/>
+    
+    <!-- Bebop control -->
+    <include file="$(find bebop_control)/launch/bebop_control.launch"/>
+    
+    <!-- Include bebop joy control -->
+    <include file="$(find bebop_control)/launch/bebop_joy.launch"/>
+    
 </launch>
