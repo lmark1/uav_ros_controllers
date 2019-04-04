@@ -93,7 +93,28 @@
       <child link="laser1D_link"/>
     </joint>
 
-
+    <!-- Instantiate a wind plugin -->
+    
+    <xacro:unless value="${enable_velodyne}">
+	    <gazebo>
+	        <!-- wind plugin -->
+	        <plugin name="wind_plugin" filename="librotors_gazebo_wind_plugin.so">
+	          <robotNamespace>$(arg namespace)/</robotNamespace>
+	          <xyzOffset>0 0 0</xyzOffset>
+	          <frameId>base_link</frameId>
+	          <linkName>base_link</linkName>
+	          <windDirection>1 1 -0.3</windDirection>
+	          <windForceMean>0</windForceMean>
+	          <windForceVariance>0.0</windForceVariance>
+	          <windGustDirection>$(arg wind_direction_x) $(arg wind_direction_y) $(arg wind_direction_z)</windGustDirection>
+	          <windGustStart>$(arg wind_start)</windGustStart>
+	          <windGustDuration>$(arg wind_duration)</windGustDuration>
+	          <windGustForceMean>$(arg wind_force)</windGustForceMean>
+	          <windGustForceVariance>0</windGustForceVariance>
+	        </plugin>
+	    </gazebo>
+    </xacro:unless>
+    
  	<gazebo reference="laser1D_link">
 		<sensor type="ray" name="laser1D_sensor">
 	      <pose>0 0 0 0 0 0</pose>
