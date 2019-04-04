@@ -1,2 +1,5 @@
 bebop_gazebo/config/mathematical_model.pdf
 bebop_gazebo/launch/task*
+.cproject
+.project
+.settings
