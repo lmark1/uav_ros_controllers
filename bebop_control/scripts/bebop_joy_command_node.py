@@ -42,9 +42,7 @@ class Commander():
         cmd_position = Vector3()
         cmd_position.x = self.UAV_pose.point.x + 10*data.linear.x #5ms for 20Hz
         cmd_position.y = self.UAV_pose.point.y + 10*data.linear.y #5ms for 20Hz
-        print("current pose: {}".format(self.UAV_pose.point.z))
         cmd_position.z = self.UAV_pose.point.z + 10*data.linear.z + Commander.BEBOP_MAGIC_NUMBER
-        print("command pose: {}\n".format(data.linear.z))
         self.pos_pub.publish(cmd_position)
     
     def position_callback(self,data):
