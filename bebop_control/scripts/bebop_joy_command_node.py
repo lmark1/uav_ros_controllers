@@ -11,7 +11,7 @@ class Commander():
     
     # Bebop magic number
     # TODO: When LIDAR is added on bebop publishing odometry as reference lowers bebop height
-    BEBOP_MAGIC_NUMBER = 0.061
+    BEBOP_MAGIC_NUMBER = 0.0605
 
     def __init__(self):
         # Create a publisher for roll pitch yaw cmnds
