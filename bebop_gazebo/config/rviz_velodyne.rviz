@@ -56,10 +56,10 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 47.221981048583984
-        Min Value: -46.379154205322266
+        Max Value: 10
+        Min Value: -10
         Value: true
-      Axis: X
+      Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 255; 255; 255
@@ -75,13 +75,36 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 6
-      Size (m): 0.009999999776482582
-      Style: Points
-      Topic: /velodyne_points
+      Size (Pixels): 3
+      Size (m): 0.02500000037252903
+      Style: Flat Squares
+      Topic: /leddar_points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
+      Value: true
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        bebop/base_link:
+          Value: true
+        leddar:
+          Value: true
+        world:
+          Value: true
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        world:
+          bebop/base_link:
+            leddar:
+              {}
+      Update Interval: 0
       Value: true
   Enabled: true
   Global Options:
@@ -111,25 +134,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.727519512176514
+      Distance: 13.193671226501465
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.192644715309143
-        Y: -0.006078279577195644
-        Z: 1.2276192903518677
+        X: 4.487437725067139
+        Y: -1.2937573194503784
+        Z: 6.812921047210693
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7153974175453186
+      Pitch: 0.8847962617874146
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.115405797958374
+      Yaw: 3.4004085063934326
     Saved: ~
 Window Geometry:
   Displays:

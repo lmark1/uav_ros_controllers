@@ -153,10 +153,10 @@
     
     
     <xacro:if value="${enable_velodyne}">
-	    <xacro:include filename="$(find velodyne_description)/urdf/VLP-16.urdf.xacro"/>
-	    <VLP-16 parent="base_link" name="velodyne" topic="/velodyne_points" hz="10" samples="440" gpu="false">
+	    <xacro:include filename="$(find velodyne_description)/urdf/VU-8.urdf.xacro"/>
+	    <VU-8 parent="base_link" name="leddar" topic="/leddar_points" hz="10" samples="440" gpu="false">
 	        <origin xyz="0 0 0.05" rpy="0 0 0" />
-	    </VLP-16>
+	    </VU-8>
     </xacro:if>
   
 </robot>
