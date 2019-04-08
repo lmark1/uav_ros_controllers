@@ -7,15 +7,24 @@ find_package(catkin REQUIRED COMPONENTS
     std_msgs
     sensor_msgs)
 
+find_package(PCL 1.8 REQUIRED COMPONENTS
+    common
+    io)
+
 catkin_package()
 
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
-    )
-    
+    ${PCL_INCLUDE_DIRS})
+link_directories(
+    ${PCL_LIBRARY_DIRS})
+add_definitions(
+    ${PCL_DEFINITIONS})
+
 add_library(plane_detection src/PlaneDetection.cpp)
-target_link_libraries(plane_detection ${catkin_LIBRARIES})
+target_link_libraries(plane_detection 
+    ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(plane_detection_node nodes/PlaneDetectionNode.cpp)
 target_link_libraries(plane_detection_node 
