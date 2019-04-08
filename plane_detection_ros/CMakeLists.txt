@@ -9,7 +9,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(PCL 1.8 REQUIRED COMPONENTS
     common
-    io)
+    io
+    ros
+    segmentation
+    filters)
 
 catkin_package()
 

@@ -18,7 +18,12 @@ public:
 	PlaneDetection();
 	virtual ~PlaneDetection();
 
-	void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr& pointCloud);
+	void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr&);
+
+private:
+
+	const double DISTANCE_TRESHOLD = 0.01;
+
 };
 
 #endif /* PLANE_DETECTION_H */
