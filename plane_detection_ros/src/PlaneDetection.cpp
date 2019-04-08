@@ -5,13 +5,22 @@
  *      Author: Lovro Markovic
  */
 
+#include <ros/console.h>
 #include "PlaneDetection.h"
 
-PlaneDetection::PlaneDetection() {
-	// TODO Auto-generated constructor stub
+PlaneDetection::PlaneDetection()
+{
 }
 
-PlaneDetection::~PlaneDetection() {
-	// TODO Auto-generated destructor stub
+PlaneDetection::~PlaneDetection()
+{
+}
+
+
+
+void PlaneDetection::pointCloudCallback(
+		const sensor_msgs::PointCloud2ConstPtr& pointCloud)
+{
+	ROS_INFO("Hello from callback");
 }
 

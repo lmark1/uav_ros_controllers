@@ -6,18 +6,26 @@
  */
 
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
 
 #include "PlaneDetection.h"
 
 /**
  * Initializes plane detection node. Feeds PointCloud messages to
  * PlaneDetection object.
+ *
+ * Default topics for remapping:
+ * 		- /pointcloud - PointCloud2 ROS message
  */
 int main(int argc, char **argv) {
 
-	// Initialize ROS node.
 	ros::init(argc, argv, "plane_detection");
+	ros::NodeHandle n;
 
-	PlaneDetection planeDetection;
+	// Make a new PlaneDetection object
+	std::shared_ptr<PlaneDetection> planeDetection {new PlaneDetection()};
+	ros::Subscriber rc_sub = n.subscribe("/pointcloud", 1,
+			&PlaneDetection::pointCloudCallback, planeDetection.get());
+
+	while(ros::ok())
+		ros::spin();
 }
