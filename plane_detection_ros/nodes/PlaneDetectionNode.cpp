@@ -5,9 +5,9 @@
  *      Author: lmark
  */
 
+// ROS includes
 #include <ros/ros.h>
-
-#include "PlaneDetection.h"
+#include "DetectionWrapper.h"
 
 /**
  * Initializes plane detection node. Feeds PointCloud messages to
@@ -27,19 +27,19 @@ int main(int argc, char **argv) {
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Setup a new planeDetection object
-	std::shared_ptr<PlaneDetection> planeDetection {new PlaneDetection};
+	std::shared_ptr<DetectionWrapper> detectionWrapper {new DetectionWrapper};
 	ros::Subscriber pclSub = nh.subscribe("/pointcloud", 1,
-			&PlaneDetection::pointCloudCallback, planeDetection.get());
+			&DetectionWrapper::pointCloudCallback, detectionWrapper.get());
 	ros::Publisher planePub = nh.advertise<sensor_msgs::PointCloud2>(
 			"/plane", 1);
 
 	// Setup the loop
-	ros::Rate loopRate {planeDetection->getDetectionRate()};
+	ros::Rate loopRate {detectionWrapper->getDetectionRate()};
 	while(ros::ok())
 	{
 		ros::spinOnce();
-		planeDetection->detectPlane();
-		planeDetection->publishPlane(planePub);
+		detectionWrapper->doPlaneDetection();
+		detectionWrapper->publishPlane(planePub);
 		loopRate.sleep();
 	}
 
