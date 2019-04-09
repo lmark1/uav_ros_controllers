@@ -19,9 +19,12 @@
 // ROS includes
 #include <ros/console.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <std_msgs/Header.h>
 
 // Own includes
 #include "PlaneDetection.h"
+
+typedef pcl::PointCloud<pcl::PointXYZ> pcl3d_t;
 
 PlaneDetection::PlaneDetection()
 {
@@ -35,17 +38,13 @@ void PlaneDetection::pointCloudCallback(
 		const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 {
 	// Create a new pcl::PointCloud pointer object
-	pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloud(
-			new pcl::PointCloud<pcl::PointXYZ>
-	);
+	pcl3d_t::Ptr pclCloud {new pcl3d_t};
 
 	// Convert recieved ROS message to pclCloud
 	pcl::fromROSMsg (*pclMsg, *pclCloud);
-	ROS_DEBUG("New cloud msg: (%i, %i)\n",
-			pclCloud->width, pclCloud->height);
 
 	// Create output objects pointers
-	pcl::ModelCoefficients::Ptr modelCoefficients (new pcl::ModelCoefficients);
+	pcl::ModelCoefficients::Ptr modelCoefficients {new pcl::ModelCoefficients};
 	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 
 	// Initialize RANSAC filter
@@ -54,8 +53,7 @@ void PlaneDetection::pointCloudCallback(
 	seg.setModelType 			(pcl::SACMODEL_PLANE);
 	seg.setMethodType 			(pcl::SAC_RANSAC);
 	seg.setDistanceThreshold 	(PlaneDetection::DISTANCE_TRESHOLD);
-	seg.setInputCloud			(pcl::PointCloud<pcl::PointXYZ>::ConstPtr (
-			new pcl::PointCloud<pcl::PointXYZ>(*pclCloud)));
+	seg.setInputCloud			(pcl3d_t::ConstPtr {new pcl3d_t(*pclCloud)} );
 	seg.segment 				(*inliers, *modelCoefficients);
 
 	// Check if any solution is found
@@ -64,6 +62,20 @@ void PlaneDetection::pointCloudCallback(
 		ROS_DEBUG("No solution found.");
 		return;
 	}
+
+	// Copy all indices to a new PointCloud
+	pcl3d_t::Ptr outputCloud {new pcl3d_t};
+	pcl::copyPointCloud<pcl::PointXYZ>(*pclCloud, inliers->indices, *outputCloud);
+
+	// Construct a new ROS message
+	std_msgs::Header header;
+	header.stamp 	= ros::Time::now();
+	header.frame_id = PlaneDetection::FRAME_ID;
+
+	// Copy points
+	sensor_msgs::PointCloud2 outputMessage;
+	pcl::toROSMsg(*outputCloud, outputMessage);
+	outputMessage.header = header;
 }
 
 

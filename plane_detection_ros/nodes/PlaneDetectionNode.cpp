@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Make a new PlaneDetection object
-	std::shared_ptr<PlaneDetection> planeDetection {new PlaneDetection()};
+	std::shared_ptr<PlaneDetection> planeDetection {new PlaneDetection};
 	ros::Subscriber rc_sub = n.subscribe("/pointcloud", 1,
 			&PlaneDetection::pointCloudCallback, planeDetection.get());
 
