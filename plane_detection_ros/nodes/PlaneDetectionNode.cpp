@@ -38,6 +38,8 @@ int main(int argc, char **argv) {
 	while(ros::ok())
 	{
 		ros::spinOnce();
+		detectionWrapper->convertFromROSMsg();
+		detectionWrapper->doCloudFiltering();
 		detectionWrapper->doPlaneDetection();
 		detectionWrapper->publishPlane(planePub);
 		loopRate.sleep();

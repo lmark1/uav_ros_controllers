@@ -24,8 +24,7 @@ class DetectionWrapper
 {
 public:
 
-	DetectionWrapper():
-		_planeDetection (new PlaneDetection)
+	DetectionWrapper()
 	{
 	}
 
@@ -34,7 +33,7 @@ public:
 	}
 
 	/**
-	 * Returns detection frequency.
+	 * Returns desired detection frequency.
 	 */
 	double getDetectionRate()
 	{
@@ -48,7 +47,7 @@ public:
 	void pointCloudCallback(
 			const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 	{
-		_currentPointcloud = *pclMsg;
+		_currentPointCloud = *pclMsg;
 	}
 
 	/**
@@ -72,37 +71,85 @@ public:
 		pcl::toROSMsg(this->_currentPlane, outputMessage);
 		outputMessage.header = header;
 
-		ROS_DEBUG("Found plane with %i points", this->_currentPlane.size());
+		// Publish
 		pub.publish(outputMessage);
 	}
 
 	/**
-	 * Make a call to PlaneDetection::detectPlane() method.
+	 * Convert last recieved PointCloud ROS message to
+	 * pcl::PointCloud<pcl:PointXYZ> type.
+	 * Do this before performing detection.
 	 */
-	void doPlaneDetection()
+	void convertFromROSMsg()
 	{
-		if (_currentPointcloud.data.size() == 0)
+		if (_currentPointCloud.data.size() == 0)
 		{
-			ROS_WARN("No PointCloud received, canceling detection.");
+			ROS_WARN("PointCloud2 message not received, canceling conversion.");
 			return;
 		}
 
 		// Convert received ROS message to pclCloud
-		pcl3d_t::Ptr pclCloud {new pcl3d_t};
-		pcl::fromROSMsg (_currentPointcloud, *pclCloud);
+		pcl::fromROSMsg (_currentPointCloud, _convertedPointCloud);
+		ROS_DEBUG("Conversion successful");
+	}
+
+	/**
+	 * Make a polite(!) call to plane_detect::detectPlane() method.
+	 */
+	void doPlaneDetection()
+	{
+		if (_convertedPointCloud.size() == 0)
+		{
+			ROS_WARN("Converted PointCloud empty, canceling detection.");
+			return;
+		}
 
 		// Do the plane detection
-		_planeDetection->detectPlane(*pclCloud, _currentPlane);
+		plane_detect::detectPlane(_convertedPointCloud, _currentPlane);
+		ROS_DEBUG("Found plane with %lu points", _currentPlane.size());
+	}
+
+	/**
+	 * PointCloud filtering.
+	 */
+	void doCloudFiltering()
+	{
+		if (_convertedPointCloud.size() == 0)
+		{
+			ROS_WARN("Converted PointCloud empty, canceling filtering.");
+			return;
+		}
+
+		plane_detect::filterPointCloud(_convertedPointCloud);
+		ROS_DEBUG("Filtering successful");
 	}
 
 private:
 
-	std::unique_ptr<PlaneDetection> _planeDetection;
-	sensor_msgs::PointCloud2 _currentPointcloud;
+	/**
+	 * Currently available PointCloud from the callback function.
+	 */
+	sensor_msgs::PointCloud2 _currentPointCloud;
+
+	/**
+	 * Converted PointCloud from ROS msg.
+	 */
+	pcl3d_t _convertedPointCloud;
+
+	/**
+	 * Last detected plane.
+	 */
 	pcl3d_t _currentPlane;
 
-	const std::string FRAME_ID = "leddar";
-	const double RATE = 10.0;
+	/**
+	 * Frame ID where the lidar is located.
+	 */
+	std::string FRAME_ID = "leddar";
+
+	/**
+	 * Rate of the detection.
+	 */
+	double RATE = 10.0;
 };
 
 #endif /* DETECTION_WRAPPER_H */
