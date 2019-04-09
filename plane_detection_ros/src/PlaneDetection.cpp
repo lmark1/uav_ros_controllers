@@ -24,6 +24,10 @@
 // Own includes
 #include "PlaneDetection.h"
 
+PlaneDetection::PlaneDetection()
+{
+}
+
 PlaneDetection::~PlaneDetection()
 {
 }
