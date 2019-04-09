@@ -23,6 +23,7 @@ public:
 private:
 
 	const double DISTANCE_TRESHOLD = 0.01;
+	const bool ENABLE_OPTIMIZATION = false;
 
 };
 

@@ -16,7 +16,6 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 
-
 // ROS includes
 #include <ros/console.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -45,20 +44,26 @@ void PlaneDetection::pointCloudCallback(
 	ROS_DEBUG("New cloud msg: (%i, %i)\n",
 			pclCloud->width, pclCloud->height);
 
+	// Create output objects pointers
 	pcl::ModelCoefficients::Ptr modelCoefficients (new pcl::ModelCoefficients);
 	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 
-	// Create the segmentation object
+	// Initialize RANSAC filter
 	pcl::SACSegmentation<pcl::PointXYZ> seg;
-	// Optional
-	seg.setOptimizeCoefficients (true);
-	// Mandatory
-	seg.setModelType (pcl::SACMODEL_PLANE);
-	seg.setMethodType (pcl::SAC_RANSAC);
-	seg.setDistanceThreshold (PlaneDetection::DISTANCE_TRESHOLD);
-	seg.setInputCloud (pclCloud);
-	seg.segment (*inliers, *modelCoefficients);
+	seg.setOptimizeCoefficients (PlaneDetection::ENABLE_OPTIMIZATION);
+	seg.setModelType 			(pcl::SACMODEL_PLANE);
+	seg.setMethodType 			(pcl::SAC_RANSAC);
+	seg.setDistanceThreshold 	(PlaneDetection::DISTANCE_TRESHOLD);
+	seg.setInputCloud			(pcl::PointCloud<pcl::PointXYZ>::ConstPtr (
+			new pcl::PointCloud<pcl::PointXYZ>(*pclCloud)));
+	seg.segment 				(*inliers, *modelCoefficients);
 
+	// Check if any solution is found
+	if (inliers->indices.size() == 0)
+	{
+		ROS_DEBUG("No solution found.");
+		return;
+	}
 }
 
 
