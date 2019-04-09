@@ -6,8 +6,6 @@
  */
 
 // PCL includes
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 #include <pcl/conversions.h>
 
 #include <pcl/ModelCoefficients.h>
@@ -34,14 +32,30 @@ PlaneDetection::~PlaneDetection()
 {
 }
 
+double PlaneDetection::getDetectionRate()
+{
+	return this->RATE;
+}
+
 void PlaneDetection::pointCloudCallback(
 		const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 {
+	this->currPointcloud = *pclMsg;
+}
+
+void PlaneDetection::detectPlane()
+{
+	if (this->currPointcloud.data.size() == 0)
+	{
+		ROS_WARN("No PointCloud received, stopping detection.");
+		return;
+	}
+
 	// Create a new pcl::PointCloud pointer object
 	pcl3d_t::Ptr pclCloud {new pcl3d_t};
 
 	// Convert recieved ROS message to pclCloud
-	pcl::fromROSMsg (*pclMsg, *pclCloud);
+	pcl::fromROSMsg (this->currPointcloud, *pclCloud);
 
 	// Create output objects pointers
 	pcl::ModelCoefficients::Ptr modelCoefficients {new pcl::ModelCoefficients};
@@ -64,8 +78,17 @@ void PlaneDetection::pointCloudCallback(
 	}
 
 	// Copy all indices to a new PointCloud
-	pcl3d_t::Ptr outputCloud {new pcl3d_t};
-	pcl::copyPointCloud<pcl::PointXYZ>(*pclCloud, inliers->indices, *outputCloud);
+	pcl::copyPointCloud<pcl::PointXYZ>(*pclCloud, inliers->indices,
+			this->currentPlane);
+}
+
+void PlaneDetection::publishPlane(ros::Publisher& pub)
+{
+	if (this->currentPlane.size() == 0)
+	{
+		ROS_WARN("No plane ready for publishing.");
+		return;
+	}
 
 	// Construct a new ROS message
 	std_msgs::Header header;
@@ -74,8 +97,11 @@ void PlaneDetection::pointCloudCallback(
 
 	// Copy points
 	sensor_msgs::PointCloud2 outputMessage;
-	pcl::toROSMsg(*outputCloud, outputMessage);
+	pcl::toROSMsg(this->currentPlane, outputMessage);
 	outputMessage.header = header;
+
+	ROS_DEBUG("Found plane with %i points", this->currentPlane.size());
+	pub.publish(outputMessage);
 }
 
 
