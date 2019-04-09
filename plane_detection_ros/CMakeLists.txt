@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     rospy
     std_msgs
+    dynamic_reconfigure
     sensor_msgs)
 
 find_package(PCL 1.8 REQUIRED COMPONENTS
@@ -13,6 +14,13 @@ find_package(PCL 1.8 REQUIRED COMPONENTS
     ros
     segmentation
     filters)
+
+find_package(cmake_modules REQUIRED)
+
+
+generate_dynamic_reconfigure_options(
+    config/PlaneDetectionParameters.cfg
+)
 
 catkin_package()
 
@@ -31,4 +39,4 @@ target_link_libraries(plane_detection
 
 add_executable(plane_detection_node nodes/PlaneDetectionNode.cpp)
 target_link_libraries(plane_detection_node 
-    ${catkin_LIBRARIES} plane_detection) 
+    ${catkin_LIBRARIES} plane_detection)    

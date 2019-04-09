@@ -12,6 +12,7 @@
 #include <ros/console.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <std_msgs/Header.h>
+#include <plane_detection_ros/PlaneDetectionParametersConfig.h>
 
 // Own includes
 #include "PlaneDetection.h"
@@ -48,6 +49,21 @@ public:
 			const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 	{
 		_currentPointCloud = *pclMsg;
+	}
+
+	/**
+	 * Callback function used for setting various parameters.
+	 */
+	void parametersCallback(
+			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
+			uint32_t lecvel)
+	{
+		ROS_WARN("Hello from callbdack");
+		plane_detect::DISTANCE_TRESHOLD = configMsg.dist_tresh;
+		plane_detect::ENABLE_OPTIMIZATION = configMsg.param_opt;
+		plane_detect::FILTER_X = configMsg.lim;
+		plane_detect::FILTER_Y = configMsg.lim;
+		plane_detect::FILTER_Z = configMsg.lim;
 	}
 
 	/**
