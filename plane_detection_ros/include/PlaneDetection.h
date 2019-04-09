@@ -15,29 +15,49 @@
 typedef pcl::PointCloud<pcl::PointXYZ> pcl3d_t;
 
 /**
- * This class is used for plane detection from pcl3d_t objects.
+ * This namespace is used for plane detection from pcl3d_t objects.
  */
-class PlaneDetection {
-
-public:
-
-	PlaneDetection ();
-	virtual ~PlaneDetection ();
+namespace plane_detect {
 
 	/**
 	 * Detect plane from the given PointCloud<PointXYZ> object.
 	 *
-	 * @inputCloud - Input PointCloude (Containing all the points)
-	 * @outputCloud - Output Pointcloud (Containing detected plane points)
+	 * @param inputCloud - Input PointCloud (Containing all the points)
+	 * @param outputCloud - Output PointCloud (Containing detected plane points)
 	 */
 	void detectPlane (const pcl3d_t& inputCloud, pcl3d_t& planeCloud);
 
-private:
+	/**
+	 * Filter given PointCloud. Ignore all points outside of specified ranges.
+	 *
+	 * @param inputCloud - Input Pointcloud
+	 */
+	void filterPointCloud (pcl3d_t& inputCloud);
 
-	// Define some constants
-	const double DISTANCE_TRESHOLD = 0.01;
-	const bool ENABLE_OPTIMIZATION = false;
+	/**
+	 * Maximum distance from plane to the plane point.
+	 */
+	double DISTANCE_TRESHOLD = 0.01;
 
-};
+	/**
+	 * Enables optimization of parameters.
+	 */
+	bool ENABLE_OPTIMIZATION = true;
+
+	/**
+	 * Filters given PointCloud along the x - axis.
+	 */
+	float FILTER_X = 2;
+
+	/**
+	 * Filters given PointCloud along the y - axis.
+	 */
+	float FILTER_Y = 2;
+
+	/**
+	 * Filters given PointCloud along the z - axis.
+	 */
+	float FILTER_Z = 2;
+}
 
 #endif /* PLANE_DETECTION_H */
