@@ -58,12 +58,12 @@ public:
 			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
 			uint32_t lecvel)
 	{
-		ROS_WARN("Hello from callbdack");
+		ROS_WARN("Hello from Configure callbdack");
 		plane_detect::DISTANCE_TRESHOLD = configMsg.dist_tresh;
 		plane_detect::ENABLE_OPTIMIZATION = configMsg.param_opt;
-		plane_detect::FILTER_X = configMsg.lim;
-		plane_detect::FILTER_Y = configMsg.lim;
-		plane_detect::FILTER_Z = configMsg.lim;
+		plane_detect::FILTER_X = configMsg.lim_x;
+		plane_detect::FILTER_Y = configMsg.lim_y;
+		plane_detect::FILTER_Z = configMsg.lim_z;
 	}
 
 	/**
