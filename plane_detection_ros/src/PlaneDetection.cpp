@@ -10,6 +10,7 @@
 #include <pcl/ModelCoefficients.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/crop_box.h>
+#include <pcl/common/centroid.h>
 
 // Own includes
 #include "PlaneDetection.h"
@@ -17,12 +18,12 @@
 // Eigen
 #include <Eigen/Core>
 
-void plane_detect::detectPlane(
+coef_t::Ptr plane_detect::detectPlane(
 		const pcl3d_t& currPointCloud, pcl3d_t& planeCloud)
 {
 
 	// Create output objects pointers
-	pcl::ModelCoefficients::Ptr modelCoefficients {new pcl::ModelCoefficients};
+	coef_t::Ptr modelCoefficients {new pcl::ModelCoefficients};
 	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 
 	// Initialize RANSAC filter
@@ -37,6 +38,8 @@ void plane_detect::detectPlane(
 	// Copy all indices to a new PointCloud
 	pcl::copyPointCloud<pcl::PointXYZ>(currPointCloud, inliers->indices,
 			planeCloud);
+
+	return modelCoefficients;
 }
 
 void plane_detect::filterPointCloud (pcl3d_t& inputCloud)
@@ -56,4 +59,16 @@ void plane_detect::filterPointCloud (pcl3d_t& inputCloud)
 	});
 	boxFilter.setInputCloud (pcl3d_t::ConstPtr {new pcl3d_t(inputCloud)});
 	boxFilter.filter (inputCloud);
+}
+
+pcl::PointXYZ plane_detect::getCentroid(const pcl3d_t& inputCloud)
+{
+	pcl::CentroidPoint<pcl::PointXYZ> centroidCalc;
+	for(auto& point : inputCloud.points)
+		centroidCalc.add(point);
+
+	pcl::PointXYZ centroid;
+	centroidCalc.get(centroid);
+
+	return centroid;
 }

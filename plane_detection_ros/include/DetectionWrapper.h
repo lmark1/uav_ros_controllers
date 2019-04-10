@@ -12,7 +12,10 @@
 #include <ros/console.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <std_msgs/Header.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <plane_detection_ros/PlaneDetectionParametersConfig.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <vector>
 
 // Own includes
 #include "PlaneDetection.h"
@@ -27,6 +30,10 @@ public:
 
 	DetectionWrapper()
 	{
+		_currCentroid.x = 0.0;
+		_currCentroid.y = 0.0;
+		_currCentroid.z = 0.0;
+		_currPlaneParams.values = std::vector<float>(4, 0.0);
 	}
 
 	~DetectionWrapper()
@@ -48,7 +55,7 @@ public:
 	void pointCloudCallback(
 			const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 	{
-		_currentPointCloud = *pclMsg;
+		_currPointCloud = *pclMsg;
 	}
 
 	/**
@@ -71,7 +78,7 @@ public:
 	 */
 	void publishPlane(ros::Publisher& pub)
 	{
-		if (this->_currentPlane.size() == 0)
+		if (_currPlaneCloud.size() == 0)
 		{
 			ROS_WARN("No plane ready for publishing.");
 			return;
@@ -84,10 +91,42 @@ public:
 
 		// Copy points
 		sensor_msgs::PointCloud2 outputMessage;
-		pcl::toROSMsg(this->_currentPlane, outputMessage);
+		pcl::toROSMsg(_currPlaneCloud, outputMessage);
 		outputMessage.header = header;
 
 		// Publish
+		pub.publish(outputMessage);
+	}
+
+	void publishNormal(ros::Publisher& pub)
+	{
+		if (_currPlaneCloud.size() == 0)
+		{
+			ROS_WARN("No plane normal ready for publishing.");
+			return;
+		}
+
+		// Construct a new ROS message
+		std_msgs::Header header;
+		header.stamp 	= ros::Time::now();
+		header.frame_id = FRAME_ID;
+
+		geometry_msgs::PoseStamped outputMessage;
+		outputMessage.header = header;
+		outputMessage.pose.position.x = _currCentroid.x;
+		outputMessage.pose.position.y = _currCentroid.y;
+		outputMessage.pose.position.z = _currCentroid.z;
+
+		tf2::Quaternion myQuaternion;
+		double yaw = atan2(
+				_currPlaneParams.values[1],
+				_currPlaneParams.values[0]);
+		myQuaternion.setRPY(0, 0, yaw);
+		outputMessage.pose.orientation.x = myQuaternion.x();
+		outputMessage.pose.orientation.y = myQuaternion.y();
+		outputMessage.pose.orientation.z = myQuaternion.z();
+		outputMessage.pose.orientation.w = myQuaternion.w();
+
 		pub.publish(outputMessage);
 	}
 
@@ -98,14 +137,14 @@ public:
 	 */
 	void convertFromROSMsg()
 	{
-		if (_currentPointCloud.data.size() == 0)
+		if (_currPointCloud.data.size() == 0)
 		{
 			ROS_WARN("PointCloud2 message not received, canceling conversion.");
 			return;
 		}
 
 		// Convert received ROS message to pclCloud
-		pcl::fromROSMsg (_currentPointCloud, _convertedPointCloud);
+		pcl::fromROSMsg (_currPointCloud, _currPcl);
 		ROS_DEBUG("Conversion successful");
 	}
 
@@ -114,15 +153,31 @@ public:
 	 */
 	void doPlaneDetection()
 	{
-		if (_convertedPointCloud.size() == 0)
+		if (_currPcl.size() == 0)
 		{
-			ROS_WARN("Converted PointCloud empty, canceling detection.");
+			ROS_WARN("No PointCloud message available.");
 			return;
 		}
 
 		// Do the plane detection
-		plane_detect::detectPlane(_convertedPointCloud, _currentPlane);
-		ROS_DEBUG("Found plane with %lu points", _currentPlane.size());
+		coef_t::Ptr paramsPtr = plane_detect::detectPlane(
+				_currPcl, _currPlaneCloud);
+
+		// Make plane in YZ plane
+		double length = sqrt(
+				pow(paramsPtr->values[0], 2) + pow(paramsPtr->values[1], 2));
+		_currPlaneParams.values[0] = paramsPtr->values[0] / length;
+		_currPlaneParams.values[1] = paramsPtr->values[1] / length;
+		_currPlaneParams.values[2] = 0.0;
+
+		// Calculate D component
+		_currCentroid = plane_detect::getCentroid(_currPlaneCloud);
+		_currPlaneParams.values[3] =
+				- _currPlaneParams.values[0] * _currCentroid.x
+				- _currPlaneParams.values[1] * _currCentroid.y
+				- _currPlaneParams.values[2] * _currCentroid.z;
+
+		ROS_DEBUG("Found plane with %lu points \n", _currPlaneCloud.size());
 	}
 
 	/**
@@ -130,32 +185,42 @@ public:
 	 */
 	void doCloudFiltering()
 	{
-		if (_convertedPointCloud.size() == 0)
+		if (_currPcl.size() == 0)
 		{
 			ROS_WARN("Converted PointCloud empty, canceling filtering.");
 			return;
 		}
 
-		plane_detect::filterPointCloud(_convertedPointCloud);
+		plane_detect::filterPointCloud(_currPcl);
 		ROS_DEBUG("Filtering successful");
 	}
 
 private:
 
 	/**
+	 * Plane centroid.
+	 */
+	pcl::PointXYZ _currCentroid;
+
+	/**
+	 * Current plane parameters.
+	 */
+	coef_t _currPlaneParams;
+
+	/**
 	 * Currently available PointCloud from the callback function.
 	 */
-	sensor_msgs::PointCloud2 _currentPointCloud;
+	sensor_msgs::PointCloud2 _currPointCloud;
 
 	/**
 	 * Converted PointCloud from ROS msg.
 	 */
-	pcl3d_t _convertedPointCloud;
+	pcl3d_t _currPcl;
 
 	/**
 	 * Last detected plane.
 	 */
-	pcl3d_t _currentPlane;
+	pcl3d_t _currPlaneCloud;
 
 	/**
 	 * Frame ID where the lidar is located.

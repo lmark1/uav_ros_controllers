@@ -52,6 +52,9 @@ int main(int argc, char **argv) {
 
 	ros::Publisher planePub = nh.advertise<sensor_msgs::PointCloud2>(
 			"/plane", 1);
+	ros::Publisher normalPub = nh.advertise<geometry_msgs::PoseStamped>(
+				"/plane_normal", 1);
+
 
 	// Setup the loop
 	ros::Rate loopRate {detectionWrapper->getDetectionRate()};
@@ -62,6 +65,7 @@ int main(int argc, char **argv) {
 		detectionWrapper->doCloudFiltering();
 		detectionWrapper->doPlaneDetection();
 		detectionWrapper->publishPlane(planePub);
+		detectionWrapper->publishNormal(normalPub);
 		loopRate.sleep();
 	}
 
