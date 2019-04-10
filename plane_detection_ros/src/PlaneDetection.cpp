@@ -72,3 +72,42 @@ pcl::PointXYZ plane_detect::getCentroid(const pcl3d_t& inputCloud)
 
 	return centroid;
 }
+
+void plane_detect::projectPlaneToYZ(
+		coef_t::Ptr coefPtr, const pcl::PointXYZ& centroid)
+{
+	double d = sqrt(
+			pow(coefPtr->values[0], 2) + pow(coefPtr->values[1], 2));
+
+	// A component
+	coefPtr->values[0] = coefPtr->values[0] / d;
+
+	// B component
+	coefPtr->values[1] = coefPtr->values[1] / d;
+
+	// C component
+	coefPtr->values[2] = 0.0;
+
+	// D component
+	coefPtr->values[3] =
+			- coefPtr->values[0] * centroid.x
+			- coefPtr->values[1] * centroid.y
+			- coefPtr->values[2] * centroid.z;
+}
+
+double plane_detect::distanceToPlane(
+		const pcl::PointXYZ& point, const coef_t& coef)
+{
+	double num = fabs(
+			coef.values[0] * point.x +
+			coef.values[1] * point.y +
+			coef.values[2] * point.z +
+			coef.values[3]);
+
+	double den = sqrt(
+			pow(coef.values[0], 2) +
+			pow(coef.values[1], 2) +
+			pow(coef.values[2], 2) );
+
+	return num / den;
+}

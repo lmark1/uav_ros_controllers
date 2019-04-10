@@ -26,7 +26,7 @@ namespace plane_detect {
 	 * @param inputCloud - Input PointCloud (Containing all the points)
 	 * @param outputCloud - Output PointCloud (Containing detected plane points)
 	 *
-	 * @return Plane coefficients ptr
+	 * @return Plane model coefficients pointer
 	 */
 	coef_t::Ptr detectPlane (const pcl3d_t& inputCloud, pcl3d_t& planeCloud);
 
@@ -38,9 +38,27 @@ namespace plane_detect {
 	void filterPointCloud (pcl3d_t& inputCloud);
 
 	/**
-	 * Get centroid point from the given pointcloud
+	 * Get centroid point from the given PointCloud
+	 *
+	 * @param inputCloud
 	 */
 	pcl::PointXYZ getCentroid(const pcl3d_t& inputCloud);
+
+	/**
+	 * Project the plane in Y-Z axis.
+	 *
+	 * @param coefPtr - given pointer to plane coefficients
+	 * @param centroid - given plane centroid
+	 */
+	void projectPlaneToYZ(coef_t::Ptr coefPtr, const pcl::PointXYZ& centroid);
+
+	/**
+	 * Calculate distance from given point to plane.
+	 *
+	 * @param point - given point
+	 * @param coef - given plane coefficients
+	 */
+	double distanceToPlane(const pcl::PointXYZ& point, const coef_t& coef);
 
 	/**
 	 * Maximum distance from plane to the plane point.
