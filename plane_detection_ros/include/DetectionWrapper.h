@@ -12,6 +12,7 @@
 #include <ros/console.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <std_msgs/Header.h>
+#include <std_msgs/Float64.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <plane_detection_ros/PlaneDetectionParametersConfig.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -28,12 +29,13 @@ class DetectionWrapper
 {
 public:
 
-	DetectionWrapper()
+	DetectionWrapper():
+		_currPlaneParams (new coef_t)
 	{
 		_currCentroid.x = 0.0;
 		_currCentroid.y = 0.0;
 		_currCentroid.z = 0.0;
-		_currPlaneParams.values = std::vector<float>(4, 0.0);
+		_currPlaneParams->values = std::vector<float> (4, 0.0);
 	}
 
 	~DetectionWrapper()
@@ -78,12 +80,6 @@ public:
 	 */
 	void publishPlane(ros::Publisher& pub)
 	{
-		if (_currPlaneCloud.size() == 0)
-		{
-			ROS_WARN("No plane ready for publishing.");
-			return;
-		}
-
 		// Construct a new ROS message
 		std_msgs::Header header;
 		header.stamp 	= ros::Time::now();
@@ -100,12 +96,6 @@ public:
 
 	void publishNormal(ros::Publisher& pub)
 	{
-		if (_currPlaneCloud.size() == 0)
-		{
-			ROS_WARN("No plane normal ready for publishing.");
-			return;
-		}
-
 		// Construct a new ROS message
 		std_msgs::Header header;
 		header.stamp 	= ros::Time::now();
@@ -119,13 +109,27 @@ public:
 
 		tf2::Quaternion myQuaternion;
 		double yaw = atan2(
-				_currPlaneParams.values[1],
-				_currPlaneParams.values[0]);
+				_currPlaneParams->values[1],
+				_currPlaneParams->values[0]);
 		myQuaternion.setRPY(0, 0, yaw);
 		outputMessage.pose.orientation.x = myQuaternion.x();
 		outputMessage.pose.orientation.y = myQuaternion.y();
 		outputMessage.pose.orientation.z = myQuaternion.z();
 		outputMessage.pose.orientation.w = myQuaternion.w();
+
+		pub.publish(outputMessage);
+	}
+
+	void publishDistanceToPlane(ros::Publisher& pub)
+	{
+		std_msgs::Float64 outputMessage;
+
+		// Careful not to publish a faulty solution
+		if (solutionFound())
+			outputMessage.data = plane_detect::distanceToPlane(
+					pcl::PointXYZ {0,  0, 0}, *_currPlaneParams);
+		else
+			outputMessage.data = NO_PLANE_DETECTED;
 
 		pub.publish(outputMessage);
 	}
@@ -153,29 +157,26 @@ public:
 	 */
 	void doPlaneDetection()
 	{
-		if (_currPcl.size() == 0)
+		if (!readyForDetection())
 		{
-			ROS_WARN("No PointCloud message available.");
+			ROS_WARN("Canceling detection, insufficient points.");
+			clearCurrentSolution();
 			return;
 		}
 
 		// Do the plane detection
-		coef_t::Ptr paramsPtr = plane_detect::detectPlane(
+		_currPlaneParams = plane_detect::detectPlane(
 				_currPcl, _currPlaneCloud);
 
-		// Make plane in YZ plane
-		double length = sqrt(
-				pow(paramsPtr->values[0], 2) + pow(paramsPtr->values[1], 2));
-		_currPlaneParams.values[0] = paramsPtr->values[0] / length;
-		_currPlaneParams.values[1] = paramsPtr->values[1] / length;
-		_currPlaneParams.values[2] = 0.0;
+		// Check if solution is found
+		if (!solutionFound())
+		{
+			ROS_WARN("No solution found");
+			return;
+		}
 
-		// Calculate D component
 		_currCentroid = plane_detect::getCentroid(_currPlaneCloud);
-		_currPlaneParams.values[3] =
-				- _currPlaneParams.values[0] * _currCentroid.x
-				- _currPlaneParams.values[1] * _currCentroid.y
-				- _currPlaneParams.values[2] * _currCentroid.z;
+		plane_detect::projectPlaneToYZ(_currPlaneParams, _currCentroid);
 
 		ROS_DEBUG("Found plane with %lu points \n", _currPlaneCloud.size());
 	}
@@ -185,17 +186,38 @@ public:
 	 */
 	void doCloudFiltering()
 	{
-		if (_currPcl.size() == 0)
-		{
-			ROS_WARN("Converted PointCloud empty, canceling filtering.");
-			return;
-		}
-
 		plane_detect::filterPointCloud(_currPcl);
 		ROS_DEBUG("Filtering successful");
 	}
 
 private:
+
+	/**
+	 * Check if solution is found.
+	 */
+	bool solutionFound()
+	{
+		return _currPlaneCloud.size() > 0 &&
+				_currPlaneParams->values.size() == 4;
+	}
+
+	/**
+	 * Check if ready for detection.
+	 */
+	bool readyForDetection()
+	{
+		return _currPcl.size() > MINIMUM_POINTS;
+	}
+
+	/**
+	 * Clear current solution.
+	 */
+	void clearCurrentSolution()
+	{
+		_currPcl.clear();
+		_currPlaneCloud.clear();
+		_currPlaneParams->values = std::vector<float> (4, 0.0);
+	}
 
 	/**
 	 * Plane centroid.
@@ -205,7 +227,7 @@ private:
 	/**
 	 * Current plane parameters.
 	 */
-	coef_t _currPlaneParams;
+	coef_t::Ptr _currPlaneParams;
 
 	/**
 	 * Currently available PointCloud from the callback function.
@@ -221,6 +243,16 @@ private:
 	 * Last detected plane.
 	 */
 	pcl3d_t _currPlaneCloud;
+
+	/**
+	 * Distance when plane is not selected
+	 */
+	const double NO_PLANE_DETECTED = -1.0;
+
+	/**
+	 * Minimium number of PointCloud points that need to be available.
+	 */
+	const int MINIMUM_POINTS = 3;
 
 	/**
 	 * Frame ID where the lidar is located.
