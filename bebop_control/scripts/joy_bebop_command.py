@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import rospy
+import math
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Vector3
 from geometry_msgs.msg import PointStamped, Point
@@ -20,6 +21,8 @@ class Commander():
         self.UAV_pose.point.y = 0
         self.UAV_pose.point.z = 0
         self.yaw = 0
+        self.yaw_mv = 0
+        self.euler_mv = Vector3(0., 0., 0.)
 
         # Remember the measured position
         self.x_mv = 0
@@ -45,9 +48,29 @@ class Commander():
     def dist_callback(self, msg):
         self.distance_mv = msg.data
 
+        if (self.distance_mv < 0):
+            self.mode_msg.data = Commander.MANUAL_MODE
+
     def position_callback(self,data):
         self.x_mv = data.pose.pose.position.x
         self.y_mv = data.pose.pose.position.y
+
+        qx = data.pose.pose.orientation.x
+        qy = data.pose.pose.orientation.y
+        qz = data.pose.pose.orientation.z
+        qw = data.pose.pose.orientation.w
+
+        self.convert_to_euler(qx, qy, qz, qw)
+
+    def convert_to_euler(self, qx, qy, qz, qw):
+        """Calculate roll, pitch and yaw angles/rates with quaternions"""
+
+        # conversion quaternion to euler (yaw - pitch - roll)
+        self.euler_mv.x = math.atan2(2 * (qw * qx + qy * qz), qw * qw
+                                     - qx * qx - qy * qy + qz * qz)
+        self.euler_mv.y = math.asin(2 * (qw * qy - qx * qz))
+        self.yaw_mv = math.atan2(2 * (qw * qz + qx * qy), qw * qw
+                                     + qx * qx - qy * qy - qz * qz)
 
     def joy_callback(self, data):
 
@@ -57,19 +80,31 @@ class Commander():
             # Check if distance reference is valid
             self.dist_ref = self.distance_mv
             if (self.dist_ref < 0):
+                print("BebopCommander: Unable to enter inspection mode.")
                 return
 
             # Set inspection mode
             self.mode_msg.data = Commander.INSPECION_MODE
             print("BebopCommander: Inspection mode activation successful - following dist {}"
                 .format(self.dist_ref))
+            self.mode_pub.publish(self.mode_msg)
+
 
         elif (data.buttons[4] != 1 and self.mode_msg.data == Commander.INSPECION_MODE):
             print("BebopCommander: Inspection mode deactivated.")
             self.mode_msg.data = Commander.MANUAL_MODE
-            self.UAV_pose.point.x = self.x_mv
+            self.mode_pub.publish(self.mode_msg)
 
-        self.mode_pub.publish(self.mode_msg)
+            # Set current reference
+            self.UAV_pose.point.x = self.x_mv
+            self.UAV_pose.point.y = self.y_mv
+
+            cmd_position = Vector3()
+            cmd_position.x = self.UAV_pose.point.x
+            cmd_position.y = self.UAV_pose.point.y
+            cmd_position.z = self.UAV_pose.point.z
+            self.pos_pub.publish(cmd_position)
+        
 
     # Subscribe to teleop msgs
     def cmd_vel_callback(self,data):

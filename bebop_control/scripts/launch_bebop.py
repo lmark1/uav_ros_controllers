@@ -138,7 +138,7 @@ class LaunchBebop:
         self.roll_rate_PID = PID(16.61, 0, 0, 100, -100)
 
         # Distance pid
-        self.distance_PID = PID(1.0, 0, 0, 0.2, -0.2)
+        self.distance_PID = PID(0.25, 0.05, 0.055, 0.18, -0.18)
 
         # Pre-filter constants
         self.filt_const_x = 0.5
@@ -265,7 +265,7 @@ class LaunchBebop:
 
             # Pass Distance as reference if in INSPECTION MODE
             if (self.current_mode > 0):
-                pitch_sp = self.distance_PID.compute(self.pose_sp.x, self.distance_mv, dt)
+                pitch_sp = - self.distance_PID.compute(self.pose_sp.x, self.distance_mv, dt)
             else:    
                 pitch_sp = self.pid_x.compute(self.pose_sp.x, self.x_mv, dt)
             
@@ -277,7 +277,7 @@ class LaunchBebop:
 
             # If in INSPECTION MODE override roll setpoint
             if (self.current_mode > 0):
-                roll_sp = self.pose_sp.y
+                roll_sp = - self.pose_sp.y
 
             # PITCH AND ROLL YAW ADJUSTMENT
             roll_sp_2 = math.cos(self.euler_mv.z) * roll_sp + \
