@@ -16,11 +16,11 @@
  * PlaneDetection object.
  *
  * Default topics for remapping:
- * 		- /pointcloud 	- PointCloud2 ROS message
- * 		- /plane	  	- PointCloud2 ROS message representing a plane
- * 		- /plane_normal - PoseStamped message representing the plane
+ * 		- /pointcloud 	- INPUT  - PointCloud2 ROS message
+ * 		- /plane	  	- OUTPUT - PointCloud2 ROS message representing a plane
+ * 		- /plane_normal - OUTPUT -PoseStamped message representing the plane
  * 					      centroid an normal orientation
- *		- /distance		- Distance from the UAV to the plane
+ *		- /distance		- OUTPUT -Distance from the UAV to the plane
  */
 int main(int argc, char **argv) {
 
