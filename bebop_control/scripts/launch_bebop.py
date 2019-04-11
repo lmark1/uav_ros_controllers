@@ -6,7 +6,7 @@ import math
 from geometry_msgs.msg import Vector3
 from mav_msgs.msg import Actuators
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Int32
 from pid import PID
 from trajectory_msgs.msg import MultiDOFJointTrajectory
 
@@ -69,6 +69,20 @@ class LaunchBebop:
             Vector3,
             self.linvel_cb)
 
+        # Distance subscriber
+        self.distance_subscriber = rospy.Subscriber(
+            "distance",
+            Float64,
+            self.distance_cb)
+        self.distance_mv = -1
+
+        #Mode subscriber
+        self.mode_subscriber = rospy.Subscriber(
+            "bebop/inspection_mode",
+            Int32,
+            self.mode_cb)
+        self.current_mode = 0
+
         # initialize publishers
         self.motor_pub = rospy.Publisher(
             '/gazebo/command/motor_speed',
@@ -123,6 +137,9 @@ class LaunchBebop:
         self.pitch_rate_PID = PID(16.61, 0, 0, 100, -100)
         self.roll_rate_PID = PID(16.61, 0, 0, 100, -100)
 
+        # Distance pid
+        self.distance_PID = PID(1.0, 0, 0, 0.2, -0.2)
+
         # Pre-filter constants
         self.filt_const_x = 0.5
         self.filt_const_y = 0.5
@@ -140,6 +157,12 @@ class LaunchBebop:
         self.linvel_x = 0
         self.linvel_y = 0
         self.linvel_z = 0
+
+    def distance_cb(self, msg):
+        self.distance_mv = msg.data
+
+    def mode_cb(self, msg):
+        self.current_mode = msg.data
 
     def setpoint_cb(self, data):
 
@@ -239,12 +262,22 @@ class LaunchBebop:
             # PITCH CONTROL OUTER LOOP
             # x - position control
             self.x_filt_sp = prefilter(self.pose_sp.x, self.x_filt_sp, self.filt_const_x)
-            pitch_sp = self.pid_x.compute(self.pose_sp.x, self.x_mv, dt)
+
+            # Pass Distance as reference if in INSPECTION MODE
+            if (self.current_mode > 0):
+                pitch_sp = self.distance_PID.compute(self.pose_sp.x, self.distance_mv, dt)
+            else:    
+                pitch_sp = self.pid_x.compute(self.pose_sp.x, self.x_mv, dt)
+            
 
             # ROLL CONTROL OUTER LOOP
             # y position control
             self.y_filt_sp = prefilter(self.pose_sp.y, self.y_filt_sp, self.filt_const_y)
             roll_sp = - self.pid_y.compute(self.pose_sp.y, self.y_mv, dt)
+
+            # If in INSPECTION MODE override roll setpoint
+            if (self.current_mode > 0):
+                roll_sp = self.pose_sp.y
 
             # PITCH AND ROLL YAW ADJUSTMENT
             roll_sp_2 = math.cos(self.euler_mv.z) * roll_sp + \
