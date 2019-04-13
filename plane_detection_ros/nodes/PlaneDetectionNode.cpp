@@ -9,7 +9,7 @@
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 
-#include "DetectionWrapper.h"
+#include "detection/DetectionWrapper.h"
 
 /**
  * Initializes plane detection node. Feeds PointCloud messages to
