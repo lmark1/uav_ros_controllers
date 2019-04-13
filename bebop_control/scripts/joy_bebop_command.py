@@ -121,7 +121,7 @@ class Commander():
             self.yaw = self.yaw + 0.01 * data.angular.z 
         else:
             self.UAV_pose.point.x = self.dist_ref
-            self.UAV_pose.point.y = 0.25 * data.linear.y
+            self.UAV_pose.point.y = 0.5 * data.linear.y
             self.yaw = self.uav_yaw + self.plane_yaw
 
         self.UAV_pose.point.z = self.UAV_pose.point.z + 0.5 * data.linear.z

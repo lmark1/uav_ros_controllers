@@ -138,7 +138,7 @@ class LaunchBebop:
         self.roll_rate_PID = PID(16.61, 0, 0, 100, -100)
 
         # Distance pid
-        self.distance_PID = PID(0.25, 0.05, 0.055, 0.18, -0.18)
+        self.distance_PID = PID(0.1, 0.00, 0.0, 0.1, -0.1)
 
         # Pre-filter constants
         self.filt_const_x = 0.5

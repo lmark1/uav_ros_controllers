@@ -9,7 +9,7 @@
     <!--_____________________________________________________________-->
     <!--LINK1 wind_turbine base-->
     <!--_____________________________________________________________-->
-    <link name='link_wind_turbine_base'>
+    <!-- <link name='link_wind_turbine_base'>
       
       <inertial>
         <mass value="50" />
@@ -24,7 +24,7 @@
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <mesh filename="package://bebop_gazebo/meshes/wind_turbine_base.dae"
-            scale="10 10 10" />
+            scale="100 100 100" />
         </geometry>
       </visual>
 
@@ -32,10 +32,11 @@
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
           <mesh filename="package://bebop_gazebo/meshes/wind_turbine_base.dae"
-            scale="10 10 10" />
+            scale="100 100 100" />
         </geometry>
       </collision>
     </link>
+-->
 
     <!--_____________________________________________________________-->
     <!--LINK2 wind_turbine rotor-->
@@ -52,18 +53,18 @@
       </inertial>
             
       <visual>
-        <origin xyz="0.5 0 0" rpy="0 0 0" />
+        <origin xyz="0.5 0 0" rpy="${PI/2} 0 0" />
         <geometry>
           <mesh filename="package://bebop_gazebo/meshes/wind_turbine_rotor.dae"
-            scale="10 10 10" />
+            scale="100 100 100" />
         </geometry>
       </visual>
 
       <collision name='collision'>
-        <origin xyz="0.5 0 0" rpy="0 0 0"/>
+        <origin xyz="0.5 0 0" rpy="${PI/2} 0 0"/>
         <geometry>
           <mesh filename="package://bebop_gazebo/meshes/wind_turbine_rotor.dae"
-            scale="10 10 10" />
+            scale="100 100 100" />
         </geometry>
       </collision>
     </link>
@@ -72,15 +73,16 @@
     <!--JOINT1 FIXED wind_turbine base-->
     <!--_____________________________________________________________-->
     <joint name="joint_wind_turbine_base" type="fixed">
-        <origin xyz="0 0 10.825" rpy="${PI/2} 0 0"/>
+        <origin xyz="0 0 50" rpy="0 0 0"/>
         <parent link="world"/>
-        <child link="link_wind_turbine_base"/>
+        <child link="link_wind_turbine_rotor"/>
     </joint>
     <!--_____________________________________________________________-->
     <!--JOINT2 FIXED force_sensor_mount_top-->
     <!--_____________________________________________________________-->
-    
-    <joint name="joint_wind_turbine_rotor" type="continuous">
+      
+    <!--
+    <joint name="joint_wind_turbine_rotor" type="fixed">
         <origin xyz="1 0.0005 0.07" rpy="0 ${PI/2} 0" />
         <parent link="link_wind_turbine_base"/>
         <child link="link_wind_turbine_rotor"/>
@@ -97,5 +99,5 @@
         <mechanicalReduction>1</mechanicalReduction>
       </actuator>
     </transmission>
-
+  -->
 </robot>
