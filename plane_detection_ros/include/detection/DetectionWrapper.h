@@ -19,7 +19,7 @@
 #include <vector>
 
 // Own includes
-#include "PlaneDetection.h"
+#include "detection/PlaneDetection.h"
 
 /**
  * Wrapper class for plane detection object. Used for relaying information

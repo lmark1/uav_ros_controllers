@@ -1,23 +1,20 @@
 /*
  * DistanceControl.cpp
  *
- *  Created on: Apr 11, 2019
+ *  Created on: Apr 13, 2019
  *      Author: lmark
  */
 
-#include "DistanceControl.h"
+#include "control/DistanceControl.h"
 
-DistanceControl::DistanceControl() {
+DistanceControl::DistanceControl(DistanceControlMode mode):
+	_mode(mode)
+{
 	// TODO Auto-generated constructor stub
 
 }
 
 DistanceControl::~DistanceControl() {
 	// TODO Auto-generated destructor stub
-}
-
-void DistanceControl::distanceCallback(const std_msgs::Float64& message)
-{
-
 }
 
