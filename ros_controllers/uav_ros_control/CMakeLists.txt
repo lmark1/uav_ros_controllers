@@ -7,7 +7,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
 	INCLUDE_DIRS include
-	LIBRARIES pid nfilt)
+	LIBRARIES pid nfilt
+	CATKIN_DEPENDS uav_ros_control_msgs)
 
 include_directories(
 	include
@@ -20,3 +21,6 @@ target_link_libraries(pid ${catkin_LIBRARIES})
 # Nonlinear filters library
 add_library(nfilt src/NonlinearFilters.cpp)
 target_link_libraries(nfilt ${catkin_LIBRARIES})
+
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
