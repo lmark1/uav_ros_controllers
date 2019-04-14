@@ -65,7 +65,7 @@ public:
 	 */
 	void parametersCallback(
 			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
-			uint32_t lecvel)
+			uint32_t level)
 	{
 		ROS_WARN("Hello from Configure callbdack");
 		plane_detect::DISTANCE_TRESHOLD = configMsg.dist_tresh;

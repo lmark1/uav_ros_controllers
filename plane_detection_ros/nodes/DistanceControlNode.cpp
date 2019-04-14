@@ -6,9 +6,11 @@
  */
 
 #include "control/DistanceControl.h"
+#include <plane_detection_ros/DistanceControlParametersConfig.h>
 
 // ROS Includes
 #include <ros/ros.h>
+#include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/Vector3.h>
 #include <std_msgs/Int32.h>
 
@@ -18,7 +20,7 @@
  * Default topics for remapping:
  * 		- /distance		- Distance from the UAV to the plane surface
  * 		- /joy			- Joystick topic used for enabling inspection mode
- *		- /real/imu		- IMU topic - realistic
+ *		- /real/imu	PID	- IMU topic - realistic
  *		- /sim/odometry	- Odometry topic - simulation
  *
  * ROS parameters:
@@ -28,7 +30,7 @@
 int main(int argc, char **argv) {
 
 	// Setup the node
-	ros::init(argc, argv, "plane_detection");
+	ros::init(argc, argv, "distance_control");
 	ros::NodeHandle nh;
 
 	// Get mode parameter
@@ -64,6 +66,22 @@ int main(int argc, char **argv) {
 	// Define publishers
 	ros::Publisher statePub = nh.advertise<std_msgs::Int32>(
 			"/control_state", 1);
+
+	// Initialize configure server
+	dynamic_reconfigure::
+		Server<plane_detection_ros::DistanceControlParametersConfig>
+		confServer;
+
+	// Initialize reconfigure callback
+	dynamic_reconfigure::
+		Server<plane_detection_ros::DistanceControlParametersConfig>::CallbackType
+		paramCallback;
+
+	// Setup reconfigure server
+	paramCallback = boost::bind(
+			&ControlBase::parametersCallback,
+			dynamic_cast<ControlBase*>(distanceControl.get()), _1, _2);
+	confServer.setCallback(paramCallback);
 
 	ros::Rate loopRate(rate);
 	while (ros::ok())

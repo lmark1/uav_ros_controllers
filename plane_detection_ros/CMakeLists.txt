@@ -6,7 +6,8 @@ find_package(catkin REQUIRED COMPONENTS
     rospy
     std_msgs
     dynamic_reconfigure
-    sensor_msgs)
+    sensor_msgs
+    uav_ros_control)
 
 find_package(PCL 1.8 REQUIRED COMPONENTS
     common
@@ -20,8 +21,10 @@ find_package(cmake_modules REQUIRED)
 
 generate_dynamic_reconfigure_options(
     config/PlaneDetectionParameters.cfg
+    config/DistanceControlParameters.cfg
 )
 
+# TODO: Write the catkin_package command properly
 catkin_package()
 
 include_directories(

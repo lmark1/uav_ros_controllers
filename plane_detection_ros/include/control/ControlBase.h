@@ -13,6 +13,8 @@
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <uav_ros_control/PID.h>
+#include <plane_detection_ros/DistanceControlParametersConfig.h>
 
 /**
  * This class is used for defining Control subscribers and publishers.
@@ -72,6 +74,20 @@ public:
 		_odomMsgSim = *message;
 	}
 
+	/**
+	 * Callback for parameter server.
+	 */
+	void parametersCallback(
+			plane_detection_ros::DistanceControlParametersConfig& configMsg,
+			uint32_t level)
+	{
+		_distancePID.set_kp(configMsg.k_p);
+		_distancePID.set_kd(configMsg.k_d);
+		_distancePID.set_ki(configMsg.k_i);
+		_distancePID.set_lim_high(configMsg.lim_high);
+		_distancePID.set_lim_low(configMsg.lim_low);
+	}
+
 	sensor_msgs::Joy getJoyMsg()
 	{
 		return _joyMsg;
@@ -97,7 +113,18 @@ public:
 		return _planeNormal;
 	}
 
+	PID getPID()
+	{
+		return _distancePID;
+	}
+
+
 private:
+
+	/**
+	 * Distance PID controller
+	 */
+	PID _distancePID;
 
 	/**
 	 * Current Joy message received. Used both in sim and real mode.
