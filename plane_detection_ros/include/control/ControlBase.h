@@ -23,7 +23,8 @@ public:
 	/**
 	 * Default constructor.
 	 */
-	ControlBase()
+	ControlBase():
+		_distance(-1)
 	{
 	}
 
@@ -36,7 +37,7 @@ public:
 	 */
 	void distanceCb(const std_msgs::Float64ConstPtr& message)
 	{
-		_distMsg = *message;
+		_distance = message->data;
 	}
 
 	/**
@@ -81,7 +82,7 @@ private:
 	/**
 	 * Current distance measured value. Used both in sim and real mode.
 	 */
-	std_msgs::Float64 _distMsg;
+	double _distance;
 
 	/**
 	 * Current IMU measured value. Used only is real mode.
