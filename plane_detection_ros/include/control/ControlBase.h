@@ -72,6 +72,31 @@ public:
 		_odomMsgSim = *message;
 	}
 
+	sensor_msgs::Joy getJoyMsg()
+	{
+		return _joyMsg;
+	}
+
+	double getDistance()
+	{
+		return _distance;
+	}
+
+	sensor_msgs::Imu getIMUMsg()
+	{
+		return _imuMsgReal;
+	}
+
+	nav_msgs::Odometry getOdomMsg()
+	{
+		return _odomMsgSim;
+	}
+
+	geometry_msgs::PoseStamped getPlaneNormal()
+	{
+		return _planeNormal;
+	}
+
 private:
 
 	/**

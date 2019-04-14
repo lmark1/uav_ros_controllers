@@ -40,15 +40,15 @@ void DistanceControl::detectStateChange()
 	{
 		ROS_DEBUG("Inspection mode requested.");
 		// Check if current distance is valid
-		if (_distance < 0)
+		if (getDistance() < 0)
 		{
 			ROS_FATAL("Unable to enter inspection mode.");
 			return;
 		}
 
 		ROS_INFO("Inspection activation successful-following distance %.2f",
-				_distance);
-		_distRef = _distance;
+				getDistance());
+		_distRef = getDistance();
 		_currState = DistanceControlState::INSPECTION;
 		return;
 	}
@@ -72,18 +72,18 @@ void DistanceControl::publishState(ros::Publisher& pub)
 
 bool DistanceControl::inspectionRequested()
 {
-	return _joyMsg.buttons[4] == 1 &&
+	return getJoyMsg().buttons[4] == 1 &&
 			_currState == DistanceControlState::MANUAL;
 }
 
 bool DistanceControl::inspectionFailed()
 {
 	return _currState == DistanceControlState::INSPECTION &&
-			_distance < 0;
+			getDistance() < 0;
 }
 
 bool DistanceControl::manualRequested()
 {
-	return _joyMsg.buttons[4] != 1 &&
+	return getJoyMsg().buttons[4] != 1 &&
 			_currState == DistanceControlState::INSPECTION;
 }
