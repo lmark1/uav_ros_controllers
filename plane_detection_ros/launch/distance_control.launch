@@ -19,8 +19,8 @@
         <remap from="/sim/attitude_sp"  to="/bebop/att_override"/>
         <remap from="/real/attitude_sp" to="/mavros_dummy/attitude_setpoint_raw"/>
         
-        <param name="simulation" value="false" />
-        <param name="rate" value="50" />
+        <param name="simulation" type="boolean"     value="false" />
+        <param name="rate"       type="double"     value="50" />
     </node>
 
 </launch>

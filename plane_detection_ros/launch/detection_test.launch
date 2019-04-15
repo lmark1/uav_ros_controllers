@@ -8,6 +8,9 @@
         name="plane_detection_node"
         output="screen">
         <remap from="/pointcloud" to="/velodyne_points"/>
+        
+        <param name="frame_id"  type="string"   value="velodyne"/>
+        <param name="rate"      type="double"   value="15"/>     
     </node>
     
     <!-- Rviz for velodyne visualisation -->        

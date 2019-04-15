@@ -16,10 +16,13 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <plane_detection_ros/PlaneDetectionParametersConfig.h>
 #include <tf2/LinearMath/Quaternion.h>
+
 #include <vector>
+#include <math.h>
 
 // Own includes
 #include "detection/PlaneDetection.h"
+#include <uav_ros_control/KalmanFilter.h>
 
 /**
  * Wrapper class for plane detection object. Used for relaying information
@@ -29,8 +32,9 @@ class DetectionWrapper
 {
 public:
 
-	DetectionWrapper():
-		_currPlaneParams (new coef_t)
+	DetectionWrapper(std::string frameID = "velodyne"):
+		_currPlaneParams (new coef_t),
+		FRAME_ID(frameID)
 	{
 		_currCentroid.x = 0.0;
 		_currCentroid.y = 0.0;
@@ -40,14 +44,6 @@ public:
 
 	~DetectionWrapper()
 	{
-	}
-
-	/**
-	 * Returns desired detection frequency.
-	 */
-	double getDetectionRate()
-	{
-		return this->RATE;
 	}
 
 	/**
@@ -111,6 +107,7 @@ public:
 		double yaw = atan2(
 				_currPlaneParams->values[1],
 				_currPlaneParams->values[0]);
+		ROS_DEBUG("Normal angle is %f", yaw * 180/ M_PI);
 		myQuaternion.setRPY(0, 0, yaw);
 		outputMessage.pose.orientation.x = myQuaternion.x();
 		outputMessage.pose.orientation.y = myQuaternion.y();
@@ -257,12 +254,8 @@ private:
 	/**
 	 * Frame ID where the lidar is located.
 	 */
-	std::string FRAME_ID = "leddar";
+	std::string FRAME_ID;
 
-	/**
-	 * Rate of the detection.
-	 */
-	double RATE = 10.0;
 };
 
 #endif /* DETECTION_WRAPPER_H */

@@ -28,6 +28,10 @@ int main(int argc, char **argv) {
 	ros::init(argc, argv, "plane_detection");
 	ros::NodeHandle nh;
 
+	std::string frameID {"velodyne"};
+	double rate = 15;
+	nh.getParam("frame_id", frameID);
+	nh.getParam("rate", rate);
 
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
@@ -35,7 +39,8 @@ int main(int argc, char **argv) {
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Setup a new planeDetection object
-	std::shared_ptr<DetectionWrapper> detectionWrapper {new DetectionWrapper};
+	std::shared_ptr<DetectionWrapper> detectionWrapper
+		{new DetectionWrapper (frameID)};
 	ros::Subscriber pclSub = nh.subscribe("/pointcloud", 1,
 			&DetectionWrapper::pointCloudCallback, detectionWrapper.get());
 
@@ -63,8 +68,10 @@ int main(int argc, char **argv) {
 	ros::Publisher distPub = nh.advertise<std_msgs::Float64>(
 			"/distance", 1);
 
+	// TODO: Filtrirati outliere
 	// Setup the loop
-	ros::Rate loopRate {detectionWrapper->getDetectionRate()};
+	ROS_INFO("Setting rate to %.2f", rate);
+	ros::Rate loopRate {rate};
 	while(ros::ok())
 	{
 		ros::spinOnce();

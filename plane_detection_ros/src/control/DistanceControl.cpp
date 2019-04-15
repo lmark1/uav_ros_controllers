@@ -18,8 +18,12 @@ DistanceControl::DistanceControl(DistanceControlMode mode):
 	_deactivateInspection(false),
 	_distRef(-1)
 {
-	// TODO Auto-generated constructor stub
 
+	// Info messages about node start.
+	if (_mode == DistanceControlMode::SIMULATION)
+		ROS_INFO("DistanceControl: Starting node in simulation mode.");
+	else
+		ROS_INFO("DistanceControl: Starting node in real mode.");
 }
 
 DistanceControl::~DistanceControl() {

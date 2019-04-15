@@ -100,6 +100,7 @@ int main(int argc, char **argv) {
 
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
+	ROS_INFO("Setting rate to %.2f", rate);
 	while (ros::ok())
 	{
 		ros::spinOnce();
