@@ -12,6 +12,7 @@
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/Vector3.h>
+#include <mavros_msgs/AttitudeTarget.h>
 #include <std_msgs/Int32.h>
 
 /**
@@ -43,7 +44,7 @@ int main(int argc, char **argv) {
 	std::shared_ptr<DistanceControl> distanceControl
 		{new DistanceControl (((simMode) ?
 				DistanceControlMode::SIMULATION:
-				DistanceControlMode::REALISTIC)) };
+				DistanceControlMode::REAL)) };
 
 	// Setup callbacks
 	ros::Subscriber distSub = nh.subscribe("/distance", 1,
@@ -63,9 +64,22 @@ int main(int argc, char **argv) {
 			&ControlBase::imuCbSim,
 			dynamic_cast<ControlBase*>(distanceControl.get()));
 
+	// Command velocity subscriber
+	ros::Subscriber cmdSub = nh.subscribe("/cmd_vel", 1,
+			&ControlBase::cmdVelCb,
+			dynamic_cast<ControlBase*>(distanceControl.get()));
+
 	// Define publishers
 	ros::Publisher statePub = nh.advertise<std_msgs::Int32>(
 			"/control_state", 1);
+
+	// Simulation setpoint
+	ros::Publisher spPubSim = nh.advertise<geometry_msgs::Vector3>(
+			"/sim/attitude_sp", 1);
+
+	// Real setpoint
+	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
+			"/real/attitude_sp", 1);
 
 	// Initialize configure server
 	dynamic_reconfigure::
@@ -74,7 +88,8 @@ int main(int argc, char **argv) {
 
 	// Initialize reconfigure callback
 	dynamic_reconfigure::
-		Server<plane_detection_ros::DistanceControlParametersConfig>::CallbackType
+		Server<plane_detection_ros::DistanceControlParametersConfig>::
+		CallbackType
 		paramCallback;
 
 	// Setup reconfigure server
@@ -84,19 +99,20 @@ int main(int argc, char **argv) {
 	confServer.setCallback(paramCallback);
 
 	ros::Rate loopRate(rate);
+	double dt = 1.0 / rate;
 	while (ros::ok())
 	{
 		ros::spinOnce();
 		distanceControl->detectStateChange();
 		distanceControl->publishState(statePub);
-		// distanceControl->calculateSetpoint()
+		distanceControl->calculateSetpoint(dt);
 
-		/**
-		 * If SIM
-		 * 		distanceControl->publishSimSetpoint
-		 * else
-		 * 		distanceControl->publishRealSetpoint
-		 */
+		// Publish setpoint based on the inspection status
+		if (simMode)
+			distanceControl->publishSetpoint(spPubSim);
+		else
+			distanceControl->publishSetpoint(spPubReal);
+
 		loopRate.sleep();
 	}
 }

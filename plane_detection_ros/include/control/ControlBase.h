@@ -14,7 +14,13 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <uav_ros_control/PID.h>
+#include <geometry_msgs/Twist.h>
+
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
+
+#include <iostream>
+#include <array>
+#include <math.h>
 
 /**
  * This class is used for defining Control subscribers and publishers.
@@ -26,7 +32,9 @@ public:
 	 * Default constructor.
 	 */
 	ControlBase():
-		_distance(-1)
+		_distanceMeasured(-1),
+		MASTER_JOY_INDEX(5),
+		INSPECTION_JOY_INDEX(4)
 	{
 	}
 
@@ -39,7 +47,7 @@ public:
 	 */
 	void distanceCb(const std_msgs::Float64ConstPtr& message)
 	{
-		_distance = message->data;
+		_distanceMeasured = message->data;
 	}
 
 	/**
@@ -55,7 +63,11 @@ public:
 	 */
 	void normalCb(const geometry_msgs::PoseStampedConstPtr& message)
 	{
-		_planeNormal = *message;
+		_planeYaw = calculateYaw(
+				message->pose.orientation.x,
+				message->pose.orientation.y,
+				message->pose.orientation.z,
+				message->pose.orientation.w);
 	}
 
 	/**
@@ -71,7 +83,11 @@ public:
 	 */
 	void imuCbSim(const nav_msgs::OdometryConstPtr& message)
 	{
-		_odomMsgSim = *message;
+		_uavYaw = calculateYaw(
+				message->pose.pose.orientation.x,
+				message->pose.pose.orientation.y,
+				message->pose.pose.orientation.z,
+				message->pose.pose.orientation.w);
 	}
 
 	/**
@@ -88,29 +104,49 @@ public:
 		_distancePID.set_lim_low(configMsg.lim_low);
 	}
 
-	sensor_msgs::Joy getJoyMsg()
+	/**
+	 * Command velocity callback.
+	 */
+	void cmdVelCb(const geometry_msgs::TwistConstPtr& twistMsg)
 	{
-		return _joyMsg;
+		_rollSetpoint = twistMsg->linear.y;
 	}
 
-	double getDistance()
+	/**
+	 * Check if inspection is enabled.
+	 */
+	bool inspectionEnabledJoy()
 	{
-		return _distance;
+		return _joyMsg.buttons[INSPECTION_JOY_INDEX] == 1;
+	}
+
+	/**
+	 * Return currently measured distance.
+	 */
+	double getDistanceMeasured()
+	{
+		return _distanceMeasured;
+	}
+
+	/**
+	 * Calculate yaw angle setpoint;
+	 */
+	double getYawSetpoint()
+	{
+		return _uavYaw + _planeYaw;
+	}
+
+	/**
+	 * Return current roll setpoint.
+	 */
+	double getRollSetpoint()
+	{
+		return _rollSetpoint;
 	}
 
 	sensor_msgs::Imu getIMUMsg()
 	{
 		return _imuMsgReal;
-	}
-
-	nav_msgs::Odometry getOdomMsg()
-	{
-		return _odomMsgSim;
-	}
-
-	geometry_msgs::PoseStamped getPlaneNormal()
-	{
-		return _planeNormal;
 	}
 
 	PID getPID()
@@ -120,6 +156,17 @@ public:
 
 
 private:
+
+	/**
+	 * Calculate yaw angle from given quaternion parameters.
+	 *
+	 */
+	double calculateYaw(double qx, double qy, double qz, double qw)
+	{
+		return atan2(
+				2 * (qw * qz + qx * qy),
+				qw * qw + qx * qx - qy * qy - qz * qz);
+	}
 
 	/**
 	 * Distance PID controller
@@ -134,7 +181,12 @@ private:
 	/**
 	 * Current distance measured value. Used both in sim and real mode.
 	 */
-	double _distance;
+	double _distanceMeasured;
+
+	/**
+	 * Roll setpoint - when in inspection mode.
+	 */
+	double _rollSetpoint = 0;
 
 	/**
 	 * Current IMU measured value. Used only is real mode.
@@ -142,15 +194,24 @@ private:
 	sensor_msgs::Imu _imuMsgReal;
 
 	/**
-	 * Current Odometry value. Used only in simulation mode.
+	 * Current UAV yaw angle.
 	 */
-	nav_msgs::Odometry _odomMsgSim;
+	double _uavYaw = 0;
 
 	/**
-	 * Current plane normal.
+	 * Yaw of the plane normal with respect to UAV base frame.
 	 */
-	geometry_msgs::PoseStamped _planeNormal;
+	double _planeYaw = 0;
 
+	/**
+	 * Index of buttons[] array for changing to inspection mode.
+	 */
+	int INSPECTION_JOY_INDEX;
+
+	/**
+	 * Index of buttons[] array for setting master control mode.
+	 */
+	int MASTER_JOY_INDEX;
 };
 
 #endif /* CONTROL_BASE_H */

@@ -6,8 +6,11 @@
  */
 
 #include "control/DistanceControl.h"
+
 #include <ros/ros.h>
 #include <std_msgs/Int32.h>
+#include <mavros_msgs/AttitudeTarget.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 DistanceControl::DistanceControl(DistanceControlMode mode):
 	_mode(mode),
@@ -40,15 +43,15 @@ void DistanceControl::detectStateChange()
 	{
 		ROS_DEBUG("Inspection mode requested.");
 		// Check if current distance is valid
-		if (getDistance() < 0)
+		if (getDistanceMeasured() < 0)
 		{
 			ROS_FATAL("Unable to enter inspection mode.");
 			return;
 		}
 
 		ROS_INFO("Inspection activation successful-following distance %.2f",
-				getDistance());
-		_distRef = getDistance();
+				getDistanceMeasured());
+		_distRef = getDistanceMeasured();
 		_currState = DistanceControlState::INSPECTION;
 		return;
 	}
@@ -66,24 +69,72 @@ void DistanceControl::publishState(ros::Publisher& pub)
 {
 	// Publish 0 for manual state and 1 for inspection state
 	std_msgs::Int32 newMessage;
-	newMessage.data = _currState == DistanceControlState::MANUAL ? 0 : 1;
+	newMessage.data = inInspectionState() ? 1 : 0;
 	pub.publish(newMessage);
+}
+
+void DistanceControl::calculateSetpoint(double dt)
+{
+	// If not in inspection mode do not do anything.
+	if (!inInspectionState())
+		return;
+
+	_attitudeSetpoint[0] = getPID()
+			.compute(_distRef, getDistanceMeasured(), dt);
+	_attitudeSetpoint[1] = getRollSetpoint();
+	_attitudeSetpoint[2] = getYawSetpoint();
+}
+
+void DistanceControl::publishSetpoint(ros::Publisher& pub)
+{
+	if (_mode == DistanceControlMode::REAL)
+	{
+		tf2::Quaternion myQuaternion;
+		myQuaternion.setEuler(
+				_attitudeSetpoint[0],
+				_attitudeSetpoint[1],
+				_attitudeSetpoint[2]);
+
+		mavros_msgs::AttitudeTarget newMessage;
+		newMessage.type_mask = 7; //Ignore roll, pitch, yaw rate.
+		newMessage.orientation.x = myQuaternion.x();
+		newMessage.orientation.y = myQuaternion.y();
+		newMessage.orientation.z = myQuaternion.z();
+		newMessage.orientation.w = myQuaternion.w();
+		pub.publish(newMessage);
+		return;
+	}
+
+	if (_mode == DistanceControlMode::SIMULATION)
+	{
+		geometry_msgs::Vector3 newMessage;
+		newMessage.x = _attitudeSetpoint[0];
+		newMessage.y = _attitudeSetpoint[1];
+		newMessage.z = _attitudeSetpoint[2];
+		pub.publish(newMessage);
+		return;
+	}
+}
+
+bool DistanceControl::inInspectionState()
+{
+	return _currState == DistanceControlState::INSPECTION;
 }
 
 bool DistanceControl::inspectionRequested()
 {
-	return getJoyMsg().buttons[4] == 1 &&
+	return inspectionEnabledJoy() &&
 			_currState == DistanceControlState::MANUAL;
 }
 
 bool DistanceControl::inspectionFailed()
 {
 	return _currState == DistanceControlState::INSPECTION &&
-			getDistance() < 0;
+			getDistanceMeasured() < 0;
 }
 
 bool DistanceControl::manualRequested()
 {
-	return getJoyMsg().buttons[4] != 1 &&
+	return !inspectionEnabledJoy() != 1 &&
 			_currState == DistanceControlState::INSPECTION;
 }

@@ -13,6 +13,9 @@
 // ROS Includes
 #include <ros/ros.h>
 
+#include <iostream>
+#include <array>
+
 /**
  * Define control modes used in DistanceControl algorithm.
  */
@@ -26,7 +29,7 @@ enum DistanceControlMode
 	/**
 	 * Realistic control mode.
 	 */
-	REALISTIC
+	REAL
 };
 
 enum DistanceControlState
@@ -48,7 +51,7 @@ class DistanceControl : public ControlBase {
 public:
 
 	/**
-	 * Default contructor which initializes the control mode.
+	double rollRef = getRollSetpoint(); * Default contructor which initializes the control mode.
 	 *
 	 * @param mode - Given control mode
 	 */
@@ -63,13 +66,32 @@ public:
 	void detectStateChange();
 
 	/**
+	 * Calculate appropriate attitude setpoint.
+	 *
+	 * @param dt - Given discretization time.
+	 */
+	void calculateSetpoint(double dt);
+
+	/**
 	 * Publish current control state.
 	 *
 	 * @param pub - Given Int32 publisher
 	 */
 	void publishState(ros::Publisher& pub);
 
+	/**
+	 * If in simulation mode, publisher is expected to be Vector3.
+	 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
+	 */
+	void publishSetpoint(ros::Publisher& pub);
+
+	/**
+	 * Return true if in inspection state, otherwise false.
+	 */
+	bool inInspectionState();
+
 private:
+
 
 	/**
 	 * Returns true if inspection is requested, otherwise return false.
@@ -106,6 +128,10 @@ private:
 	 */
 	double _distRef;
 
+	/**
+	 * Attitude setpoint array.
+	 */
+	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};
 };
 
 #endif /* DISTANCE_CONTROL_H */
