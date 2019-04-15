@@ -59,6 +59,15 @@ public:
 	}
 
 	/**
+	 * IMU callback function for realistic control mode.
+	 */
+	void imuCbReal(const sensor_msgs::ImuConstPtr& message)
+	{
+		// TODO: Do something here
+		_imuMsgReal = *message;
+	}
+
+	/**
 	 * Plane normal callback function.
 	 */
 	void normalCb(const geometry_msgs::PoseStampedConstPtr& message)
@@ -68,14 +77,11 @@ public:
 				message->pose.orientation.y,
 				message->pose.orientation.z,
 				message->pose.orientation.w);
-	}
 
-	/**
-	 * IMU callback function for realistic control mode.
-	 */
-	void imuCbReal(const sensor_msgs::ImuConstPtr& message)
-	{
-		_imuMsgReal = *message;
+		// Check in which direction is plane normal facing
+		double xComponent = cos(_planeYaw);
+		if (xComponent < 0)
+			_planeYaw += M_PI;
 	}
 
 	/**
