@@ -48,6 +48,7 @@ class LaunchBebop:
         # define PID for height control
         self.z_mv = 0
         
+        self.att_override = Vector3(0., 0., 0.)
         self.odom_subscriber = rospy.Subscriber(
             "bebop/odometry_gt",
             Odometry,
@@ -68,13 +69,12 @@ class LaunchBebop:
             "bebop/lin_vel_pub",
             Vector3,
             self.linvel_cb)
-
-        # Distance subscriber
-        self.distance_subscriber = rospy.Subscriber(
-            "distance",
-            Float64,
-            self.distance_cb)
-        self.distance_mv = -1
+            
+        # Attitude override subscriber
+        self.att_sub = rospy.Subscriber(
+            "bebop/att_override",
+            Vector3,
+            self.att_cb)
 
         #Mode subscriber
         self.mode_subscriber = rospy.Subscriber(
@@ -137,9 +137,6 @@ class LaunchBebop:
         self.pitch_rate_PID = PID(16.61, 0, 0, 100, -100)
         self.roll_rate_PID = PID(16.61, 0, 0, 100, -100)
 
-        # Distance pid
-        self.distance_PID = PID(0.1, 0.00, 0.0, 0.1, -0.1)
-
         # Pre-filter constants
         self.filt_const_x = 0.5
         self.filt_const_y = 0.5
@@ -158,8 +155,10 @@ class LaunchBebop:
         self.linvel_y = 0
         self.linvel_z = 0
 
-    def distance_cb(self, msg):
-        self.distance_mv = msg.data
+    def att_cb(self, msg):
+        self.att_override.x = msg.x
+        self.att_override.y = msg.y
+        self.att_override.z = msg.z
 
     def mode_cb(self, msg):
         self.current_mode = msg.data
@@ -262,31 +261,29 @@ class LaunchBebop:
             # PITCH CONTROL OUTER LOOP
             # x - position control
             self.x_filt_sp = prefilter(self.pose_sp.x, self.x_filt_sp, self.filt_const_x)
-
-            # Pass Distance as reference if in INSPECTION MODE
-            if (self.current_mode > 0):
-                pitch_sp = - self.distance_PID.compute(self.pose_sp.x, self.distance_mv, dt)
-            else:    
-                pitch_sp = self.pid_x.compute(self.pose_sp.x, self.x_mv, dt)
-            
+            pitch_sp = self.pid_x.compute(self.pose_sp.x, self.x_mv, dt)
 
             # ROLL CONTROL OUTER LOOP
             # y position control
             self.y_filt_sp = prefilter(self.pose_sp.y, self.y_filt_sp, self.filt_const_y)
             roll_sp = - self.pid_y.compute(self.pose_sp.y, self.y_mv, dt)
 
-            # If in INSPECTION MODE override roll setpoint
-            if (self.current_mode > 0):
-                roll_sp = - self.pose_sp.y
-
             # PITCH AND ROLL YAW ADJUSTMENT
-            if (self.current_mode == 0):
-                roll_sp_2 = math.cos(self.euler_mv.z) * roll_sp + \
-                          math.sin(self.euler_mv.z) * pitch_sp
-                pitch_sp = math.cos(self.euler_mv.z) * pitch_sp - \
-                           math.sin(self.euler_mv.z) * roll_sp
-                roll_sp = roll_sp_2
+            roll_sp_2 = math.cos(self.euler_mv.z) * roll_sp + \
+                      math.sin(self.euler_mv.z) * pitch_sp
+            pitch_sp = math.cos(self.euler_mv.z) * pitch_sp - \
+                       math.sin(self.euler_mv.z) * roll_sp
+            roll_sp = roll_sp_2
+            yaw_sp = self.euler_sp.z 
 
+            ##########################################################
+            # Overrirde roll, pitch, yaw setpoints
+            if self.current_mode > 0:
+                pitch_sp = self.att_override.x
+                roll_sp = self.att_override.y
+                yaw_sp = self.att_override.z                
+            ##########################################################
+            
             # PITCH CONTROL INNER LOOP
             pitch_rate_sp = self.pitch_PID.compute(pitch_sp, self.euler_mv.y, dt)
             u_pitch = self.pitch_rate_PID.compute(pitch_rate_sp,  self.euler_rate_mv.y, dt)
@@ -296,7 +293,7 @@ class LaunchBebop:
             u_roll = self.roll_rate_PID.compute(roll_rate_sp, self.euler_rate_mv.x, dt)
 
             # YAW CONTROL
-            error_yrc = self.euler_sp.z - self.euler_mv.z
+            error_yrc = yaw_sp - self.euler_mv.z
             if math.fabs(error_yrc) > math.pi:
                 self.euler_sp.z = (self.euler_mv.z/math.fabs(self.euler_mv.z))*\
                                   (2*math.pi - math.fabs(self.euler_sp.z))

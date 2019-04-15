@@ -58,6 +58,11 @@ class Commander():
     def cmd_vel_callback(self,data):
 
         if (self.mode == INSPECION_MODE):
+            # Only control height in attitude mode
+            self.UAV_pose.point.x = 0
+            self.UAV_pose.point.y = 0
+            self.UAV_pose.point.z = self.UAV_pose.point.z + 0.5 * data.linear.z
+            self.publish_position()
             return
 
         # Drive in manual mode
