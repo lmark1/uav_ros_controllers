@@ -63,11 +63,12 @@ int main(int argc, char **argv) {
 		{ new DetectionWrapper {frameID, kalmanNoiseMv, kalmanNoisePos, kalmanNoiseVel} };
 	detectionWrapper->setFilterLimits(lim_x, lim_y, lim_z, min_x);
 	detectionWrapper->setDetectionThreshold(threshold);
-	
+
+	boost::recursive_mutex config_mutex;
 	// Initialize configure server
 	dynamic_reconfigure::
 		Server<plane_detection_ros::PlaneDetectionParametersConfig>
-		confServer;
+		confServer {config_mutex};
 	// Initialize reconfigure callback
 	dynamic_reconfigure::
 		Server<plane_detection_ros::PlaneDetectionParametersConfig>::CallbackType

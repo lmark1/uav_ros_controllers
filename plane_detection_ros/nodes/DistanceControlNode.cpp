@@ -97,10 +97,11 @@ int main(int argc, char **argv) {
 	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
 			"/real/attitude_sp", 1);
 
+	boost::recursive_mutex config_mutex;
 	// Initialize configure server
 	dynamic_reconfigure::
 		Server<plane_detection_ros::DistanceControlParametersConfig>
-		confServer;
+		confServer {config_mutex};
 	// Initialize reconfigure callback
 	dynamic_reconfigure::
 		Server<plane_detection_ros::DistanceControlParametersConfig>::
