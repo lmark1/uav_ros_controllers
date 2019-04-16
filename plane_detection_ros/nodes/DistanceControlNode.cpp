@@ -40,6 +40,11 @@ int main(int argc, char **argv) {
 	nh.getParam("simulation", simMode);
 	nh.getParam("rate", rate);
 
+	// Change logging level
+	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
+		ros::console::levels::Debug))
+		ros::console::notifyLoggerLevelsChanged();
+
 	// Initialize distance control object
 	std::shared_ptr<DistanceControl> distanceControl
 		{new DistanceControl (((simMode) ?
@@ -81,6 +86,7 @@ int main(int argc, char **argv) {
 	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
 			"/real/attitude_sp", 1);
 
+	ROS_DEBUG("Intitialized subscribers.");
 	// Initialize configure server
 	dynamic_reconfigure::
 		Server<plane_detection_ros::DistanceControlParametersConfig>

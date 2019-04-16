@@ -19,6 +19,7 @@
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
 
 #include <iostream>
+#include <vector>
 #include <array>
 #include <math.h>
 
@@ -36,6 +37,9 @@ public:
 		MASTER_JOY_INDEX(5),
 		INSPECTION_JOY_INDEX(4)
 	{
+		// Initialize some default values
+		_joyMsg.buttons = std::vector<int> (10, 0);
+		_joyMsg.axes = std::vector<float> (10, 0.0);
 	}
 
 	virtual ~ControlBase()
@@ -47,6 +51,7 @@ public:
 	 */
 	void distanceCb(const std_msgs::Float64ConstPtr& message)
 	{
+		ROS_DEBUG("Hello from cb");
 		_distanceMeasured = message->data;
 	}
 
@@ -131,6 +136,7 @@ public:
 	 */
 	double getDistanceMeasured()
 	{
+		ROS_DEBUG("getDistanceMeasured()");
 		return _distanceMeasured;
 	}
 
