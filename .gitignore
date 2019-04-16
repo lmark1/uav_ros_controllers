@@ -4,3 +4,4 @@ bebop_gazebo/launch/task*
 .project
 .settings
 *.pyc
+.vscode
