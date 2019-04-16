@@ -37,19 +37,29 @@ public:
 	 *
 	 * @param framID - Given LIDAR sensor frame
 	 */
-	DetectionWrapper(std::string frameID = "velodyne"):
+	DetectionWrapper(std::string frameID, double noiseMv, double noisePos, double noiseVel):
 		_currPlaneParams (new coef_t),
 		_currDistance(-1),
 		_newDistMeasurement(false),
 		_filteredDistance(-1),
 		_timeInvalid(0),
 		_kalmanInitialized(false),
+		_kalmanFilter(new KalmanFilter),
 		FRAME_ID(frameID)
 	{
+		ROS_INFO("DetectionWrapper - frame_id: %s", frameID.c_str());
+		ROS_INFO("Setting kalman parameters: noise_mv=%.2f\tnoise_pose=%.2f\tnoise_vel=%.2f",
+			noiseMv, noisePos, noiseVel);
+		
 		_currCentroid.x = 0.0;
 		_currCentroid.y = 0.0;
 		_currCentroid.z = 0.0;
 		_currPlaneParams->values = std::vector<float> (4, 0.0);
+
+		// Initialize Kalman filter parameters
+		_kalmanFilter->setMeasureNoise(noiseMv);
+		_kalmanFilter->setPositionNoise(noisePos);
+		_kalmanFilter->setVelocityNoise(noiseVel);
 	}
 
 	~DetectionWrapper()
@@ -63,6 +73,7 @@ public:
 	void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 	{
 		_currPointCloud = *pclMsg;
+		_newDistMeasurement = true;
 	}
 
 	/**
@@ -75,14 +86,38 @@ public:
 		ROS_WARN("Hello from Re-configure callback.");
 		plane_detect::DISTANCE_TRESHOLD = configMsg.dist_tresh;
 		plane_detect::ENABLE_OPTIMIZATION = configMsg.param_opt;
+		plane_detect::FILTER_MIN_X = configMsg.min_lim_x;
 		plane_detect::FILTER_X = configMsg.lim_x;
 		plane_detect::FILTER_Y = configMsg.lim_y;
 		plane_detect::FILTER_Z = configMsg.lim_z;
 
 		_kalmanInitialized = configMsg.init_kalman;
-		_kalmanFilter.setMeasureNoise(configMsg.noise_mv);
-		_kalmanFilter.setPositionNoise(configMsg.noise_pos);
-		_kalmanFilter.setVelocityNoise(configMsg.noise_vel);
+		_kalmanFilter->setMeasureNoise(configMsg.noise_mv);
+		_kalmanFilter->setPositionNoise(configMsg.noise_pos);
+		_kalmanFilter->setVelocityNoise(configMsg.noise_vel);
+	}
+
+	/**
+	 * Set reconfigure parameters.
+	 * 
+	 * @param server dynamic_reconfigure Server object, parametrised by type T.
+	 */
+	template <class T>
+	void setReconfigureParameters(dynamic_reconfigure::
+		Server<T>& server)
+	{
+		plane_detection_ros::PlaneDetectionParametersConfig configMsg;
+		configMsg.dist_tresh = plane_detect::DISTANCE_TRESHOLD;
+		configMsg.param_opt = plane_detect::ENABLE_OPTIMIZATION;
+		configMsg.lim_x = plane_detect::FILTER_X;
+		configMsg.lim_y = plane_detect::FILTER_Y;
+		configMsg.lim_z = plane_detect::FILTER_Z;
+		configMsg.min_lim_x = plane_detect::FILTER_MIN_X;
+		configMsg.init_kalman = _kalmanInitialized;
+		configMsg.noise_mv = _kalmanFilter->getMesaureNoise();
+		configMsg.noise_pos = _kalmanFilter->getPositionNoise();
+		configMsg.noise_vel = _kalmanFilter->getVelocityNoise();
+		server.updateConfig(configMsg);
 	}
 
 	/**
@@ -215,10 +250,11 @@ public:
 		{
 			_currDistance = plane_detect::distanceToPlane(
 					pcl::PointXYZ {0,  0, 0}, *_currPlaneParams);
-			_newDistMeasurement = true;
 		}
 		else
+		{
 			_currDistance = NO_PLANE_DETECTED;
+		}
 	}
 
 	/**
@@ -246,18 +282,18 @@ public:
 		if (!_kalmanInitialized && _currDistance >= 0)
 		{
 			_kalmanInitialized = true;
-			_kalmanFilter.initializePosition(_currDistance);
+			_kalmanFilter->initializePosition(_currDistance);
 			ROS_WARN("KalmanFilter - Initialized.");
 		}
 
 		// Do model update
-		_kalmanFilter.modelUpdate(dt);
+		_kalmanFilter->modelUpdate(dt);
 
 		// If initialized, but invalid reading, do only model update
-		if (_newDistMeasurement)
+		if (_newDistMeasurement && _currDistance > 0)
 		{
-			ROS_DEBUG("KalmanFilter - New measurement! update called");
-			_kalmanFilter.measureUpdate(_currDistance);
+			ROS_INFO("KalmanFilter - New measurement! update called");
+			_kalmanFilter->measureUpdate(_currDistance);
 			_newDistMeasurement = false;
 			_timeInvalid = 0;
 		}
@@ -280,7 +316,7 @@ public:
 		}
 
 		// Get kalman filter position
-		_filteredDistance = _kalmanFilter.getPosition();
+		_filteredDistance = _kalmanFilter->getPosition();
 	}
 
 private:
@@ -313,7 +349,7 @@ private:
 	}
 
 	/** Kalman filter object. */
-	KalmanFilter _kalmanFilter;
+	std::unique_ptr<KalmanFilter> _kalmanFilter;
 
 	/** Flag signaling that kalman filter is initialized. */
 	bool _kalmanInitialized;

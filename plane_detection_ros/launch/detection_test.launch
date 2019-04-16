@@ -1,6 +1,9 @@
 <launch>
     <arg name="rviz_config" value="$(find bebop_gazebo)/config/rviz_detection.rviz" />
     
+    <!-- Load parameters -->
+    <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters.yaml" />
+    
     <!-- Launch plane detection -->
     <node 
         pkg="plane_detection_ros"
@@ -8,9 +11,6 @@
         name="plane_detection_node"
         output="screen">
         <remap from="/pointcloud" to="/velodyne_points"/>
-        
-        <param name="frame_id"  type="string"   value="velodyne"/>
-        <param name="rate"      type="double"   value="15"/>     
     </node>
     
     <!-- Rviz for velodyne visualisation -->        
@@ -18,5 +18,5 @@
         name="rviz_node" pkg="rviz" type="rviz" 
         args="-d $(arg rviz_config)">
     </node>
-    
+
 </launch>

@@ -135,7 +135,6 @@ public:
 	 */
 	double getDistanceMeasured()
 	{
-		ROS_DEBUG("getDistanceMeasured()");
 		return _distanceMeasured;
 	}
 

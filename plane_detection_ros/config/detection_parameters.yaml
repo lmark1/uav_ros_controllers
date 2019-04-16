@@ -1,0 +1,8 @@
+detection:
+   rate: 15
+   frame_id: "leddar"
+   
+kalman:
+   noise_mv: 12
+   noise_pos: 2
+   noise_vel: 10
