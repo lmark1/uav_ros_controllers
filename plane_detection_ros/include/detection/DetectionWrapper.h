@@ -32,8 +32,18 @@ class DetectionWrapper
 {
 public:
 
+	/**
+	 * Default contructor. Initializes class variables.
+	 *
+	 * @param framID - Given LIDAR sensor frame
+	 */
 	DetectionWrapper(std::string frameID = "velodyne"):
 		_currPlaneParams (new coef_t),
+		_currDistance(-1),
+		_newDistMeasurement(false),
+		_filteredDistance(-1),
+		_timeInvalid(0),
+		_kalmanInitialized(false),
 		FRAME_ID(frameID)
 	{
 		_currCentroid.x = 0.0;
@@ -50,8 +60,7 @@ public:
 	 * Callback function for PointCloud2 objects.
 	 * Remembers the last pointcloud object.
 	 */
-	void pointCloudCallback(
-			const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
+	void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 	{
 		_currPointCloud = *pclMsg;
 	}
@@ -63,12 +72,17 @@ public:
 			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
 			uint32_t level)
 	{
-		ROS_WARN("Hello from Configure callbdack");
+		ROS_WARN("Hello from Re-configure callback.");
 		plane_detect::DISTANCE_TRESHOLD = configMsg.dist_tresh;
 		plane_detect::ENABLE_OPTIMIZATION = configMsg.param_opt;
 		plane_detect::FILTER_X = configMsg.lim_x;
 		plane_detect::FILTER_Y = configMsg.lim_y;
 		plane_detect::FILTER_Z = configMsg.lim_z;
+
+		_kalmanInitialized = configMsg.init_kalman;
+		_kalmanFilter.setMeasureNoise(configMsg.noise_mv);
+		_kalmanFilter.setPositionNoise(configMsg.noise_pos);
+		_kalmanFilter.setVelocityNoise(configMsg.noise_vel);
 	}
 
 	/**
@@ -90,6 +104,9 @@ public:
 		pub.publish(outputMessage);
 	}
 
+	/**
+	 * Publish plane normal as a PoseStamped message.
+	 */
 	void publishNormal(ros::Publisher& pub)
 	{
 		// Construct a new ROS message
@@ -107,7 +124,7 @@ public:
 		double yaw = atan2(
 				_currPlaneParams->values[1],
 				_currPlaneParams->values[0]);
-		ROS_DEBUG("Normal angle is %f", yaw * 180/ M_PI);
+		ROS_DEBUG("Normal angle is %f degrees.", yaw * 180/ M_PI);
 		myQuaternion.setRPY(0, 0, yaw);
 		outputMessage.pose.orientation.x = myQuaternion.x();
 		outputMessage.pose.orientation.y = myQuaternion.y();
@@ -117,17 +134,20 @@ public:
 		pub.publish(outputMessage);
 	}
 
+	/**
+	 * Publish distance to plane as a Float64 message.
+	 */
 	void publishDistanceToPlane(ros::Publisher& pub)
 	{
 		std_msgs::Float64 outputMessage;
+		outputMessage.data = _currDistance;
+		pub.publish(outputMessage);
+	}
 
-		// Careful not to publish a faulty solution
-		if (solutionFound())
-			outputMessage.data = plane_detect::distanceToPlane(
-					pcl::PointXYZ {0,  0, 0}, *_currPlaneParams);
-		else
-			outputMessage.data = NO_PLANE_DETECTED;
-
+	void publishFilteredDistance(ros::Publisher& pub)
+	{
+		std_msgs::Float64 outputMessage;
+		outputMessage.data = _filteredDistance;
 		pub.publish(outputMessage);
 	}
 
@@ -146,7 +166,7 @@ public:
 
 		// Convert received ROS message to pclCloud
 		pcl::fromROSMsg (_currPointCloud, _currPcl);
-		ROS_DEBUG("Conversion successful");
+		ROS_DEBUG("Conversion from PointCloud2 to pcl successful");
 	}
 
 	/**
@@ -175,7 +195,7 @@ public:
 		_currCentroid = plane_detect::getCentroid(_currPlaneCloud);
 		plane_detect::projectPlaneToYZ(_currPlaneParams, _currCentroid);
 
-		ROS_DEBUG("Found plane with %lu points \n", _currPlaneCloud.size());
+		ROS_DEBUG("Found plane with %lu points", _currPlaneCloud.size());
 	}
 
 	/**
@@ -184,7 +204,83 @@ public:
 	void doCloudFiltering()
 	{
 		plane_detect::filterPointCloud(_currPcl);
-		ROS_DEBUG("Filtering successful");
+	}
+
+	/**
+	 * Calcaulte distance to the plane from the UAV.
+	 */
+	void calculateDistanceToPlane()
+	{
+		if (solutionFound())
+		{
+			_currDistance = plane_detect::distanceToPlane(
+					pcl::PointXYZ {0,  0, 0}, *_currPlaneParams);
+			_newDistMeasurement = true;
+		}
+		else
+			_currDistance = NO_PLANE_DETECTED;
+	}
+
+	/**
+	 * Filters current distance using the Kalman filter.
+	 *
+	 * @param dt - Filter discretization time
+	 */
+	void filterCurrentDistance(double dt)
+	{
+		// Reset filtered distance if filter is not initialized
+		if (!_kalmanInitialized)
+		{
+			_filteredDistance = NO_PLANE_DETECTED;
+			_timeInvalid = 0;
+		}
+
+		// Check if initialization failed
+		if (!_kalmanInitialized && _currDistance < 0)
+		{
+			ROS_WARN("KalmanFilter - Failed to initialize");
+			return;
+		}
+
+		// Check if initialization should take place
+		if (!_kalmanInitialized && _currDistance >= 0)
+		{
+			_kalmanInitialized = true;
+			_kalmanFilter.initializePosition(_currDistance);
+			ROS_WARN("KalmanFilter - Initialized.");
+		}
+
+		// Do model update
+		_kalmanFilter.modelUpdate(dt);
+
+		// If initialized, but invalid reading, do only model update
+		if (_newDistMeasurement)
+		{
+			ROS_DEBUG("KalmanFilter - New measurement! update called");
+			_kalmanFilter.measureUpdate(_currDistance);
+			_newDistMeasurement = false;
+			_timeInvalid = 0;
+		}
+		else
+		{
+			// Increase time invalid
+			ROS_WARN("KalmanFilter - doing only model update");
+			_timeInvalid += dt;
+			ROS_FATAL("KalmanFilter - Time without update: %.2f", _timeInvalid);
+		}
+
+		// Check if invalid time reached maximum
+		if (_timeInvalid > MAX_INVALID_TIME)
+		{
+			_kalmanInitialized = false;
+			_timeInvalid = 0;
+			_filteredDistance = NO_PLANE_DETECTED;
+			ROS_FATAL("KalmanFilter - Max invalid time reached.");
+			return;
+		}
+
+		// Get kalman filter position
+		_filteredDistance = _kalmanFilter.getPosition();
 	}
 
 private:
@@ -216,46 +312,50 @@ private:
 		_currPlaneParams->values = std::vector<float> (4, 0.0);
 	}
 
-	/**
-	 * Plane centroid.
-	 */
+	/** Kalman filter object. */
+	KalmanFilter _kalmanFilter;
+
+	/** Flag signaling that kalman filter is initialized. */
+	bool _kalmanInitialized;
+
+	/** Time passed while measurements are invalid. */
+	double _timeInvalid;
+
+	/** Plane centroid. */
 	pcl::PointXYZ _currCentroid;
 
-	/**
-	 * Current plane parameters.
-	 */
+	/** Current plane parameters. */
 	coef_t::Ptr _currPlaneParams;
 
-	/**
-	 * Currently available PointCloud from the callback function.
-	 */
+	/** Currently available PointCloud from the callback function. */
 	sensor_msgs::PointCloud2 _currPointCloud;
 
-	/**
-	 * Converted PointCloud from ROS msg.
-	 */
+	/** Converted PointCloud from ROS msg. */
 	pcl3d_t _currPcl;
 
-	/**
-	 * Last detected plane.
-	 */
+	/** Last detected plane. */
 	pcl3d_t _currPlaneCloud;
 
-	/**
-	 * Distance when plane is not selected
-	 */
-	const double NO_PLANE_DETECTED = -1.0;
+	/** Current distance to plane. */
+	double _currDistance;
 
-	/**
-	 * Minimium number of PointCloud points that need to be available.
-	 */
-	const int MINIMUM_POINTS = 3;
+	/** Flag indicating a new distance measurement was obtained */
+	bool _newDistMeasurement;
 
-	/**
-	 * Frame ID where the lidar is located.
-	 */
+	/** Filtered distance. */
+	double _filteredDistance;
+
+	/** Frame ID where the lidar is located. */
 	std::string FRAME_ID;
 
+	/** Distance when plane is not selected. */
+	const double NO_PLANE_DETECTED = -1.0;
+
+	/** Minimium number of PointCloud points that need to be available. */
+	const int MINIMUM_POINTS = 3;
+
+	/** Maximum time with no measurements - Kalman filter*/
+	const double MAX_INVALID_TIME = 2;
 };
 
 #endif /* DETECTION_WRAPPER_H */

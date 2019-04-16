@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-		ros::console::levels::Warn))
+		ros::console::levels::Debug))
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Setup a new planeDetection object
@@ -67,20 +67,33 @@ int main(int argc, char **argv) {
 			"/plane_normal", 1);
 	ros::Publisher distPub = nh.advertise<std_msgs::Float64>(
 			"/distance", 1);
+	ros::Publisher distFiltPub = nh.advertise<std_msgs::Float64>(
+			"/distance_filtered", 1);
 
 	// TODO: Filtrirati outliere
 	// Setup the loop
 	ROS_INFO("Setting rate to %.2f", rate);
 	ros::Rate loopRate {rate};
+	double dt = 1.0 / rate;
 	while(ros::ok())
 	{
 		ros::spinOnce();
 		detectionWrapper->convertFromROSMsg();
+
+		// Detect normal
 		detectionWrapper->doCloudFiltering();
 		detectionWrapper->doPlaneDetection();
 		detectionWrapper->publishPlane(planePub);
 		detectionWrapper->publishNormal(normalPub);
+
+		// Calculate distance
+		detectionWrapper->calculateDistanceToPlane();
 		detectionWrapper->publishDistanceToPlane(distPub);
+
+		// Filter distance
+		detectionWrapper->filterCurrentDistance(dt);
+		detectionWrapper->publishFilteredDistance(distFiltPub);
+
 		loopRate.sleep();
 	}
 
