@@ -55,7 +55,6 @@ void KalmanFilter::measureUpdate(double pos_m) {
 }
 
 double KalmanFilter::getPosition(void) {
-	std::cout << q_[0] << "\t" << q_[1] << "\t" << r_ << std::endl;
     return x_[0];
 }
 
