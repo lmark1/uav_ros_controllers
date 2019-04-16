@@ -51,11 +51,17 @@ class DistanceControl : public ControlBase {
 public:
 
 	/**
-	double rollRef = getRollSetpoint(); * Default contructor which initializes the control mode.
-	 *
-	 * @param mode - Given control mode
-	 */
-	DistanceControl(DistanceControlMode mode);
+	 * Defualt DistanceControl constructor. 
+	 * 
+	 * @param mode 	Defines control mode
+	 * @param kp	Distance controller proportional gain
+	 * @param ki	Distance controller integrator gain
+	 * @param kd	Distance controller derivator gain
+	 * @param lim_low	Lower saturation limit for for the PID integrator
+	 * @param lim_high 	Higher saturation limit for the PID integrator
+	 */	
+	DistanceControl(DistanceControlMode mode, double kp, double ki, double kd, 
+		double limLow, double limHigh);
 	virtual ~DistanceControl();
 
 	/**

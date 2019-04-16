@@ -12,12 +12,14 @@
 #include <mavros_msgs/AttitudeTarget.h>
 #include <tf2/LinearMath/Quaternion.h>
 
-DistanceControl::DistanceControl(DistanceControlMode mode) :
+
+DistanceControl::DistanceControl(DistanceControlMode mode,
+	double kp, double ki, double kd, double limLow, double limHigh) :
 	_mode(mode),
 	_currState(DistanceControlState::MANUAL),
 	_deactivateInspection(false),
 	_distRef(-1),
-	ControlBase()
+	ControlBase(kp, ki, kd, limLow, limHigh)
 {
 
 	// Info messages about node start.

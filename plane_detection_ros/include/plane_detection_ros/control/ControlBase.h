@@ -15,6 +15,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <uav_ros_control/PID.h>
 #include <geometry_msgs/Twist.h>
+#include <ros/ros.h>
+#include <dynamic_reconfigure/server.h>
 
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
 
@@ -32,14 +34,26 @@ public:
 	/**
 	 * Default constructor.
 	 */
-	ControlBase():
-		_distanceMeasured(-1),
-		MASTER_JOY_INDEX(5),
+	ControlBase(double kp, double ki, double kd,	
+		double limLow, double limHigh):
+		_distanceMeasured (-1),
+		_distancePID (new PID),
+		MASTER_JOY_INDEX (5),
 		INSPECTION_JOY_INDEX(4)
 	{
-		// Initialize some default values
+		// Initialize some default Joy values
 		_joyMsg.buttons = std::vector<int> (10, 0);
 		_joyMsg.axes = std::vector<float> (10, 0.0);
+
+		// Initialize defualt PID values
+		_distancePID->set_kp(kp);
+		_distancePID->set_ki(ki);
+		_distancePID->set_kd(kd);
+		_distancePID->set_lim_high(limHigh);
+		_distancePID->set_lim_low(limLow);
+
+		ROS_INFO("DistanceControl PID: p=%.2f i=%.2f d=%.2f low=%.2f, high=%.2f",
+			kp, ki, kd, limLow, limHigh);
 	}
 
 	virtual ~ControlBase()
@@ -107,11 +121,23 @@ public:
 			plane_detection_ros::DistanceControlParametersConfig& configMsg,
 			uint32_t level)
 	{
-		_distancePID.set_kp(configMsg.k_p);
-		_distancePID.set_kd(configMsg.k_d);
-		_distancePID.set_ki(configMsg.k_i);
-		_distancePID.set_lim_high(configMsg.lim_high);
-		_distancePID.set_lim_low(configMsg.lim_low);
+		_distancePID->set_kp(configMsg.k_p);
+		_distancePID->set_kd(configMsg.k_d);
+		_distancePID->set_ki(configMsg.k_i);
+		_distancePID->set_lim_high(configMsg.lim_high);
+		_distancePID->set_lim_low(configMsg.lim_low);
+	}
+
+	template <class T>
+	void setReconfigureParameters(dynamic_reconfigure::Server<T>& server)
+	{
+		plane_detection_ros::DistanceControlParametersConfig configMsg;
+		configMsg.k_p = _distancePID->get_kp();
+		configMsg.k_i = _distancePID->get_ki();
+		configMsg.k_d = _distancePID->get_kd();
+		configMsg.lim_high = _distancePID->get_lim_high();
+		configMsg.lim_low = _distancePID->get_lim_low();
+		server.updateConfig(configMsg);
 	}
 
 	/**
@@ -161,7 +187,7 @@ public:
 
 	PID getPID()
 	{
-		return _distancePID;
+		return *_distancePID;
 	}
 
 
@@ -181,7 +207,7 @@ private:
 	/**
 	 * Distance PID controller
 	 */
-	PID _distancePID;
+	std::unique_ptr<PID> _distancePID;
 
 	/**
 	 * Current Joy message received. Used both in sim and real mode.

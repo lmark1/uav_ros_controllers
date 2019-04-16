@@ -24,6 +24,15 @@
 #include "plane_detection_ros/detection/PlaneDetection.h"
 #include <uav_ros_control/KalmanFilter.h>
 
+/** Distance when plane is not selected. */
+#define NO_PLANE_DETECTED -1
+
+/** Minimium number of PointCloud points that need to be available. */
+#define MINIMUM_POINTS 3
+
+/** Maximum time with no measurements - Kalman filter*/
+#define MAX_INVALID_TIME 2
+
 /**
  * Wrapper class for plane detection object. Used for relaying information
  * between ROS and internal PlaneDetection object.
@@ -48,7 +57,7 @@ public:
 		FRAME_ID(frameID)
 	{
 		ROS_INFO("DetectionWrapper - frame_id: %s", frameID.c_str());
-		ROS_INFO("Setting kalman parameters: noise_mv=%.2f\tnoise_pose=%.2f\tnoise_vel=%.2f",
+		ROS_INFO("Setting kalman parameters: noise_mv=%.2f noise_pose=%.2f noise_vel=%.2f",
 			noiseMv, noisePos, noiseVel);
 		
 		_currCentroid.x = 0.0;
@@ -383,15 +392,6 @@ private:
 
 	/** Frame ID where the lidar is located. */
 	std::string FRAME_ID;
-
-	/** Distance when plane is not selected. */
-	const double NO_PLANE_DETECTED = -1.0;
-
-	/** Minimium number of PointCloud points that need to be available. */
-	const int MINIMUM_POINTS = 3;
-
-	/** Maximum time with no measurements - Kalman filter*/
-	const double MAX_INVALID_TIME = 2;
 };
 
 #endif /* DETECTION_WRAPPER_H */

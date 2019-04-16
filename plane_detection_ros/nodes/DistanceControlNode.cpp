@@ -34,11 +34,21 @@ int main(int argc, char **argv) {
 	ros::init(argc, argv, "distance_control");
 	ros::NodeHandle nh;
 
-	// Get mode parameter
+	// Get parameters
 	bool simMode = false;
 	double rate = 25;
-	nh.getParam("simulation", simMode);
-	nh.getParam("rate", rate);
+	double pidKp = 2;
+	double pidKi = 2;
+	double pidKd = 2;
+	double pidLimLow = -2;
+	double pidLimHigh = 2;
+	nh.getParam("/control/sim_mode", simMode);
+	nh.getParam("/control/rate", rate);
+	nh.getParam("/control/pid/kp", pidKp);
+	nh.getParam("/control/pid/ki", pidKi);
+	nh.getParam("/control/pid/kd", pidKd);
+	nh.getParam("/control/pid/lim_low", pidLimLow);
+	nh.getParam("/control/pid/lim_high", pidLimHigh);
 
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
@@ -47,9 +57,13 @@ int main(int argc, char **argv) {
 
 	// Initialize distance control object
 	std::shared_ptr<DistanceControl> distanceControl
-		{new DistanceControl (((simMode) ?
-				DistanceControlMode::SIMULATION:
-				DistanceControlMode::REAL)) };
+		{
+			new DistanceControl 
+			{
+				((simMode) ? DistanceControlMode::SIMULATION: DistanceControlMode::REAL), 
+				pidKp, pidKi, pidKd,pidLimLow, pidLimHigh
+			} 
+		};
 
 	// Setup callbacks
 	ros::Subscriber distSub = nh.subscribe("/distance", 1,
@@ -86,17 +100,17 @@ int main(int argc, char **argv) {
 	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
 			"/real/attitude_sp", 1);
 
-	ROS_DEBUG("Intitialized subscribers.");
 	// Initialize configure server
 	dynamic_reconfigure::
 		Server<plane_detection_ros::DistanceControlParametersConfig>
 		confServer;
-
 	// Initialize reconfigure callback
 	dynamic_reconfigure::
 		Server<plane_detection_ros::DistanceControlParametersConfig>::
 		CallbackType
 		paramCallback;
+	// Set initial parameters
+	distanceControl->setReconfigureParameters(confServer);
 
 	// Setup reconfigure server
 	paramCallback = boost::bind(
