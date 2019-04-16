@@ -20,3 +20,9 @@ target_link_libraries(pid ${catkin_LIBRARIES})
 # Nonlinear filters library
 add_library(nfilt src/NonlinearFilters.cpp)
 target_link_libraries(nfilt ${catkin_LIBRARIES})
+
+add_library(kalman src/KalmanFilter.cpp)
+target_link_libraries(kalman ${catkin_LIBRARIES})
+
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
