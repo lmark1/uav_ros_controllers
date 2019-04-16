@@ -1,5 +1,10 @@
 <launch>
 
+    <!-- Load configuration parameters -->
+    <rosparam 
+        command="load" 
+        file="$(find plane_detection_ros)/config/distance_control_parameters.yaml" />
+
     <!-- Start plane detection ROS -->
     <node
         pkg="plane_detection_ros"
@@ -18,9 +23,6 @@
         <remap from="control_state"     to="control_state"      />
         <remap from="/sim/attitude_sp"  to="/bebop/att_override"/>
         <remap from="/real/attitude_sp" to="/mavros_dummy/attitude_setpoint_raw"/>
-        
-        <param name="simulation" type="boolean"     value="false" />
-        <param name="rate"       type="double"     value="50" />
     </node>
 
 </launch>
