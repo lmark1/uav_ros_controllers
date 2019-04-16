@@ -7,7 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
 	INCLUDE_DIRS include
-	LIBRARIES pid nfilt
+	LIBRARIES pid nfilt kalman
 	CATKIN_DEPENDS uav_ros_control_msgs)
 
 include_directories(
