@@ -1,6 +1,11 @@
 detection:
    rate: 15
    frame_id: "leddar"
+   lim_x: 50
+   lim_y: 0.5
+   lim_z: 2
+   min_x: 0.5
+   threshold: 0.1
    
 kalman:
    noise_mv: 12

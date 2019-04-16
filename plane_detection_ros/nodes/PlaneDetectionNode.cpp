@@ -11,6 +11,8 @@
 
 #include "plane_detection_ros/detection/DetectionWrapper.h"
 
+#include <array>
+
 /**
  * Initializes plane detection node. Feeds PointCloud messages to
  * PlaneDetection object.
@@ -32,11 +34,21 @@ int main(int argc, char **argv) {
 	// Read all available parameters
 	std::string frameID {"velodyne"};
 	double rate = 10;
+	double lim_x = 2;
+	double lim_y = 2;
+	double lim_z = 2;
+	double min_x = 0.5;
 	double kalmanNoiseMv = 10;
 	double kalmanNoisePos = 1;
 	double kalmanNoiseVel = 10;
+	double threshold = 0.05;
 	nh.getParam("/detection/frame_id", frameID);
 	nh.getParam("/detection/rate", rate);
+	nh.getParam("/detection/lim_x", lim_x);
+	nh.getParam("/detection/lim_y", lim_y);
+	nh.getParam("/detection/lim_z", lim_z);
+	nh.getParam("/detection/min_x", min_x);
+	nh.getParam("/detection/threshold", threshold);
 	nh.getParam("/kalman/noise_mv", kalmanNoiseMv);
 	nh.getParam("/kalman/noise_pos", kalmanNoisePos);
 	nh.getParam("/kalman/noise_vel", kalmanNoiseVel);
@@ -48,10 +60,10 @@ int main(int argc, char **argv) {
 
 	// Setup a new planeDetection object
 	std::shared_ptr<DetectionWrapper> detectionWrapper
-		{new DetectionWrapper (frameID, kalmanNoiseMv, kalmanNoisePos, kalmanNoiseVel)};
-	ros::Subscriber pclSub = nh.subscribe("/pointcloud", 1,
-			&DetectionWrapper::pointCloudCallback, detectionWrapper.get());
-
+		{ new DetectionWrapper {frameID, kalmanNoiseMv, kalmanNoisePos, kalmanNoiseVel} };
+	detectionWrapper->setFilterLimits(lim_x, lim_y, lim_z, min_x);
+	detectionWrapper->setDetectionThreshold(threshold);
+	
 	// Initialize configure server
 	dynamic_reconfigure::
 		Server<plane_detection_ros::PlaneDetectionParametersConfig>
@@ -69,6 +81,10 @@ int main(int argc, char **argv) {
 			detectionWrapper, _1, _2);
 	confServer.setCallback(paramCallback);
 
+	// Pointcloud subscriber
+	ros::Subscriber pclSub = nh.subscribe("/pointcloud", 1,
+		&DetectionWrapper::pointCloudCallback, detectionWrapper.get());
+
 	// Define some publishers
 	ros::Publisher planePub = nh.advertise<sensor_msgs::PointCloud2>(
 			"/plane", 1);
@@ -80,7 +96,7 @@ int main(int argc, char **argv) {
 			"/distance_filtered", 1);
 
 	// Setup the loop
-	ROS_INFO("Setting rate to %.2f", rate);
+	ROS_INFO("PlaneDetectionNode: Setting rate to %.2f", rate);
 	ros::Rate loopRate {rate};
 	double dt = 1.0 / rate;
 	while(ros::ok())

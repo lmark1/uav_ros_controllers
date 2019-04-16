@@ -76,6 +76,37 @@ public:
 	}
 
 	/**
+	 * Sets filter limits for the Box filter.
+	 * 
+	 * @param limX
+	 * @param limY
+	 * @param limZ
+	 * @param minLimX
+	 */
+	void setFilterLimits(double limX, double limY, double limZ, double minLimX)
+	{
+		plane_detect::FILTER_X = limX;
+		plane_detect::FILTER_Y = limY;
+		plane_detect::FILTER_Z = limZ;
+		plane_detect::FILTER_MIN_X = minLimX;
+		ROS_INFO("Current filter limits: %.2f %.2f %.2f", 
+			plane_detect::FILTER_X,
+			plane_detect::FILTER_Y,
+			plane_detect::FILTER_Z);
+	}
+
+	/**
+	 * Sets given detection threshold.
+	 * 
+	 * @param threshold
+	 */
+	void setDetectionThreshold(double thresh)
+	{	
+		plane_detect::DISTANCE_TRESHOLD = thresh;
+		ROS_INFO("Current detection threshold: %.2f", plane_detect::DISTANCE_TRESHOLD);
+	}
+
+	/**
 	 * Callback function for PointCloud2 objects.
 	 * Remembers the last pointcloud object.
 	 */
@@ -93,12 +124,10 @@ public:
 			uint32_t level)
 	{
 		ROS_WARN("Hello from Re-configure callback.");
-		plane_detect::DISTANCE_TRESHOLD = configMsg.dist_tresh;
 		plane_detect::ENABLE_OPTIMIZATION = configMsg.param_opt;
-		plane_detect::FILTER_MIN_X = configMsg.min_lim_x;
-		plane_detect::FILTER_X = configMsg.lim_x;
-		plane_detect::FILTER_Y = configMsg.lim_y;
-		plane_detect::FILTER_Z = configMsg.lim_z;
+		setFilterLimits(configMsg.lim_x, configMsg.lim_y, 
+			configMsg.lim_z, configMsg.min_lim_x);
+		setDetectionThreshold(configMsg.dist_tresh);
 
 		_kalmanInitialized = configMsg.init_kalman;
 		_kalmanFilter->setMeasureNoise(configMsg.noise_mv);

@@ -23,10 +23,7 @@
  * 		- /joy			- Joystick topic used for enabling inspection mode
  *		- /real/imu	PID	- IMU topic - realistic
  *		- /sim/odometry	- Odometry topic - simulation
- *
- * ROS parameters:
- * 		- simulation 	- Enable simulation mode
- * 		- rate			- Distance control rate
+ *		- /cmd_vel		- Command velocities from the Joystick input
  */
 int main(int argc, char **argv) {
 
@@ -120,7 +117,7 @@ int main(int argc, char **argv) {
 
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
-	ROS_INFO("Setting rate to %.2f", rate);
+	ROS_INFO("DistanceControlNode: Setting rate to %.2f", rate);
 	while (ros::ok())
 	{
 		ros::spinOnce();
