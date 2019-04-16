@@ -55,9 +55,25 @@ void KalmanFilter::measureUpdate(double pos_m) {
 }
 
 double KalmanFilter::getPosition(void) {
+	std::cout << q_[0] << "\t" << q_[1] << "\t" << r_ << std::endl;
     return x_[0];
 }
 
 double KalmanFilter::getVelocity(void) {
     return x_[1];
+}
+
+double KalmanFilter::getMesaureNoise()
+{
+    return r_;
+}
+
+double KalmanFilter::getPositionNoise()
+{
+    return q_[0];
+}
+
+double KalmanFilter::getVelocityNoise()
+{
+    return q_[1];
 }

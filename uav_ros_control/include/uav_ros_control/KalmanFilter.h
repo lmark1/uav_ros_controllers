@@ -94,6 +94,21 @@ class KalmanFilter {
          */
         void initializePosition(double pos);
 
+        /**
+         * Returns measured noise.
+         */
+        double getMesaureNoise();
+
+        /**
+         * Returns position noise.
+         */
+        double getPositionNoise();
+
+        /**
+         * Returns velocity noise.
+         */
+        double getVelocityNoise();
+
     private:
         double x_cov_[2][2], x_[2];
         double q_[2], r_;
