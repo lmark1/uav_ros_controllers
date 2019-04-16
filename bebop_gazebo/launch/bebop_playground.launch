@@ -48,5 +48,42 @@
             name="rviz_node" pkg="rviz" type="rviz" 
             args="-d $(arg rviz_config)" />
     </group>
+
+    <!-- Load configuration parameters -->
+    <rosparam 
+        command="load" 
+        file="$(find plane_detection_ros)/config/distance_control_parameters.yaml" />
+
+    <!-- Start plane detection ROS -->
+    <node
+        pkg="plane_detection_ros"
+        type="distance_control_node"
+        name="distance_control_node"
+        output="screen">
+        
+        <!-- Do all the subscriber remaps -->
+        <remap from="distance"          to="distance"           />
+        <remap from="joy"               to="joy"                />
+        <remap from="/real/imu"         to="/mavros/imu/data"   />
+        <remap from="/sim/odometry"     to="/bebop/odometry_gt" />
+        <remap from="/cmd_vel"          to="cmd_vel"            />
+        
+        <!-- Do all the publisher remaps -->
+        <remap from="control_state"     to="control_state"      />
+        <remap from="/sim/attitude_sp"  to="/bebop/att_override"/>
+        <remap from="/real/attitude_sp" to="/mavros_dummy/attitude_setpoint_raw"/>
+    </node>
+
+    <!-- Load parameters -->
+    <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters.yaml" />
+    
+    <!-- Launch plane detection -->
+    <node 
+        pkg="plane_detection_ros"
+        type="plane_detection_node"
+        name="plane_detection_node"
+        output="screen">
+        <remap from="/pointcloud" to="/leddar_points"/>
+    </node>
     
 </launch>
