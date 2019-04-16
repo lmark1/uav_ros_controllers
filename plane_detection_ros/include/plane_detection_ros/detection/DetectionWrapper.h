@@ -21,7 +21,7 @@
 #include <math.h>
 
 // Own includes
-#include "detection/PlaneDetection.h"
+#include "plane_detection_ros/detection/PlaneDetection.h"
 #include <uav_ros_control/KalmanFilter.h>
 
 /**

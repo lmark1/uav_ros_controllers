@@ -5,7 +5,7 @@
  *      Author: lmark
  */
 
-#include "control/DistanceControl.h"
+#include "plane_detection_ros/control/DistanceControl.h"
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
 
 // ROS Includes

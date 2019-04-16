@@ -8,7 +8,7 @@
 #ifndef DISTANCE_CONTROL_H
 #define DISTANCE_CONTROL_H
 
-#include "control/ControlBase.h"
+#include "plane_detection_ros/control/ControlBase.h"
 
 // ROS Includes
 #include <ros/ros.h>

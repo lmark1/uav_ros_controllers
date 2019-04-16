@@ -51,7 +51,6 @@ public:
 	 */
 	void distanceCb(const std_msgs::Float64ConstPtr& message)
 	{
-		ROS_DEBUG("Hello from cb");
 		_distanceMeasured = message->data;
 	}
 

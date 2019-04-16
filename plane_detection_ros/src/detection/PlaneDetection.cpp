@@ -13,7 +13,7 @@
 #include <pcl/common/centroid.h>
 
 // Own includes
-#include "detection/PlaneDetection.h"
+#include "plane_detection_ros/detection/PlaneDetection.h"
 
 // Eigen
 #include <Eigen/Core>
