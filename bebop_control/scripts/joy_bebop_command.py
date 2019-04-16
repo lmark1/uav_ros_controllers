@@ -44,7 +44,7 @@ class Commander():
 
     def mode_callback(self, msg):
         # Detect falling edge
-        if (self.mode == Commander.INSPECION_MODE && msg.data == Commander.MANUAL_MODE):
+        if (self.mode == Commander.INSPECION_MODE and msg.data == Commander.MANUAL_MODE):
             printf("BebopCommander.mode_callback: To manual detected")
             self.deactivate_inspection()
 
@@ -57,7 +57,7 @@ class Commander():
     # Subscribe to teleop msgs
     def cmd_vel_callback(self,data):
 
-        if (self.mode == INSPECION_MODE):
+        if (self.mode == Commander.INSPECION_MODE):
             # Only control height in attitude mode
             self.UAV_pose.point.x = 0
             self.UAV_pose.point.y = 0
