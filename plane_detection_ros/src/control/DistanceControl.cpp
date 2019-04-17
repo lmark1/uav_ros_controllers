@@ -88,7 +88,7 @@ void DistanceControl::calculateSetpoint(double dt)
 
 	_attitudeSetpoint[0] = getPID()
 			.compute(_distRef, getDistanceMeasured(), dt);
-	_attitudeSetpoint[1] = getRollSetpoint();
+	_attitudeSetpoint[1] = - getRollSetpoint();
 	_attitudeSetpoint[2] = getYawSetpoint();
 }
 
@@ -142,6 +142,6 @@ bool DistanceControl::inspectionFailed()
 
 bool DistanceControl::manualRequested()
 {
-	return !inspectionEnabledJoy() != 1 &&
+	return !inspectionEnabledJoy() &&
 			_currState == DistanceControlState::INSPECTION;
 }
