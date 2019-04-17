@@ -24,7 +24,7 @@
         
         <!-- Do all the publisher remaps -->
         <remap from="control_state"     to="bebop/inspection_mode" />
-        <remap from="/sim/attitude_sp"  to="/bebop/att_override"/>
+        <remap from="/sim/rpy_thrust"   to="/bebop/att_override"/>
         <remap from="/real/attitude_sp" to="/mavros_dummy/attitude_setpoint_raw"/>
     </node>
 
