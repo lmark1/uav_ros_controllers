@@ -7,7 +7,8 @@ find_package(catkin REQUIRED COMPONENTS
     std_msgs
     dynamic_reconfigure
     sensor_msgs
-    uav_ros_control)
+    uav_ros_control
+    mav_msgs)
 
 find_package(PCL 1.8 REQUIRED COMPONENTS
     common

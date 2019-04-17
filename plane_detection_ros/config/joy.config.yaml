@@ -7,12 +7,12 @@ control:
   scale_linear:
     x: 0.1
     y: 0.1
-    z: 0.2
+    z: 100
   
   axis_angular:
     yaw: 0
   
   scale_angular:
     yaw: 1
-    
+  
   detection_state: 5

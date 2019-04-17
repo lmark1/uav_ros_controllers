@@ -44,7 +44,10 @@ public:
 		_joyIndices (new joy_control::JoyIndices),
 		_joyScales (new joy_control::ScaleWeights)
 	{
+		// Make a node handle
 		ros::NodeHandle nh;
+
+		// Try to get all joy_indices
 		bool indicesRead = 
 			nh.getParam("/control/axis_linear/x", 			_joyIndices->AXIS_LINEAR_X) &&
 			nh.getParam("/control/axis_linear/y", 			_joyIndices->AXIS_LINEAR_Y) &&
@@ -58,6 +61,7 @@ public:
 			throw std::invalid_argument("JoyIndices parameters not properly set.");
 		}
 
+		// Try to get all control input scales
 		bool scalesRead = 
 			nh.getParam("/control/scale_linear/x", 		_joyScales->LINEAR_X) &&
 			nh.getParam("/control/scale_linear/y", 		_joyScales->LINEAR_Y) &&
@@ -69,6 +73,10 @@ public:
 			ROS_FATAL("ControlBase() - JoyScales parameters are not properly set.");
 			throw std::invalid_argument("JoyScales parameters are not properly set.");
 		}
+
+		// Initialize JoyMsg
+		_joyMsg.axes = std::vector<float> (10, 0.0);
+		_joyMsg.buttons = std::vector<int> (10, 0);
 	}
 
 	virtual ~ControlBase()
@@ -88,7 +96,7 @@ public:
 	 */
 	void joyCb(const sensor_msgs::JoyConstPtr& message)
 	{
-		// TODO: Do stuff here
+		_joyMsg = *message;
 	}
 
 	/**
@@ -148,6 +156,9 @@ public:
 		_distancePID->set_lim_low(configMsg.lim_low);
 	}
 
+	/**
+	 * Update configuration parameters on the given server.
+	 */
 	template <class T>
 	void setReconfigureParameters(dynamic_reconfigure::Server<T>& server)
 	{
@@ -165,8 +176,7 @@ public:
 	 */
 	bool inspectionEnabledJoy()
 	{
-		//return _joyMsg.buttons[INSPECTION_JOY_INDEX] == 1;
-		return 1;
+		return _joyMsg.buttons[_joyIndices->INSPECTION_MODE] == 1;
 	}
 
 	/**
@@ -178,26 +188,60 @@ public:
 	}
 
 	/**
-	 * Calculate yaw angle setpoint;
+	 * Return reference to the PID object.
 	 */
-	double getYawSetpoint()
-	{
-		return _uavYaw + _planeYaw;
-	}
-
-	/**
-	 * Calculate the roll setpoint.
-	 */
-	double getRollSetpoint()
-	{
-		return 0;
-	}
-
 	PID& getPID()
 	{
 		return *_distancePID;
 	}
 
+	/**
+	 * Return plane yaw angle, with respect to the UAV base frame.
+	 */
+	double getPlaneYaw()
+	{
+		return _planeYaw;
+	}
+
+	/**
+	 * Return the current UAV yaw angle.
+	 */
+	double getUAVYaw()
+	{
+		return _uavYaw;
+	}
+
+	/**
+	 * Return the value for current roll setpoint.
+	 */
+	double getRollSpManual()
+	{
+		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_X] * _joyScales->LINEAR_X;
+	}
+
+	/**
+	 * Return the value for current pitch setpoint.
+	 */
+	double getPitchSpManual()
+	{
+		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_X] * _joyScales->LINEAR_X;
+	}
+
+	/**
+	 * Return the value for current yaw setpoint.
+	 */
+	double getYawSpManual()
+	{
+		return _joyMsg.axes[_joyIndices->AXIS_ANGULAR_YAW] * _joyScales->ANGULAR_Z;
+	}
+
+	/**
+	 * Return the value for current thrust setpoint.
+	 */
+	double getThrustSpManual()
+	{
+		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] * _joyScales->LINEAR_Z;
+	}
 
 private:
 
@@ -214,6 +258,9 @@ private:
 
 	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
+
+	/** Current Joy message set in the /joy callback function. */
+	sensor_msgs::Joy _joyMsg;
 
 	/** Indices - Joy structure */
 	std::unique_ptr<joy_control::JoyIndices> _joyIndices;

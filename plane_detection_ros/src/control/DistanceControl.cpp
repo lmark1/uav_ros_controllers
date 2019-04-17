@@ -11,7 +11,9 @@
 #include <std_msgs/Int32.h>
 #include <mavros_msgs/AttitudeTarget.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <mav_msgs/RollPitchYawrateThrust.h>
 
+#include <array>
 
 DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode(mode),
@@ -87,14 +89,19 @@ void DistanceControl::publishState(ros::Publisher& pub)
 
 void DistanceControl::calculateSetpoint(double dt)
 {
-	// If not in inspection mode do not do anything.
-	if (!inInspectionState())
-		return;
-
 	ROS_DEBUG("Calculating setpoint...");
-	_attitudeSetpoint[0] = - getPID().compute(_distRef, getDistanceMeasured(), dt);
-	_attitudeSetpoint[1] = - getRollSetpoint();
-	_attitudeSetpoint[2] = getYawSetpoint();
+	if (inInspectionState())
+	{
+		_attitudeSetpoint[0] = - getRollSpManual();
+		_attitudeSetpoint[1] = - getPID().compute(_distRef, getDistanceMeasured(), dt);
+		_attitudeSetpoint[2] = getUAVYaw() + getPlaneYaw();
+	}
+	else
+	{
+		_attitudeSetpoint[0] = - getRollSpManual();
+		_attitudeSetpoint[1] = getPitchSpManual();
+		_attitudeSetpoint[2] = getYawSpManual();
+	}
 }
 
 void DistanceControl::publishDistanceSetpoint(ros::Publisher& pub)
@@ -105,7 +112,11 @@ void DistanceControl::publishDistanceSetpoint(ros::Publisher& pub)
 }
 
 void DistanceControl::publishSetpoint(ros::Publisher& pub)
-{
+{	
+	// Thrust is the same for both messages
+	double thrustSp = getThrustSpManual();
+
+	// If in REAL mode, publish mavros::msgs AttitudeTarget
 	if (_mode == DistanceControlMode::REAL)
 	{
 		tf2::Quaternion myQuaternion;
@@ -120,16 +131,22 @@ void DistanceControl::publishSetpoint(ros::Publisher& pub)
 		newMessage.orientation.y = myQuaternion.y();
 		newMessage.orientation.z = myQuaternion.z();
 		newMessage.orientation.w = myQuaternion.w();
+		newMessage.thrust = thrustSp;
 		pub.publish(newMessage);
 		return;
 	}
 
+	// If in simulation mode, publish mav_msgs::RollPitchYawrateThrust
 	if (_mode == DistanceControlMode::SIMULATION)
 	{
-		geometry_msgs::Vector3 newMessage;
-		newMessage.x = _attitudeSetpoint[0];
-		newMessage.y = _attitudeSetpoint[1];
-		newMessage.z = _attitudeSetpoint[2];
+		mav_msgs::RollPitchYawrateThrust newMessage;
+		newMessage.roll = _attitudeSetpoint[0];
+		newMessage.pitch = _attitudeSetpoint[1];
+		newMessage.yaw_rate = _attitudeSetpoint[2];
+		newMessage.thrust = geometry_msgs::Vector3();
+		newMessage.thrust.x = 0;
+		newMessage.thrust.y = 0;
+		newMessage.thrust.z = thrustSp;
 		pub.publish(newMessage);
 		return;
 	}

@@ -14,6 +14,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <mavros_msgs/AttitudeTarget.h>
 #include <std_msgs/Int32.h>
+#include <mav_msgs/RollPitchYawrateThrust.h>
 
 /**
  * Initializes distance control node.
@@ -87,15 +88,12 @@ int main(int argc, char **argv) {
 	// Define publishers
 	ros::Publisher statePub = nh.advertise<std_msgs::Int32>(
 			"/control_state", 1);
-
 	// Simulation setpoint
-	ros::Publisher spPubSim = nh.advertise<geometry_msgs::Vector3>(
-			"/sim/attitude_sp", 1);
-
+	ros::Publisher spPubSim = nh.advertise<mav_msgs::RollPitchYawrateThrust>(
+			"/sim/rpy_thrust", 1);
 	// Real setpoint
 	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
 			"/real/attitude_sp", 1);
-
 	// Referent distance publisher
 	ros::Publisher distRefPub = nh.advertise<std_msgs::Float64>(
 		"/dist_ref", 1);
