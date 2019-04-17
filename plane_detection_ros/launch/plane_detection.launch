@@ -1,5 +1,5 @@
 <launch>
-    <arg name="rviz_config" value="$(find bebop_gazebo)/config/rviz_detection.rviz" />
+    <arg name="rviz_config" value="$(find bebop_gazebo)/config/rviz_velodyne_detection.rviz" />
     
     <!-- Load parameters -->
     <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters.yaml" />
