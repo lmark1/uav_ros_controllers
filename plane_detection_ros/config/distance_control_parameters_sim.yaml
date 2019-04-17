@@ -1,0 +1,11 @@
+control:
+
+  rate: 20
+  sim_mode: true
+
+  pid:
+    kp: 1.0
+    ki: 1.0
+    kd: 1.0
+    lim_low: -10
+    lim_high: 10
