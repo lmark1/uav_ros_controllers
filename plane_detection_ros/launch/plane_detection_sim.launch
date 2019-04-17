@@ -1,0 +1,13 @@
+<launch>
+    <!-- Load parameters -->
+    <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters_sim.yaml" />
+    
+    <!-- Launch plane detection -->
+    <node 
+        pkg="plane_detection_ros"
+        type="plane_detection_node"
+        name="plane_detection_node"
+        output="screen">
+        <remap from="/pointcloud" to="/leddar_points"/>
+    </node>
+</launch>

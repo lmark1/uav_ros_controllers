@@ -3,7 +3,7 @@
     <!-- Load configuration parameters -->
     <rosparam 
         command="load" 
-        file="$(find plane_detection_ros)/config/distance_control_parameters.yaml" />
+        file="$(find plane_detection_ros)/config/distance_control_parameters_sim.yaml" />
 
     <!-- Start plane detection ROS -->
     <node
