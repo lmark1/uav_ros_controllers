@@ -1,5 +1,6 @@
 #include <uav_ros_control/PID.h>
 #include <limits>
+#include <iostream>
 
 PID::PID()
 {
@@ -34,7 +35,7 @@ PID::PID()
     firstPass = true;
 }
 
-void PID::reset()
+void PID::resetPIDParams()
 {
     // Resets pid algorithm by setting all P,I,D parts to zero
     up = 0;
@@ -42,6 +43,13 @@ void PID::reset()
     ui_old = 0;
     ud = 0;
     u = 0;
+}
+
+void PID::resetIntegrator()
+{
+    firstPass = false;
+    ui_old = 0;
+    error_old = 0;
 }
 
 void PID::set_kp(float invar)
@@ -169,7 +177,7 @@ float PID::compute(float ref_, float meas_, float dt_)
         ui_old = ui;                          // save ui for next step
 
         error_old = error;
-                            
+                
         /* End of added code
         ///////////////////////////////////////////////
         ///////////////////////////////////////////////

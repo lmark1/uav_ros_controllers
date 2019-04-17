@@ -12,7 +12,8 @@ class PID
 		
 	public:
 		PID();
-		void reset();
+		void resetPIDParams();
+		void resetIntegrator();
 		void set_kp(float invar);
 		float get_kp();
 		void set_ki(float invar);
