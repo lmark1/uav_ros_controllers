@@ -73,19 +73,15 @@ int main(int argc, char **argv) {
 			&ControlBase::joyCb,
 			dynamic_cast<ControlBase*>(distanceControl.get()));
 
-	// Realistic callbacks
-	ros::Subscriber imuSub = nh.subscribe("/real/imu", 1,
-			&ControlBase::imuCbReal,
-			dynamic_cast<ControlBase*>(distanceControl.get()));
-
-	// Simulation callbacks
-	ros::Subscriber odomSub = nh.subscribe("/sim/odometry", 1,
+	if (simMode)
+		// Simulation callbacks
+		ros::Subscriber odomSub = nh.subscribe("/sim/odometry", 1,
 			&ControlBase::imuCbSim,
 			dynamic_cast<ControlBase*>(distanceControl.get()));
-
-	// Command velocity subscriber
-	ros::Subscriber cmdSub = nh.subscribe("/cmd_vel", 1,
-			&ControlBase::cmdVelCb,
+	else
+		// Realistic callbacks
+		ros::Subscriber imuSub = nh.subscribe("/real/imu", 1,
+			&ControlBase::imuCbReal,
 			dynamic_cast<ControlBase*>(distanceControl.get()));
 
 	// Define publishers
