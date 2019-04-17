@@ -54,13 +54,16 @@ int main(int argc, char **argv) {
 
 	// Initialize distance control object
 	std::shared_ptr<DistanceControl> distanceControl
-		{
-			new DistanceControl 
-			{
-				((simMode) ? DistanceControlMode::SIMULATION: DistanceControlMode::REAL), 
-				pidKp, pidKi, pidKd,pidLimLow, pidLimHigh
-			} 
-		};
+		{ new DistanceControl { ((simMode) ? 
+			DistanceControlMode::SIMULATION : 
+			DistanceControlMode::REAL) } };	
+
+	// Set all PID parameters externally
+	distanceControl->getPID().set_kp(pidKp);
+	distanceControl->getPID().set_ki(pidKi);
+	distanceControl->getPID().set_kd(pidKd);
+	distanceControl->getPID().set_lim_low(pidLimLow);
+	distanceControl->getPID().set_lim_high(pidLimHigh);
 
 	// Setup callbacks
 	ros::Subscriber distSub = nh.subscribe("/distance", 1,
@@ -139,14 +142,14 @@ int main(int argc, char **argv) {
 		distanceControl->publishDistanceSetpoint(distRefPub);
 		loopRate.sleep();
 
-/*
+		/*
 		ROS_DEBUG("PID parameters: p=%.2f i=%.2f d=%.2f low=%.2f high=%.2f\n",
 			distanceControl->getPID().get_kp(),
 			distanceControl->getPID().get_ki(),
 			distanceControl->getPID().get_kd(),
 			distanceControl->getPID().get_lim_low(),
 			distanceControl->getPID().get_lim_high());
-*/
+		*/
 	}
 }
 

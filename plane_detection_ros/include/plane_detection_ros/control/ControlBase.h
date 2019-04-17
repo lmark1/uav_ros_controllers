@@ -34,8 +34,7 @@ public:
 	/**
 	 * Default constructor.
 	 */
-	ControlBase(double kp, double ki, double kd,	
-		double limLow, double limHigh):
+	ControlBase():
 		_distanceMeasured (-1),
 		_distancePID (new PID),
 		MASTER_JOY_INDEX (5),
@@ -44,23 +43,13 @@ public:
 		// Initialize some default Joy values
 		_joyMsg.buttons = std::vector<int> (10, 0);
 		_joyMsg.axes = std::vector<float> (10, 0.0);
-
-		// Initialize defualt PID values
-		_distancePID->set_kp(kp);
-		_distancePID->set_ki(ki);
-		_distancePID->set_kd(kd);
-		_distancePID->set_lim_high(limHigh);
-		_distancePID->set_lim_low(limLow);
-
-		ROS_INFO("DistanceControl PID: p=%.2f i=%.2f d=%.2f low=%.2f, high=%.2f",
-			kp, ki, kd, limLow, limHigh);
 	}
 
 	virtual ~ControlBase()
 	{
 	}
 
-	/**
+	/**	
 	 * Distance callback function.
 	 */
 	void distanceCb(const std_msgs::Float64ConstPtr& message)

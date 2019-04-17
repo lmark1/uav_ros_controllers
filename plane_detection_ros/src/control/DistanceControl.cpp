@@ -13,13 +13,12 @@
 #include <tf2/LinearMath/Quaternion.h>
 
 
-DistanceControl::DistanceControl(DistanceControlMode mode,
-	double kp, double ki, double kd, double limLow, double limHigh) :
+DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode(mode),
 	_currState(DistanceControlState::MANUAL),
 	_deactivateInspection(false),
 	_distRef(-1),
-	ControlBase(kp, ki, kd, limLow, limHigh)
+	ControlBase()
 {
 
 	// Info messages about node start.

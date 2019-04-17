@@ -60,8 +60,7 @@ public:
 	 * @param lim_low	Lower saturation limit for for the PID integrator
 	 * @param lim_high 	Higher saturation limit for the PID integrator
 	 */	
-	DistanceControl(DistanceControlMode mode, double kp, double ki, double kd, 
-		double limLow, double limHigh);
+	DistanceControl(DistanceControlMode mode);
 	virtual ~DistanceControl();
 
 	/**
