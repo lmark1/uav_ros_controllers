@@ -340,7 +340,6 @@ public:
 			// Increase time invalid
 			ROS_WARN("KalmanFilter - doing only model update");
 			_timeInvalid += dt;
-			ROS_FATAL("KalmanFilter - Time without update: %.2f", _timeInvalid);
 		}
 
 		// Check if invalid time reached maximum
