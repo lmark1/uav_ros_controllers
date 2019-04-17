@@ -8,6 +8,8 @@
 #ifndef CONTROL_BASE_H
 #define CONTROL_BASE_H
 
+#include <ros/ros.h>
+#include <dynamic_reconfigure/server.h>
 #include <std_msgs/Float64.h>
 #include <sensor_msgs/Joy.h>
 #include <sensor_msgs/Imu.h>
@@ -15,8 +17,6 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <uav_ros_control/PID.h>
 #include <geometry_msgs/Twist.h>
-#include <ros/ros.h>
-#include <dynamic_reconfigure/server.h>
 
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
 
@@ -36,13 +36,8 @@ public:
 	 */
 	ControlBase():
 		_distanceMeasured (-1),
-		_distancePID (new PID),
-		MASTER_JOY_INDEX (5),
-		INSPECTION_JOY_INDEX(4)
+		_distancePID (new PID)
 	{
-		// Initialize some default Joy values
-		_joyMsg.buttons = std::vector<int> (10, 0);
-		_joyMsg.axes = std::vector<float> (10, 0.0);
 	}
 
 	virtual ~ControlBase()
@@ -62,16 +57,33 @@ public:
 	 */
 	void joyCb(const sensor_msgs::JoyConstPtr& message)
 	{
-		_joyMsg = *message;
+		// TODO: Do stuff here
 	}
 
 	/**
-	 * IMU callback function for realistic control mode.
+	 * IMU callback function for realistic control mode. 
+	 * Calculates UAV yaw.
 	 */
 	void imuCbReal(const sensor_msgs::ImuConstPtr& message)
 	{
-		// TODO: Do something here
-		_imuMsgReal = *message;
+		_uavYaw = calculateYaw(
+				message->orientation.x,
+				message->orientation.y,
+				message->orientation.z,
+				message->orientation.w);
+	}
+
+		/**
+	 * Imu callback function for simulation control mode.
+	 * Calculates UAV yaw.
+	 */
+	void imuCbSim(const nav_msgs::OdometryConstPtr& message)
+	{
+		_uavYaw = calculateYaw(
+				message->pose.pose.orientation.x,
+				message->pose.pose.orientation.y,
+				message->pose.pose.orientation.z,
+				message->pose.pose.orientation.w);
 	}
 
 	/**
@@ -89,18 +101,6 @@ public:
 		double xComponent = cos(_planeYaw);
 		if (xComponent < 0)
 			_planeYaw += M_PI;
-	}
-
-	/**
-	 * Imu callback function for simulation control mode.
-	 */
-	void imuCbSim(const nav_msgs::OdometryConstPtr& message)
-	{
-		_uavYaw = calculateYaw(
-				message->pose.pose.orientation.x,
-				message->pose.pose.orientation.y,
-				message->pose.pose.orientation.z,
-				message->pose.pose.orientation.w);
 	}
 
 	/**
@@ -130,19 +130,12 @@ public:
 	}
 
 	/**
-	 * Command velocity callback.
-	 */
-	void cmdVelCb(const geometry_msgs::TwistConstPtr& twistMsg)
-	{
-		_rollSetpoint = twistMsg->linear.y;
-	}
-
-	/**
 	 * Check if inspection is enabled.
 	 */
 	bool inspectionEnabledJoy()
 	{
-		return _joyMsg.buttons[INSPECTION_JOY_INDEX] == 1;
+		//return _joyMsg.buttons[INSPECTION_JOY_INDEX] == 1;
+		return 1;
 	}
 
 	/**
@@ -162,16 +155,11 @@ public:
 	}
 
 	/**
-	 * Return current roll setpoint.
+	 * Calculate the roll setpoint.
 	 */
 	double getRollSetpoint()
 	{
-		return _rollSetpoint;
-	}
-
-	sensor_msgs::Imu getIMUMsg()
-	{
-		return _imuMsgReal;
+		return 0;
 	}
 
 	PID& getPID()
@@ -193,50 +181,17 @@ private:
 				qw * qw + qx * qx - qy * qy - qz * qz);
 	}
 
-	/**
-	 * Distance PID controller
-	 */
+	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
 
-	/**
-	 * Current Joy message received. Used both in sim and real mode.
-	 */
-	sensor_msgs::Joy _joyMsg;
-
-	/**
-	 * Current distance measured value. Used both in sim and real mode.
-	 */
+	/** Current distance measured value. Used both in sim and real mode. */
 	double _distanceMeasured;
 
-	/**
-	 * Roll setpoint - when in inspection mode.
-	 */
-	double _rollSetpoint = 0;
-
-	/**
-	 * Current IMU measured value. Used only is real mode.
-	 */
-	sensor_msgs::Imu _imuMsgReal;
-
-	/**
-	 * Current UAV yaw angle.
-	 */
+	/** Current UAV yaw angle. */
 	double _uavYaw = 0;
 
-	/**
-	 * Yaw of the plane normal with respect to UAV base frame.
-	 */
+	/** Yaw of the plane normal with respect to UAV base frame. */
 	double _planeYaw = 0;
-
-	/**
-	 * Index of buttons[] array for changing to inspection mode.
-	 */
-	int INSPECTION_JOY_INDEX;
-
-	/**
-	 * Index of buttons[] array for setting master control mode.
-	 */
-	int MASTER_JOY_INDEX;
 };
 
 #endif /* CONTROL_BASE_H */
