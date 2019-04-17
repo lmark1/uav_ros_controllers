@@ -40,8 +40,7 @@ void DistanceControl::detectStateChange()
 	if (inspectionFailed())
 	{
 		ROS_FATAL("Inspection mode failed - invalid distance");
-		_deactivateInspection = true;
-		_currState = DistanceControlState::MANUAL;
+		deactivateInspection();
 		return;
 	}
 
@@ -67,9 +66,16 @@ void DistanceControl::detectStateChange()
 	if (manualRequested())
 	{
 		ROS_INFO("Manual mode entered.");
-		_currState = DistanceControlState::MANUAL;
-		_deactivateInspection = true;
+		deactivateInspection();
 	}
+}
+
+void DistanceControl::deactivateInspection()
+{
+	_currState = DistanceControlState::MANUAL;
+	_deactivateInspection = true;
+	getPID().resetIntegrator();
+	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
 void DistanceControl::publishState(ros::Publisher& pub)
@@ -86,10 +92,17 @@ void DistanceControl::calculateSetpoint(double dt)
 	if (!inInspectionState())
 		return;
 
-	_attitudeSetpoint[0] = getPID()
-			.compute(_distRef, getDistanceMeasured(), dt);
+	ROS_DEBUG("Calculating setpoint...");
+	_attitudeSetpoint[0] = - getPID().compute(_distRef, getDistanceMeasured(), dt);
 	_attitudeSetpoint[1] = - getRollSetpoint();
 	_attitudeSetpoint[2] = getYawSetpoint();
+}
+
+void DistanceControl::publishDistanceSetpoint(ros::Publisher& pub)
+{
+	std_msgs::Float64 newMessage;
+	newMessage.data = _distRef;
+	pub.publish(newMessage);
 }
 
 void DistanceControl::publishSetpoint(ros::Publisher& pub)

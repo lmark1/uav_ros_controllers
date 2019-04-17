@@ -92,12 +92,21 @@ public:
 	void publishSetpoint(ros::Publisher& pub);
 
 	/**
+	 * Publish distance setpoint as a std_msgs::Float64 message.
+	 */
+	void publishDistanceSetpoint(ros::Publisher& pub);
+
+	/**
 	 * Return true if in inspection state, otherwise false.
 	 */
 	bool inInspectionState();
 
 private:
 
+	/**
+	 * Perform all necessary steps in order to deactivate inspection mode.
+	 */
+	void deactivateInspection();
 
 	/**
 	 * Returns true if inspection is requested, otherwise return false.

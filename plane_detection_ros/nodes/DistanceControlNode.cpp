@@ -97,6 +97,10 @@ int main(int argc, char **argv) {
 	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
 			"/real/attitude_sp", 1);
 
+	// Referent distance publisher
+	ros::Publisher distRefPub = nh.advertise<std_msgs::Float64>(
+		"/dist_ref", 1);
+
 	boost::recursive_mutex config_mutex;
 	// Initialize configure server
 	dynamic_reconfigure::
@@ -132,7 +136,17 @@ int main(int argc, char **argv) {
 		else
 			distanceControl->publishSetpoint(spPubReal);
 
+		distanceControl->publishDistanceSetpoint(distRefPub);
 		loopRate.sleep();
+
+/*
+		ROS_DEBUG("PID parameters: p=%.2f i=%.2f d=%.2f low=%.2f high=%.2f\n",
+			distanceControl->getPID().get_kp(),
+			distanceControl->getPID().get_ki(),
+			distanceControl->getPID().get_kd(),
+			distanceControl->getPID().get_lim_low(),
+			distanceControl->getPID().get_lim_high());
+*/
 	}
 }
 
