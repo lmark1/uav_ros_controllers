@@ -39,13 +39,13 @@ class Commander():
 
         self.dist_ref = -1
         self.distance_mv = -1
-        self.mode = 0
+        self.mode = Commander.MANUAL_MODE
 
 
     def mode_callback(self, msg):
         # Detect falling edge
         if (self.mode == Commander.INSPECION_MODE and msg.data == Commander.MANUAL_MODE):
-            printf("BebopCommander.mode_callback: To manual detected")
+            print("BebopCommander.mode_callback: To manual detected")
             self.deactivate_inspection()
 
         self.mode = msg.data

@@ -279,6 +279,7 @@ class LaunchBebop:
             ##########################################################
             # Overrirde roll, pitch, yaw setpoints
             if self.current_mode > 0:
+                print("LaunchBebop: Overriding attitude")
                 pitch_sp = self.att_override.x
                 roll_sp = self.att_override.y
                 yaw_sp = self.att_override.z                
