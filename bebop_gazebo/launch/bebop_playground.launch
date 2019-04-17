@@ -10,7 +10,6 @@
     <arg name="wind_direction_y" default="0.0"/>
     <arg name="wind_direction_z" default="0.0"/>
     <arg name="enable_velodyne" default="true"/>
-    <arg name="rviz_config" value="$(find bebop_gazebo)/config/rviz_detection.rviz" />
     
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
         <arg name="paused" value="false" />
@@ -41,11 +40,4 @@
     <!-- Bebop control -->
     <include file="$(find bebop_control)/launch/bebop_joy.launch"/>
     
-    <group if="$(arg enable_velodyne)">
-    
-        <!-- Rviz for velodyne visualisation -->        
-        <node 
-            name="rviz_node" pkg="rviz" type="rviz" 
-            args="-d $(arg rviz_config)" />
-    </group>
 </launch>
