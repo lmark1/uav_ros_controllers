@@ -21,10 +21,19 @@ namespace joy_control
         int AXIS_LINEAR_Z;
 
         /** Movement around the z-axis */
-        int AXIS_ANGULAR_Z;
+        int AXIS_ANGULAR_YAW;
 
         /** Inspection mode enable */
         int INSPECTION_MODE;
+
+        friend std::ostream& operator << (std::ostream& out, const JoyIndices& a)
+        {       
+            out << "JoyIndices are:\nlin_x=" << a.AXIS_LINEAR_X << "\nlin_y=" << a.AXIS_LINEAR_Y
+                << "\nlin_z" << a.AXIS_LINEAR_Z << "\nang_z=" << a.AXIS_ANGULAR_YAW
+                << "\ninspect=" << a.INSPECTION_MODE << std::endl;
+
+            return out;
+        }
     };
 
     /**
@@ -44,6 +53,15 @@ namespace joy_control
 
         /** Scale movement around the z-axis */
         double ANGULAR_Z;
+
+        friend std::ostream& operator << (std::ostream& out, const ScaleWeights& a)
+        {
+            out << "ScaleWeights are:\nlin_x=" << a.LINEAR_X << "\nlin_y=" << a.LINEAR_Y
+                << "\nlin_z=" << a.LINEAR_Z << "\nang_z=" << a.ANGULAR_Z
+                << std::endl;
+            
+            return out;
+        }
     };
 }
 

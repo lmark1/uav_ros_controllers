@@ -8,6 +8,7 @@
 #ifndef CONTROL_BASE_H
 #define CONTROL_BASE_H
 
+// ROS includes
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 #include <std_msgs/Float64.h>
@@ -18,8 +19,11 @@
 #include <uav_ros_control/PID.h>
 #include <geometry_msgs/Twist.h>
 
+// Own includes
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
+#include <plane_detection_ros/control/JoyStructure.h>
 
+// Cpp includes
 #include <iostream>
 #include <vector>
 #include <array>
@@ -36,8 +40,35 @@ public:
 	 */
 	ControlBase():
 		_distanceMeasured (-1),
-		_distancePID (new PID)
+		_distancePID (new PID),
+		_joyIndices (new joy_control::JoyIndices),
+		_joyScales (new joy_control::ScaleWeights)
 	{
+		ros::NodeHandle nh;
+		bool indicesRead = 
+			nh.getParam("/control/axis_linear/x", 			_joyIndices->AXIS_LINEAR_X) &&
+			nh.getParam("/control/axis_linear/y", 			_joyIndices->AXIS_LINEAR_Y) &&
+			nh.getParam("/control/axis_linear/z", 			_joyIndices->AXIS_LINEAR_Z) &&
+			nh.getParam("/control/axis_angular/yaw", 		_joyIndices->AXIS_ANGULAR_YAW) &&
+			nh.getParam("/control/detection_state", _joyIndices->INSPECTION_MODE); 
+		ROS_INFO_STREAM(*_joyIndices);
+		if (! indicesRead)
+		{
+			ROS_FATAL("ControlBase() - JoyIndeces parameters are not properly set.");
+			throw std::invalid_argument("JoyIndices parameters not properly set.");
+		}
+
+		bool scalesRead = 
+			nh.getParam("/control/scale_linear/x", 		_joyScales->LINEAR_X) &&
+			nh.getParam("/control/scale_linear/y", 		_joyScales->LINEAR_Y) &&
+			nh.getParam("/control/scale_linear/z", 		_joyScales->LINEAR_Z) &&
+			nh.getParam("/control/scale_angular/yaw", 	_joyScales->ANGULAR_Z);
+		ROS_INFO_STREAM(*_joyScales);
+		if (! scalesRead)
+		{
+			ROS_FATAL("ControlBase() - JoyScales parameters are not properly set.");
+			throw std::invalid_argument("JoyScales parameters are not properly set.");
+		}
 	}
 
 	virtual ~ControlBase()
@@ -183,6 +214,12 @@ private:
 
 	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
+
+	/** Indices - Joy structure */
+	std::unique_ptr<joy_control::JoyIndices> _joyIndices;
+
+	/** Scale weights - Joy structure */
+	std::unique_ptr<joy_control::ScaleWeights> _joyScales;
 
 	/** Current distance measured value. Used both in sim and real mode. */
 	double _distanceMeasured;
