@@ -97,6 +97,10 @@ public:
 	void joyCb(const sensor_msgs::JoyConstPtr& message)
 	{
 		_joyMsg = *message;
+
+		// Make sure that thrust value is non negative
+		if (_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] < 0)
+			_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] = 0;
 	}
 
 	/**
@@ -243,6 +247,14 @@ public:
 		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] * _joyScales->LINEAR_Z;
 	}
 
+	/**
+	 * Return the unscaled value for current thrust setpoint.
+	 */
+	double getThrustSpUnscaled()
+	{
+		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z];
+	}
+	
 private:
 
 	/**

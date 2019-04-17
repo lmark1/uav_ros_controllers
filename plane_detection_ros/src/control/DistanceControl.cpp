@@ -113,9 +113,6 @@ void DistanceControl::publishDistanceSetpoint(ros::Publisher& pub)
 
 void DistanceControl::publishSetpoint(ros::Publisher& pub)
 {	
-	// Thrust is the same for both messages
-	double thrustSp = getThrustSpManual();
-
 	// If in REAL mode, publish mavros::msgs AttitudeTarget
 	if (_mode == DistanceControlMode::REAL)
 	{
@@ -131,7 +128,7 @@ void DistanceControl::publishSetpoint(ros::Publisher& pub)
 		newMessage.orientation.y = myQuaternion.y();
 		newMessage.orientation.z = myQuaternion.z();
 		newMessage.orientation.w = myQuaternion.w();
-		newMessage.thrust = thrustSp;
+		newMessage.thrust = getThrustSpUnscaled();
 		pub.publish(newMessage);
 		return;
 	}
@@ -146,7 +143,7 @@ void DistanceControl::publishSetpoint(ros::Publisher& pub)
 		newMessage.thrust = geometry_msgs::Vector3();
 		newMessage.thrust.x = 0;
 		newMessage.thrust.y = 0;
-		newMessage.thrust.z = thrustSp;
+		newMessage.thrust.z = getThrustSpManual();
 		pub.publish(newMessage);
 		return;
 	}
