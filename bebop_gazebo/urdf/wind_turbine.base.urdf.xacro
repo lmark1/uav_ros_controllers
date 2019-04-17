@@ -9,7 +9,7 @@
     <!--_____________________________________________________________-->
     <!--LINK1 wind_turbine base-->
     <!--_____________________________________________________________-->
-    <!-- <link name='link_wind_turbine_base'>
+    <link name='link_wind_turbine_base'>
       
       <inertial>
         <mass value="50" />
@@ -36,7 +36,6 @@
         </geometry>
       </collision>
     </link>
--->
 
     <!--_____________________________________________________________-->
     <!--LINK2 wind_turbine rotor-->
@@ -75,7 +74,7 @@
     <joint name="joint_wind_turbine_base" type="fixed">
         <origin xyz="0 0 10.825" rpy="${PI/2} 0 0"/>
         <parent link="world"/>
-        <child link="link_wind_turbine_rotor"/>
+        <child link="link_wind_turbine_base"/>
     </joint>
     <!--_____________________________________________________________-->
     <!--JOINT2 FIXED force_sensor_mount_top-->
@@ -98,4 +97,5 @@
         <mechanicalReduction>1</mechanicalReduction>
       </actuator>
     </transmission>
+
 </robot>
