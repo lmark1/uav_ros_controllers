@@ -185,7 +185,7 @@ public:
 		return _imuMsgReal;
 	}
 
-	PID getPID()
+	PID& getPID()
 	{
 		return *_distancePID;
 	}
