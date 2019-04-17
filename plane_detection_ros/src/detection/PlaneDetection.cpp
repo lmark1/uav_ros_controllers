@@ -13,7 +13,7 @@
 #include <pcl/common/centroid.h>
 
 // Own includes
-#include "PlaneDetection.h"
+#include "plane_detection_ros/detection/PlaneDetection.h"
 
 // Eigen
 #include <Eigen/Core>
@@ -46,7 +46,7 @@ void plane_detect::filterPointCloud (pcl3d_t& inputCloud)
 {
 	pcl::CropBox<pcl::PointXYZ> boxFilter;
 	boxFilter.setMin(Eigen::Vector4f {
-		- plane_detect::FILTER_X,
+		  plane_detect::FILTER_MIN_X,
 		- plane_detect::FILTER_Y,
 		- plane_detect::FILTER_Z,
 		0

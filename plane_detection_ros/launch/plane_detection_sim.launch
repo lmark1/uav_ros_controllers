@@ -1,0 +1,23 @@
+<launch>
+
+    <arg name="rviz_config" value="$(find bebop_gazebo)/config/rviz_detection.rviz" />
+    
+    <!-- Load parameters -->
+    <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters_sim.yaml" />
+    
+    <!-- Launch plane detection -->
+    <node 
+        pkg="plane_detection_ros"
+        type="plane_detection_node"
+        name="plane_detection_node"
+        output="screen">
+        <remap from="/pointcloud" to="/leddar_points"/>
+    </node>
+
+
+    <!-- Rviz for velodyne visualisation -->        
+    <node 
+        name="rviz_node" pkg="rviz" type="rviz" 
+        args="-d $(arg rviz_config)" />
+    
+</launch>

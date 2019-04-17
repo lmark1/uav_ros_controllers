@@ -6,7 +6,7 @@ import math
 from geometry_msgs.msg import Vector3
 from mav_msgs.msg import Actuators
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Int32
 from pid import PID
 from trajectory_msgs.msg import MultiDOFJointTrajectory
 
@@ -48,6 +48,7 @@ class LaunchBebop:
         # define PID for height control
         self.z_mv = 0
         
+        self.att_override = Vector3(0., 0., 0.)
         self.odom_subscriber = rospy.Subscriber(
             "bebop/odometry_gt",
             Odometry,
@@ -68,6 +69,19 @@ class LaunchBebop:
             "bebop/lin_vel_pub",
             Vector3,
             self.linvel_cb)
+            
+        # Attitude override subscriber
+        self.att_sub = rospy.Subscriber(
+            "bebop/att_override",
+            Vector3,
+            self.att_cb)
+
+        #Mode subscriber
+        self.mode_subscriber = rospy.Subscriber(
+            "bebop/inspection_mode",
+            Int32,
+            self.mode_cb)
+        self.current_mode = 0
 
         # initialize publishers
         self.motor_pub = rospy.Publisher(
@@ -140,6 +154,14 @@ class LaunchBebop:
         self.linvel_x = 0
         self.linvel_y = 0
         self.linvel_z = 0
+
+    def att_cb(self, msg):
+        self.att_override.x = msg.x
+        self.att_override.y = msg.y
+        self.att_override.z = msg.z
+
+    def mode_cb(self, msg):
+        self.current_mode = msg.data
 
     def setpoint_cb(self, data):
 
@@ -252,7 +274,17 @@ class LaunchBebop:
             pitch_sp = math.cos(self.euler_mv.z) * pitch_sp - \
                        math.sin(self.euler_mv.z) * roll_sp
             roll_sp = roll_sp_2
+            yaw_sp = self.euler_sp.z 
 
+            ##########################################################
+            # Overrirde roll, pitch, yaw setpoints
+            if self.current_mode > 0:
+                print("LaunchBebop: Overriding attitude")
+                pitch_sp = self.att_override.x
+                roll_sp = self.att_override.y
+                yaw_sp = self.att_override.z                
+            ##########################################################
+            
             # PITCH CONTROL INNER LOOP
             pitch_rate_sp = self.pitch_PID.compute(pitch_sp, self.euler_mv.y, dt)
             u_pitch = self.pitch_rate_PID.compute(pitch_rate_sp,  self.euler_rate_mv.y, dt)
@@ -262,7 +294,7 @@ class LaunchBebop:
             u_roll = self.roll_rate_PID.compute(roll_rate_sp, self.euler_rate_mv.x, dt)
 
             # YAW CONTROL
-            error_yrc = self.euler_sp.z - self.euler_mv.z
+            error_yrc = yaw_sp - self.euler_mv.z
             if math.fabs(error_yrc) > math.pi:
                 self.euler_sp.z = (self.euler_mv.z/math.fabs(self.euler_mv.z))*\
                                   (2*math.pi - math.fabs(self.euler_sp.z))

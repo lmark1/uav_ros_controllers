@@ -11,7 +11,7 @@
   
   <node 
     pkg="bebop_control" 
-    type="bebop_joy_command_node.py" 
+    type="joy_bebop_command.py" 
     name="bebop_joy_node"
     output="screen">
   </node>

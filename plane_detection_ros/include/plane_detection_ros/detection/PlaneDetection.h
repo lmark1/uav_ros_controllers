@@ -71,6 +71,11 @@ namespace plane_detect {
 	bool ENABLE_OPTIMIZATION = true;
 
 	/**
+	 * Minimum filter threshold along the x-axis.
+	 */
+	float FILTER_MIN_X = 1.5;
+
+	/**
 	 * Filters given PointCloud along the x - axis.
 	 */
 	float FILTER_X = 2;
