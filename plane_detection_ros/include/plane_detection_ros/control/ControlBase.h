@@ -98,9 +98,9 @@ public:
 	{
 		_joyMsg = *message;
 
-		// Make sure that thrust value is non negative
-		if (_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] < 0)
-			_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] = 0;
+		// Scale thrust joy input from -1 - 1 to 0-1
+		_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] += 1;
+		_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] /= 2;
 	}
 
 	/**
