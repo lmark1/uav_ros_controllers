@@ -6,7 +6,7 @@
         file="$(find plane_detection_ros)/config/distance_control_parameters_sim.yaml" />
     <rosparam
         command="load"
-        file="$(find plane_detection_ros)/config/joy.config.yaml" />
+        file="$(find plane_detection_ros)/config/joy_sim.config.yaml" />
 
     <!-- Start plane detection ROS -->
     <node

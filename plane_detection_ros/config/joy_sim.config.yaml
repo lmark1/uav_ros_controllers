@@ -7,7 +7,7 @@ control:
   scale_linear:
     x: 0.1
     y: 0.1
-    z: 100
+    z: 500
   
   axis_angular:
     yaw: 0
