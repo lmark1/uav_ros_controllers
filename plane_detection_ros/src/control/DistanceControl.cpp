@@ -89,7 +89,6 @@ void DistanceControl::publishState(ros::Publisher& pub)
 
 void DistanceControl::calculateSetpoint(double dt)
 {
-	ROS_DEBUG("Calculating setpoint...");
 	if (inInspectionState())
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();

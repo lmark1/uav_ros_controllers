@@ -220,7 +220,7 @@ public:
 	 */
 	double getRollSpManual()
 	{
-		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_X] * _joyScales->LINEAR_X;
+		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Y] * _joyScales->LINEAR_Y;
 	}
 
 	/**

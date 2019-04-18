@@ -29,7 +29,7 @@ namespace joy_control
         friend std::ostream& operator << (std::ostream& out, const JoyIndices& a)
         {       
             out << "JoyIndices are:\nlin_x=" << a.AXIS_LINEAR_X << "\nlin_y=" << a.AXIS_LINEAR_Y
-                << "\nlin_z" << a.AXIS_LINEAR_Z << "\nang_z=" << a.AXIS_ANGULAR_YAW
+                << "\nlin_z=" << a.AXIS_LINEAR_Z << "\nang_z=" << a.AXIS_ANGULAR_YAW
                 << "\ninspect=" << a.INSPECTION_MODE << std::endl;
 
             return out;
