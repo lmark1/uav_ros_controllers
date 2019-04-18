@@ -17,7 +17,7 @@
         
         <!-- Do all the subscriber remaps -->
         <remap from="distance"          to="distance_filtered"  />
-        <remap from="joy"               to="joy"                />
+        <remap from="joy"               to="/px4/joy"           />
         <remap from="/real/imu"         to="/mavros/imu/data"   />
         <remap from="/sim/odometry"     to="/bebop/odometry_gt" />
         <remap from="/cmd_vel"          to="cmd_vel"            />
