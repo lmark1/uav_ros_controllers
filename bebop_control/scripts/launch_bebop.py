@@ -154,6 +154,7 @@ class LaunchBebop:
         self.att_override.roll = msg.roll
         self.att_override.pitch = msg.pitch
         self.att_override.yaw_rate = msg.yaw_rate
+        self.att_override.thrust.z = msg.thrust.z
         self.override_enabled = True
 
     def setpoint_cb(self, data):
@@ -308,6 +309,7 @@ class LaunchBebop:
             # angular velocity of certain rotor
             rotor_vel = self.hover_speed + u_height
             if self.override_enabled:
+                print("Overriding thrust {}".format(self.att_override.thrust.z))
                 rotor_vel = self.att_override.thrust.z 
 
             motor_speed1 = rotor_vel - u_roll - u_pitch - u_yaw
