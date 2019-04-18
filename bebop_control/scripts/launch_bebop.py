@@ -310,7 +310,7 @@ class LaunchBebop:
             rotor_vel = self.hover_speed + u_height
             if self.override_enabled:
                 print("Overriding thrust {}".format(self.att_override.thrust.z))
-                rotor_vel = self.att_override.thrust.z 
+                rotor_vel = self.hover_speed + self.att_override.thrust.z 
 
             motor_speed1 = rotor_vel - u_roll - u_pitch - u_yaw
             motor_speed2 = rotor_vel + u_roll - u_pitch + u_yaw
