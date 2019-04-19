@@ -122,29 +122,22 @@ private:
 	 */
 	bool manualRequested();
 
-	/**
-	 * Current control mode.
-	 */
+	/** Current control mode. */
 	DistanceControlMode _mode;
 
-	/**
-	 * Current control state
-	 */
+	/** Current control state */
 	DistanceControlState _currState;
 
-	/**
-	 * Flag used to detect when deactivate inspection is requested.
-	 */
+	/** Flag used to detect when deactivate inspection is requested. */
 	bool _deactivateInspection;
 
-	/**
-	 * Referent distance value.
-	 */
+	/** True if inspection state was requested and denied, false otherwise. */
+	bool _inspectionRequestFailed;
+
+	/** Referent distance value. */
 	double _distRef;
 
-	/**
-	 * Attitude setpoint array.
-	 */
+	/** Attitude setpoint array. */
 	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};
 };
 

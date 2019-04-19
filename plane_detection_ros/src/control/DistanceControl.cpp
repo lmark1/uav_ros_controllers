@@ -20,6 +20,7 @@ DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_currState(DistanceControlState::MANUAL),
 	_deactivateInspection(false),
 	_distRef(-1),
+	_inspectionRequestFailed(false),
 	ControlBase()
 {
 
@@ -42,17 +43,19 @@ void DistanceControl::detectStateChange()
 	{
 		ROS_FATAL("Inspection mode failed - invalid distance");
 		deactivateInspection();
+		_inspectionRequestFailed = true;
 		return;
 	}
 
 	// Check if user wants to go to inspection mode
-	if (inspectionRequested())
+	if (inspectionRequested() && !_inspectionRequestFailed)
 	{
 		ROS_DEBUG("Inspection mode requested.");
 		// Check if current distance is valid
 		if (getDistanceMeasured() < 0)
 		{
 			ROS_FATAL("Unable to enter inspection mode.");
+			_inspectionRequestFailed = true;
 			return;
 		}
 
@@ -67,6 +70,7 @@ void DistanceControl::detectStateChange()
 	if (manualRequested())
 	{
 		ROS_INFO("Manual mode entered.");
+		_inspectionRequestFailed = false;
 		deactivateInspection();
 	}
 }
@@ -93,13 +97,17 @@ void DistanceControl::calculateSetpoint(double dt)
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();
 		_attitudeSetpoint[1] = - getPID().compute(_distRef, getDistanceMeasured(), dt);
-		_attitudeSetpoint[2] = getUAVYaw() + getPlaneYaw();
+
+		if (_mode == DistanceControlMode::SIMULATION)
+			_attitudeSetpoint[2] = getPlaneYaw() * 10; // Treat as yaw rate setpoint
+		else
+			_attitudeSetpoint[2] = getPlaneYaw() + getUAVYaw(); // Treat as yaw setpoint
 	}
 	else
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();
 		_attitudeSetpoint[1] = getPitchSpManual();
-		_attitudeSetpoint[2] = getYawSpManual();
+		_attitudeSetpoint[2] = getYawSpManual();	
 	}
 }
 
@@ -167,6 +175,7 @@ bool DistanceControl::inspectionFailed()
 
 bool DistanceControl::manualRequested()
 {
-	return !inspectionEnabledJoy() &&
-			_currState == DistanceControlState::INSPECTION;
+	return !inspectionEnabledJoy() && (
+		_currState == DistanceControlState::INSPECTION || 
+		_inspectionRequestFailed);
 }
