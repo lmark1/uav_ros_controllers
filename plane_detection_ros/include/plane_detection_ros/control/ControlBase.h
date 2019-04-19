@@ -254,6 +254,11 @@ public:
 	{
 		return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z];
 	}
+
+	double getYawScale()
+	{
+		return _joyScales->ANGULAR_Z;
+	}
 	
 private:
 
