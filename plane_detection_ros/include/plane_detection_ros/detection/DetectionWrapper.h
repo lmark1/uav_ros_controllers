@@ -51,6 +51,7 @@ public:
 		_currDistance(-1),
 		_newDistMeasurement(false),
 		_filteredDistance(-1),
+		_filteredDistVel(0),
 		_timeInvalid(0),
 		_kalmanInitialized(false),
 		_kalmanFilter(new KalmanFilter),
@@ -217,6 +218,13 @@ public:
 		pub.publish(outputMessage);
 	}
 
+	void publishDistanceVel(ros::Publisher& pub)
+	{
+		std_msgs::Float64 outputMessage;
+		outputMessage.data = _filteredDistVel;
+		pub.publish(outputMessage);		
+	}
+
 	void publishFilteredDistance(ros::Publisher& pub)
 	{
 		std_msgs::Float64 outputMessage;
@@ -306,6 +314,7 @@ public:
 		if (!_kalmanInitialized)
 		{
 			_filteredDistance = NO_PLANE_DETECTED;
+			_filteredDistVel = 0;
 			_timeInvalid = 0;
 		}
 
@@ -348,12 +357,14 @@ public:
 			_kalmanInitialized = false;
 			_timeInvalid = 0;
 			_filteredDistance = NO_PLANE_DETECTED;
+			_filteredDistVel = 0;
 			ROS_FATAL("KalmanFilter - Max invalid time reached.");
 			return;
 		}
 
 		// Get kalman filter position
 		_filteredDistance = _kalmanFilter->getPosition();
+		_filteredDistVel = _kalmanFilter->getVelocity();
 	}
 
 private:
@@ -417,6 +428,7 @@ private:
 
 	/** Filtered distance. */
 	double _filteredDistance;
+	double _filteredDistVel;
 
 	/** Frame ID where the lidar is located. */
 	std::string FRAME_ID;

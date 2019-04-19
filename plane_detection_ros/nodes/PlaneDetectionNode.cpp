@@ -95,6 +95,8 @@ int main(int argc, char **argv) {
 			"/distance", 1);
 	ros::Publisher distFiltPub = nh.advertise<std_msgs::Float64>(
 			"/distance_filtered", 1);
+	ros::Publisher distVelPub = nh.advertise<std_msgs::Float64>(
+			"/distance_vel", 1);
 
 	// Setup the loop
 	ROS_INFO("PlaneDetectionNode: Setting rate to %.2f", rate);
@@ -118,7 +120,8 @@ int main(int argc, char **argv) {
 		// Filter distance
 		detectionWrapper->filterCurrentDistance(dt);
 		detectionWrapper->publishFilteredDistance(distFiltPub);
-
+		detectionWrapper->publishDistanceVel(distVelPub);
+		
 		loopRate.sleep();
 	}
 
