@@ -90,6 +90,8 @@ public:
 	 */
 	void publishSetpoint(ros::Publisher& pub);
 
+	void publishDistVelSp(ros::Publisher& pub);
+
 	/**
 	 * Publish distance setpoint as a std_msgs::Float64 message.
 	 */
@@ -138,6 +140,7 @@ private:
 
 	/** Referent distance value. */
 	double _distRef;
+	double _vel_sp;
 
 	/** Attitude setpoint array. */
 	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};

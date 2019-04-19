@@ -18,6 +18,7 @@
 DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode(mode),
 	_currState(DistanceControlState::MANUAL),
+	_vel_sp(0),
 	_deactivateInspection(false),
 	_distRef(-1),
 	_inspectionRequestFailed(false),
@@ -92,13 +93,20 @@ void DistanceControl::publishState(ros::Publisher& pub)
 	pub.publish(newMessage);
 }
 
+void DistanceControl::publishDistVelSp(ros::Publisher& pub)
+{
+	std_msgs::Float64 newMessage;
+	newMessage.data = _vel_sp;
+	pub.publish(newMessage);
+}
+
 void DistanceControl::calculateSetpoint(double dt)
 {
 	if (inInspectionState())
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();
-		double vel_sp = getPID().compute(_distRef, getDistanceMeasured(), dt);
-		_attitudeSetpoint[1] = - getPID_vx().compute(vel_sp, getDistanceVelocity(), dt);
+		_vel_sp = getPID().compute(_distRef, getDistanceMeasured(), dt);
+		_attitudeSetpoint[1] = - getPID_vx().compute(_vel_sp, getDistanceVelocity(), dt);
 
 		if (_mode == DistanceControlMode::SIMULATION)
 			_attitudeSetpoint[2] = getPlaneYaw() * 10; // Treat as yaw rate setpoint

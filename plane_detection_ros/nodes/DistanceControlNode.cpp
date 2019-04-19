@@ -120,6 +120,8 @@ int main(int argc, char **argv) {
 	// Referent distance publisher
 	ros::Publisher distRefPub = nh.advertise<std_msgs::Float64>(
 		"/dist_ref", 1);
+	ros::Publisher distVelRefPub = nh.advertise<std_msgs::Float64>(
+		"/vel_ref", 1);
 	// Add euler_sp publisher
 	ros::Publisher eulerSpPub = nh.advertise<geometry_msgs::Vector3>(
 		"/euler_sp", 1);
@@ -160,6 +162,7 @@ int main(int argc, char **argv) {
 			distanceControl->publishSetpoint(spPubReal);
 
 		distanceControl->publishDistanceSetpoint(distRefPub);
+		distanceControl->publishDistVelSp(distVelRefPub);
 		distanceControl->publishEulerSp(eulerSpPub);
 		loopRate.sleep();
 
