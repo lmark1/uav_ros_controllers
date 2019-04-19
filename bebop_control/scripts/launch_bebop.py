@@ -275,8 +275,7 @@ class LaunchBebop:
             if self.override_enabled:
                 print("LaunchBebop: Overriding attitude")
                 pitch_sp = self.att_override.pitch
-                roll_sp = self.att_override.roll
-                yaw_sp = self.att_override.yaw_rate          
+                roll_sp = self.att_override.roll         
             ##########################################################
             
             # PITCH CONTROL INNER LOOP
@@ -292,8 +291,14 @@ class LaunchBebop:
             if math.fabs(error_yrc) > math.pi:
                 self.euler_sp.z = (self.euler_mv.z/math.fabs(self.euler_mv.z))*\
                                   (2*math.pi - math.fabs(self.euler_sp.z))
-            u_yaw = self.yaw_PID.compute(self.euler_sp.z, self.euler_mv.z, dt)
-
+            u_yaw = self.yaw_PID.compute(yaw_sp, self.euler_mv.z, dt)
+            
+            #####################################################
+            if self.override_enabled:
+                u_yaw = self.att_override.yaw_rate
+                print(u_yaw)
+            #####################################################
+            
             # Calculate position error
             error = math.sqrt((self.pose_sp.x - self.x_gt_mv)**2 +
                               (self.pose_sp.y - self.y_gt_mv)**2 +
