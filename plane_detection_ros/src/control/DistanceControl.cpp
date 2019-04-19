@@ -80,6 +80,7 @@ void DistanceControl::deactivateInspection()
 	_currState = DistanceControlState::MANUAL;
 	_deactivateInspection = true;
 	getPID().resetIntegrator();
+	getPID_vx().resetIntegrator();
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
@@ -96,7 +97,8 @@ void DistanceControl::calculateSetpoint(double dt)
 	if (inInspectionState())
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();
-		_attitudeSetpoint[1] = - getPID().compute(_distRef, getDistanceMeasured(), dt);
+		double vel_sp = getPID().compute(_distRef, getDistanceMeasured(), dt);
+		_attitudeSetpoint[1] = - getPID_vx().compute(vel_sp, getDistanceVelocity(), dt);
 
 		if (_mode == DistanceControlMode::SIMULATION)
 			_attitudeSetpoint[2] = getPlaneYaw() * 10; // Treat as yaw rate setpoint

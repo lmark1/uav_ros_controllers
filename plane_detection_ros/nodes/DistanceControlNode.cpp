@@ -35,18 +35,28 @@ int main(int argc, char **argv) {
 	// Get parameters
 	bool simMode = false;
 	double rate = 25;
-	double pidKp = 2;
-	double pidKi = 2;
-	double pidKd = 2;
-	double pidLimLow = -2;
-	double pidLimHigh = 2;
+	double pid_xKp = 2;
+	double pid_xKi = 2;
+	double pid_xKd = 2;
+	double pid_xLimLow = -2;
+	double pid_xLimHigh = 2;
+	double pid_vxKp = 2;
+	double pid_vxKi = 2;
+	double pid_vxKd = 2;
+	double pid_vxLimLow = -2;
+	double pid_vxLimHigh = 2;
 	nh.getParam("/control/sim_mode", simMode);
 	nh.getParam("/control/rate", rate);
-	nh.getParam("/control/pid/kp", pidKp);
-	nh.getParam("/control/pid/ki", pidKi);
-	nh.getParam("/control/pid/kd", pidKd);
-	nh.getParam("/control/pid/lim_low", pidLimLow);
-	nh.getParam("/control/pid/lim_high", pidLimHigh);
+	nh.getParam("/control/pid_x/kp", pid_xKp);
+	nh.getParam("/control/pid_x/ki", pid_xKi);
+	nh.getParam("/control/pid_x/kd", pid_xKd);
+	nh.getParam("/control/pid_x/lim_low", pid_xLimLow);
+	nh.getParam("/control/pid_x/lim_high", pid_xLimHigh);
+	nh.getParam("/control/pid_vx/kp", pid_vxKp);
+	nh.getParam("/control/pid_vx/ki", pid_vxKi);
+	nh.getParam("/control/pid_vx/kd", pid_vxKd);
+	nh.getParam("/control/pid_vx/lim_low", pid_vxLimLow);
+	nh.getParam("/control/pid_vx/lim_high", pid_vxLimHigh);
 
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
@@ -60,15 +70,24 @@ int main(int argc, char **argv) {
 			DistanceControlMode::REAL) } };	
 
 	// Set all PID parameters externally
-	distanceControl->getPID().set_kp(pidKp);
-	distanceControl->getPID().set_ki(pidKi);
-	distanceControl->getPID().set_kd(pidKd);
-	distanceControl->getPID().set_lim_low(pidLimLow);
-	distanceControl->getPID().set_lim_high(pidLimHigh);
-
+	distanceControl->getPID().set_kp(pid_xKp);
+	distanceControl->getPID().set_ki(pid_xKi);
+	distanceControl->getPID().set_kd(pid_xKd);
+	distanceControl->getPID().set_lim_low(pid_xLimLow);
+	distanceControl->getPID().set_lim_high(pid_xLimHigh);
+	
+	distanceControl->getPID_vx().set_kp(pid_xKp);
+	distanceControl->getPID_vx().set_ki(pid_xKi);
+	distanceControl->getPID_vx().set_kd(pid_xKd);
+	distanceControl->getPID_vx().set_lim_low(pid_xLimLow);
+	distanceControl->getPID_vx().set_lim_high(pid_xLimHigh);
+	
 	// Setup callbacks
 	ros::Subscriber distSub = nh.subscribe("/distance", 1,
 			&ControlBase::distanceCb,
+			dynamic_cast<ControlBase*>(distanceControl.get()));
+	ros::Subscriber distVelSub = nh.subscribe("/distance_vel", 1,
+			&ControlBase::distanceVelCb,
 			dynamic_cast<ControlBase*>(distanceControl.get()));
 	ros::Subscriber joySub = nh.subscribe("/joy", 1,
 			&ControlBase::joyCb,

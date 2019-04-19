@@ -40,7 +40,9 @@ public:
 	 */
 	ControlBase():
 		_distanceMeasured (-1),
+		_distanceVelocityMeasured (0),
 		_distancePID (new PID),
+		_distanceRatePID (new PID),
 		_joyIndices (new joy_control::JoyIndices),
 		_joyScales (new joy_control::ScaleWeights)
 	{
@@ -89,6 +91,11 @@ public:
 	void distanceCb(const std_msgs::Float64ConstPtr& message)
 	{
 		_distanceMeasured = message->data;
+	}
+
+	void distanceVelCb(const std_msgs::Float64ConstPtr& message)
+	{
+		_distanceVelocityMeasured = message->data;
 	}
 
 	/**
@@ -155,11 +162,17 @@ public:
 			plane_detection_ros::DistanceControlParametersConfig& configMsg,
 			uint32_t level)
 	{
-		_distancePID->set_kp(configMsg.k_p);
-		_distancePID->set_kd(configMsg.k_d);
-		_distancePID->set_ki(configMsg.k_i);
-		_distancePID->set_lim_high(configMsg.lim_high);
-		_distancePID->set_lim_low(configMsg.lim_low);
+		_distancePID->set_kp(configMsg.k_p_x);
+		_distancePID->set_kd(configMsg.k_d_x);
+		_distancePID->set_ki(configMsg.k_i_x);
+		_distancePID->set_lim_high(configMsg.lim_high_x);
+		_distancePID->set_lim_low(configMsg.lim_low_x);
+
+		_distanceRatePID->set_kp(configMsg.k_p_vx);
+		_distanceRatePID->set_kd(configMsg.k_d_vx);
+		_distanceRatePID->set_ki(configMsg.k_i_vx);
+		_distanceRatePID->set_lim_high(configMsg.lim_high_vx);
+		_distanceRatePID->set_lim_low(configMsg.lim_low_vx);
 	}
 
 	/**
@@ -169,11 +182,21 @@ public:
 	void setReconfigureParameters(dynamic_reconfigure::Server<T>& server)
 	{
 		plane_detection_ros::DistanceControlParametersConfig configMsg;
-		configMsg.k_p = _distancePID->get_kp();
-		configMsg.k_i = _distancePID->get_ki();
-		configMsg.k_d = _distancePID->get_kd();
-		configMsg.lim_high = _distancePID->get_lim_high();
-		configMsg.lim_low = _distancePID->get_lim_low();
+		
+		// Distance controller
+		configMsg.k_p_x = _distancePID->get_kp();
+		configMsg.k_i_x = _distancePID->get_ki();
+		configMsg.k_d_x = _distancePID->get_kd();
+		configMsg.lim_high_x = _distancePID->get_lim_high();
+		configMsg.lim_low_x = _distancePID->get_lim_low();
+
+		// Distance velocity controller
+		configMsg.k_p_vx = _distanceRatePID->get_kp();
+		configMsg.k_i_vx = _distanceRatePID->get_ki();
+		configMsg.k_d_vx = _distanceRatePID->get_kd();
+		configMsg.lim_high_vx = _distanceRatePID->get_lim_high();
+		configMsg.lim_low_vx = _distanceRatePID->get_lim_low();
+
 		server.updateConfig(configMsg);
 	}
 
@@ -194,11 +217,24 @@ public:
 	}
 
 	/**
+	 * Get rate of change of measured distance.
+	 */
+	double getDistanceVelocity()
+	{
+		return _distanceVelocityMeasured;
+	}
+
+	/**
 	 * Return reference to the PID object.
 	 */
 	PID& getPID()
 	{
 		return *_distancePID;
+	}
+
+	PID& getPID_vx()
+	{
+		return *_distanceRatePID;
 	}
 
 	/**
@@ -278,6 +314,9 @@ private:
 	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
 
+	/** Distance velocity PID controller */
+	std::unique_ptr<PID> _distanceRatePID;
+
 	/** Current Joy message set in the /joy callback function. */
 	sensor_msgs::Joy _joyMsg;
 
@@ -290,11 +329,14 @@ private:
 	/** Current distance measured value. Used both in sim and real mode. */
 	double _distanceMeasured;
 
+	double _distanceVelocityMeasured;
+
 	/** Current UAV yaw angle. */
 	double _uavYaw = 0;
 
 	/** Yaw of the plane normal with respect to UAV base frame. */
 	double _planeYaw = 0;
+
 };
 
 #endif /* CONTROL_BASE_H */
