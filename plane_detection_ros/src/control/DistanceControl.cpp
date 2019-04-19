@@ -101,13 +101,13 @@ void DistanceControl::calculateSetpoint(double dt)
 		if (_mode == DistanceControlMode::SIMULATION)
 			_attitudeSetpoint[2] = getPlaneYaw() * 10; // Treat as yaw rate setpoint
 		else
-			_attitudeSetpoint[2] = getPlaneYaw() + getUAVYaw(); // Treat as yaw setpoint
+			_attitudeSetpoint[2] = getUAVYaw() - getPlaneYaw(); // Treat as yaw setpoint
 	}
 	else
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();
 		_attitudeSetpoint[1] = getPitchSpManual();
-		_attitudeSetpoint[2] = getYawSpManual();	
+		_attitudeSetpoint[2] = - getYawSpManual();	
 	}
 }
 

@@ -114,9 +114,10 @@ public:
 				message->orientation.y,
 				message->orientation.z,
 				message->orientation.w);
+		//ROS_DEBUG("UAV yaw:%.2f", _uavYaw);
 	}
 
-		/**
+	/**
 	 * Imu callback function for simulation control mode.
 	 * Calculates UAV yaw.
 	 */
@@ -144,6 +145,7 @@ public:
 		double xComponent = cos(_planeYaw);
 		if (xComponent < 0)
 			_planeYaw += M_PI;
+		//ROS_DEBUG("Normal yaw:%.2f", _planeYaw);
 	}
 
 	/**
