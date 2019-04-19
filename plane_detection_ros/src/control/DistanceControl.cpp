@@ -179,3 +179,12 @@ bool DistanceControl::manualRequested()
 		_currState == DistanceControlState::INSPECTION || 
 		_inspectionRequestFailed);
 }
+
+void DistanceControl::publishEulerSp(ros::Publisher& pub)
+{
+	geometry_msgs::Vector3 newMessage;
+	newMessage.x = _attitudeSetpoint[0];
+	newMessage.y = _attitudeSetpoint[1];
+	newMessage.z = _attitudeSetpoint[2];
+	pub.publish(newMessage);
+}

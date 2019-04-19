@@ -95,6 +95,8 @@ public:
 	 */
 	void publishDistanceSetpoint(ros::Publisher& pub);
 
+	void publishEulerSp(ros::Publisher& pub);
+
 	/**
 	 * Return true if in inspection state, otherwise false.
 	 */

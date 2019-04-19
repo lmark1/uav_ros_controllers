@@ -101,6 +101,9 @@ int main(int argc, char **argv) {
 	// Referent distance publisher
 	ros::Publisher distRefPub = nh.advertise<std_msgs::Float64>(
 		"/dist_ref", 1);
+	// Add euler_sp publisher
+	ros::Publisher eulerSpPub = nh.advertise<geometry_msgs::Vector3>(
+		"/euler_sp", 1);
 
 	boost::recursive_mutex config_mutex;
 	// Initialize configure server
@@ -138,6 +141,7 @@ int main(int argc, char **argv) {
 			distanceControl->publishSetpoint(spPubReal);
 
 		distanceControl->publishDistanceSetpoint(distRefPub);
+		distanceControl->publishEulerSp(eulerSpPub);
 		loopRate.sleep();
 
 		/*
