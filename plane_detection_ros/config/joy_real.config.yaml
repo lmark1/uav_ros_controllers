@@ -13,6 +13,6 @@ control:
     yaw: 0
   
   scale_angular:
-    yaw: 1
+    yaw: 0.5
   
   detection_state: 5

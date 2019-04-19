@@ -123,18 +123,36 @@ void DistanceControl::publishSetpoint(ros::Publisher& pub)
 	// If in REAL mode, publish mavros::msgs AttitudeTarget
 	if (_mode == DistanceControlMode::REAL)
 	{
-		tf2::Quaternion myQuaternion;
-		myQuaternion.setEuler(
+		mavros_msgs::AttitudeTarget newMessage;
+		if (inInspectionState())
+		{
+			tf2::Quaternion myQuaternion;
+			myQuaternion.setEuler(
 				_attitudeSetpoint[0],
 				_attitudeSetpoint[1],
 				_attitudeSetpoint[2]);
 
-		mavros_msgs::AttitudeTarget newMessage;
-		newMessage.type_mask = 7; //Ignore roll, pitch, yaw rate.
-		newMessage.orientation.x = myQuaternion.x();
-		newMessage.orientation.y = myQuaternion.y();
-		newMessage.orientation.z = myQuaternion.z();
-		newMessage.orientation.w = myQuaternion.w();
+			// Publish yaw
+			newMessage.type_mask = 7; //Ignore roll, pitch, yaw rate.
+			newMessage.orientation.x = myQuaternion.x();
+			newMessage.orientation.y = myQuaternion.y();
+			newMessage.orientation.z = myQuaternion.z();
+			newMessage.orientation.w = myQuaternion.w();	
+		}
+		else 
+		{
+			tf2::Quaternion myQuaternion;
+			myQuaternion.setEuler(
+				_attitudeSetpoint[0],
+				_attitudeSetpoint[1],
+				getUAVYaw());
+			newMessage.type_mask = 3; //Ignore roll, pitch
+			newMessage.orientation.x = myQuaternion.x();
+			newMessage.orientation.y = myQuaternion.y();
+			newMessage.orientation.z = myQuaternion.z();
+			newMessage.orientation.w = myQuaternion.w();
+			newMessage.body_rate.z = _attitudeSetpoint[2];
+		}
 		newMessage.thrust = getThrustSpUnscaled();
 		pub.publish(newMessage);
 		return;
