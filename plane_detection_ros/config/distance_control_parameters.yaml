@@ -3,9 +3,16 @@ control:
   rate: 50
   sim_mode: false
 
-  pid:
+  pid_x:
     kp: 0.2
     ki: 0.0
     kd: 0.1
     lim_low: -0.15
     lim_high: 0.15
+  
+  pid_vx:
+    kp: 0.2
+    ki: 0.0
+    kd: 0.1
+    lim_low: -0.15
+    lim_high: 0.15  
