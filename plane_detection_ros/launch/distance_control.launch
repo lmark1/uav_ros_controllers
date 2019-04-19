@@ -25,7 +25,7 @@
         <!-- Do all the publisher remaps -->
         <remap from="control_state"     to="control_state"      />
         <remap from="/sim/attitude_sp"  to="/bebop/att_override"/>
-        <remap from="/real/attitude_sp" to="/mavros_dummy/attitude_setpoint_raw"/>
+        <remap from="/real/attitude_sp" to="/mavros/setpoint_raw/attitude"/>
     </node>
 
 </launch>

@@ -127,10 +127,10 @@ void DistanceControl::publishSetpoint(ros::Publisher& pub)
 		if (inInspectionState())
 		{
 			tf2::Quaternion myQuaternion;
-			myQuaternion.setEuler(
-				_attitudeSetpoint[0],
+			myQuaternion.setEulerZYX(
+				_attitudeSetpoint[2],
 				_attitudeSetpoint[1],
-				_attitudeSetpoint[2]);
+				_attitudeSetpoint[0]);
 
 			// Publish yaw
 			newMessage.type_mask = 7; //Ignore roll, pitch, yaw rate.
@@ -142,10 +142,10 @@ void DistanceControl::publishSetpoint(ros::Publisher& pub)
 		else 
 		{
 			tf2::Quaternion myQuaternion;
-			myQuaternion.setEuler(
-				_attitudeSetpoint[0],
+			myQuaternion.setEulerZYX(
+				getUAVYaw() * 0,
 				_attitudeSetpoint[1],
-				getUAVYaw());
+				_attitudeSetpoint[0]);
 			newMessage.type_mask = 3; //Ignore roll, pitch
 			newMessage.orientation.x = myQuaternion.x();
 			newMessage.orientation.y = myQuaternion.y();
