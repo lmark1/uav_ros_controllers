@@ -64,6 +64,12 @@ float PID::get_kp()
     return kp;
 }
 
+float& PID::get_kp_ref()
+{
+    /* Returns proportional gain */
+    return kp;
+}
+
 void PID::set_ki(float invar)
 {
     /* Set integral gain. */
@@ -71,6 +77,12 @@ void PID::set_ki(float invar)
 }
 
 float PID::get_ki()
+{
+    /* Returns integral gain */
+    return ki;
+}
+
+float& PID::get_ki_ref()
 {
     /* Returns integral gain */
     return ki;
@@ -88,6 +100,12 @@ float PID::get_kd()
     return kd;
 }
 
+float& PID::get_kd_ref()
+{
+    /* Returns derivative gain */
+    return kd;
+}
+
 void PID::set_lim_high(float invar)
 {
     /* Set PID upper limit value */
@@ -100,6 +118,12 @@ float PID::get_lim_high()
     return lim_high;
 }
 
+float& PID::get_lim_high_ref()
+{
+    /* Returns PID upper limit value */
+    return lim_high;
+}
+
 void PID::set_lim_low(float invar)
 {
     /* Set PID lower limit value */
@@ -107,6 +131,12 @@ void PID::set_lim_low(float invar)
 }
 
 float PID::get_lim_low()
+{
+    /* Returns PID lower limit value */
+    return lim_low;
+}
+
+float& PID::get_lim_low_ref()
 {
     /* Returns PID lower limit value */
     return lim_low;
@@ -208,4 +238,13 @@ void PID::create_msg(uav_ros_control_msgs::PIDController &msg)
     msg.D = ud;
     msg.U = u;
     msg.header.stamp = ros::Time::now();
+}
+
+std::ostream& operator << (std::ostream& out, const PID& pid)
+{
+    out << "PID parameters are:" << "\nk_p=" << pid.kp
+        << "\nk_i=" << pid.ki << "\nk_d=" << pid.kd 
+        << "\nlim_low=" << pid.lim_low << "\nlim_high=" << pid.lim_high
+        << std::endl;
+    return out;
 }
