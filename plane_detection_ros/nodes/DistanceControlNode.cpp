@@ -31,56 +31,47 @@ int main(int argc, char **argv) {
 	// Setup the node
 	ros::init(argc, argv, "distance_control");
 	ros::NodeHandle nh;
-
-	// Get parameters
-	bool simMode = false;
-	double rate = 25;
-	double pid_xKp = 2;
-	double pid_xKi = 2;
-	double pid_xKd = 2;
-	double pid_xLimLow = -2;
-	double pid_xLimHigh = 2;
-	double pid_vxKp = 2;
-	double pid_vxKi = 2;
-	double pid_vxKd = 2;
-	double pid_vxLimLow = -2;
-	double pid_vxLimHigh = 2;
-	nh.getParam("/control/sim_mode", simMode);
-	nh.getParam("/control/rate", rate);
-	nh.getParam("/control/pid_x/kp", pid_xKp);
-	nh.getParam("/control/pid_x/ki", pid_xKi);
-	nh.getParam("/control/pid_x/kd", pid_xKd);
-	nh.getParam("/control/pid_x/lim_low", pid_xLimLow);
-	nh.getParam("/control/pid_x/lim_high", pid_xLimHigh);
-	nh.getParam("/control/pid_vx/kp", pid_vxKp);
-	nh.getParam("/control/pid_vx/ki", pid_vxKi);
-	nh.getParam("/control/pid_vx/kd", pid_vxKd);
-	nh.getParam("/control/pid_vx/lim_low", pid_vxLimLow);
-	nh.getParam("/control/pid_vx/lim_high", pid_vxLimHigh);
-
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
 		ros::console::levels::Debug))
 		ros::console::notifyLoggerLevelsChanged();
 
+	// Get parameters
+	bool simMode = false;
+	double rate = 25;
+	nh.getParam("/control/sim_mode", simMode);
+	nh.getParam("/control/rate", rate);
+
 	// Initialize distance control object
 	std::shared_ptr<DistanceControl> distanceControl
 		{ new DistanceControl { ((simMode) ? 
 			DistanceControlMode::SIMULATION : 
-			DistanceControlMode::REAL) } };	
+			DistanceControlMode::REAL) } };
 
-	// Set all PID parameters externally
-	distanceControl->getPID().set_kp(pid_xKp);
-	distanceControl->getPID().set_ki(pid_xKi);
-	distanceControl->getPID().set_kd(pid_xKd);
-	distanceControl->getPID().set_lim_low(pid_xLimLow);
-	distanceControl->getPID().set_lim_high(pid_xLimHigh);
+	nh.getParam("/control/pid_x/kp", 
+		distanceControl->getPID().get_kp_ref());
+	nh.getParam("/control/pid_x/ki", 
+		distanceControl->getPID().get_ki_ref());
+	nh.getParam("/control/pid_x/kd", 
+		distanceControl->getPID().get_kd_ref());
+	nh.getParam("/control/pid_x/lim_low", 
+		distanceControl->getPID().get_lim_low_ref());
+	nh.getParam("/control/pid_x/lim_high", 
+		distanceControl->getPID().get_lim_high_ref());
+
+	nh.getParam("/control/pid_vx/kp", 
+		distanceControl->getPID_vx().get_kp_ref());
+	nh.getParam("/control/pid_vx/ki", 
+		distanceControl->getPID_vx().get_ki_ref());
+	nh.getParam("/control/pid_vx/kd", 
+		distanceControl->getPID_vx().get_kd_ref());
+	nh.getParam("/control/pid_vx/lim_low", 
+		distanceControl->getPID_vx().get_lim_low_ref());
+	nh.getParam("/control/pid_vx/lim_high", 
+		distanceControl->getPID_vx().get_lim_high_ref());
 	
-	distanceControl->getPID_vx().set_kp(pid_xKp);
-	distanceControl->getPID_vx().set_ki(pid_xKi);
-	distanceControl->getPID_vx().set_kd(pid_xKd);
-	distanceControl->getPID_vx().set_lim_low(pid_xLimLow);
-	distanceControl->getPID_vx().set_lim_high(pid_xLimHigh);
+	ROS_INFO_STREAM(distanceControl->getPID());
+	ROS_INFO_STREAM(distanceControl->getPID_vx());
 	
 	// Setup callbacks
 	ros::Subscriber distSub = nh.subscribe("/distance", 1,
@@ -165,15 +156,6 @@ int main(int argc, char **argv) {
 		distanceControl->publishDistVelSp(distVelRefPub);
 		distanceControl->publishEulerSp(eulerSpPub);
 		loopRate.sleep();
-
-		/*
-		ROS_DEBUG("PID parameters: p=%.2f i=%.2f d=%.2f low=%.2f high=%.2f\n",
-			distanceControl->getPID().get_kp(),
-			distanceControl->getPID().get_ki(),
-			distanceControl->getPID().get_kd(),
-			distanceControl->getPID().get_lim_low(),
-			distanceControl->getPID().get_lim_high());
-		*/
 	}
 }
 
