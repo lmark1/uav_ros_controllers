@@ -41,7 +41,9 @@ add_library(plane_detection src/detection/PlaneDetection.cpp)
 target_link_libraries(plane_detection 
     ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-add_library(distance_control src/control/DistanceControl.cpp)
+add_library(distance_control 
+    src/control/DistanceControl.cpp
+    src/control/ControlBase.cpp)
 target_link_libraries(distance_control ${catkin_LIBRARIES})
 
 add_executable(plane_detection_node nodes/PlaneDetectionNode.cpp)

@@ -106,7 +106,7 @@ void DistanceControl::calculateSetpoint(double dt)
 	{
 		_attitudeSetpoint[0] = - getRollSpManual();
 		_vel_sp = getPID().compute(_distRef, getDistanceMeasured(), dt);
-		_attitudeSetpoint[1] = - getPID_vx().compute(_vel_sp, getDistanceVelocity(), dt);
+		_attitudeSetpoint[1] = - getPID_vx().compute(_vel_sp, getDistanceVelMeasured(), dt);
 
 		if (_mode == DistanceControlMode::SIMULATION)
 			_attitudeSetpoint[2] = getPlaneYaw() * 10; // Treat as yaw rate setpoint
