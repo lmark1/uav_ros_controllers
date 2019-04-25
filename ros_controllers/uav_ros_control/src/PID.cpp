@@ -2,7 +2,15 @@
 #include <limits>
 #include <iostream>
 
-PID::PID()
+// Parameter path constants
+#define KP "/kp"
+#define KD "/kd"
+#define KI "/ki"
+#define LIM_LOW "/lim_low"
+#define LIM_HIGH "/lim_high"
+
+PID::PID(std::string name):
+    _name (name)
 {
     /*
         Initializes PID gains (proportional - kp, integral - ki, derivative - kd) and control values to zero.
@@ -35,6 +43,11 @@ PID::PID()
     firstPass = true;
 }
 
+PID::PID():
+    PID("default")
+{
+}
+
 void PID::resetPIDParams()
 {
     // Resets pid algorithm by setting all P,I,D parts to zero
@@ -64,12 +77,6 @@ float PID::get_kp()
     return kp;
 }
 
-float& PID::get_kp_ref()
-{
-    /* Returns proportional gain */
-    return kp;
-}
-
 void PID::set_ki(float invar)
 {
     /* Set integral gain. */
@@ -77,12 +84,6 @@ void PID::set_ki(float invar)
 }
 
 float PID::get_ki()
-{
-    /* Returns integral gain */
-    return ki;
-}
-
-float& PID::get_ki_ref()
 {
     /* Returns integral gain */
     return ki;
@@ -100,12 +101,6 @@ float PID::get_kd()
     return kd;
 }
 
-float& PID::get_kd_ref()
-{
-    /* Returns derivative gain */
-    return kd;
-}
-
 void PID::set_lim_high(float invar)
 {
     /* Set PID upper limit value */
@@ -118,12 +113,6 @@ float PID::get_lim_high()
     return lim_high;
 }
 
-float& PID::get_lim_high_ref()
-{
-    /* Returns PID upper limit value */
-    return lim_high;
-}
-
 void PID::set_lim_low(float invar)
 {
     /* Set PID lower limit value */
@@ -131,12 +120,6 @@ void PID::set_lim_low(float invar)
 }
 
 float PID::get_lim_low()
-{
-    /* Returns PID lower limit value */
-    return lim_low;
-}
-
-float& PID::get_lim_low_ref()
 {
     /* Returns PID lower limit value */
     return lim_low;
@@ -242,9 +225,25 @@ void PID::create_msg(uav_ros_control_msgs::PIDController &msg)
 
 std::ostream& operator << (std::ostream& out, const PID& pid)
 {
-    out << "PID parameters are:" << "\nk_p=" << pid.kp
+    out << pid._name << " PID parameters are:" << "\nk_p=" << pid.kp
         << "\nk_i=" << pid.ki << "\nk_d=" << pid.kd 
         << "\nlim_low=" << pid.lim_low << "\nlim_high=" << pid.lim_high
         << std::endl;
     return out;
+}
+
+void PID::initializeParameters(ros::NodeHandle& nh, std::string prefix)
+{
+    bool initialized =
+        nh.getParam(prefix + KP, kp) &&
+        nh.getParam(prefix + KI, ki) &&
+        nh.getParam(prefix + KD, kd) &&
+        nh.getParam(prefix + LIM_LOW, lim_low) &&
+        nh.getParam(prefix + LIM_HIGH, lim_high);
+    ROS_INFO_STREAM(*this);
+    if (!initialized)
+	{
+		ROS_FATAL("PID() - parameter initialization failed.");
+		throw std::invalid_argument("PID parameters not properly set.");
+	}
 }
