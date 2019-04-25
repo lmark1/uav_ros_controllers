@@ -224,7 +224,7 @@ void DistanceControl::publishAttSp(ros::Publisher& pub)
 		mav_msgs::RollPitchYawrateThrust newMessage;
 		newMessage.roll = _attThrustSp[0];
 		newMessage.pitch = _attThrustSp[1];
-		newMessage.yaw_rate = _attThrustSp[2];double getThrustScale();
+		newMessage.yaw_rate = _attThrustSp[2];
 		newMessage.thrust = geometry_msgs::Vector3();
 		newMessage.thrust.x = 0;
 		newMessage.thrust.y = 0;

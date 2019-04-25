@@ -178,10 +178,7 @@ public:
 	 * Return scale value for yaw control input.
 	 */
 	double getYawScale();
-
-	/**
-	 * Return thrust scale value.
-	 */
+	
 	double getThrustScale();
 
 	/**
