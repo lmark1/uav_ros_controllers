@@ -1,6 +1,6 @@
 detection:
-   rate: 15
-   frame_id: "leddar"
+   rate: 20
+   frame_id: "velodyne"
    lim_x: 50
    lim_y: 0.5
    lim_z: 2

@@ -7,7 +7,8 @@ find_package(catkin REQUIRED COMPONENTS
     std_msgs
     dynamic_reconfigure
     sensor_msgs
-    uav_ros_control)
+    uav_ros_control
+    mav_msgs)
 
 find_package(PCL 1.8 REQUIRED COMPONENTS
     common
@@ -36,11 +37,15 @@ link_directories(
 add_definitions(
     ${PCL_DEFINITIONS})
 
-add_library(plane_detection src/detection/PlaneDetection.cpp)
-target_link_libraries(plane_detection 
-    ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_library(plane_detection 
+    src/detection/DetectionBase.cpp
+    src/detection/PlaneDetection.cpp
+    src/detection/KalmanDetection.cpp)
+target_link_libraries(plane_detection ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-add_library(distance_control src/control/DistanceControl.cpp)
+add_library(distance_control 
+    src/control/ControlBase.cpp
+    src/control/DistanceControl.cpp)
 target_link_libraries(distance_control ${catkin_LIBRARIES})
 
 add_executable(plane_detection_node nodes/PlaneDetectionNode.cpp)

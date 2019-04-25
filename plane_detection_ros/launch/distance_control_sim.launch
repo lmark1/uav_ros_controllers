@@ -4,6 +4,9 @@
     <rosparam 
         command="load" 
         file="$(find plane_detection_ros)/config/distance_control_parameters_sim.yaml" />
+    <rosparam
+        command="load"
+        file="$(find plane_detection_ros)/config/joy_sim.config.yaml" />
 
     <!-- Start plane detection ROS -->
     <node
@@ -14,15 +17,15 @@
         
         <!-- Do all the subscriber remaps -->
         <remap from="distance"          to="distance_filtered"  />
-        <remap from="joy"               to="joy"                />
+        <remap from="joy"               to="joy"           />
         <remap from="/real/imu"         to="/mavros/imu/data"   />
+        <remap from="/real/pos"         to="/mavros/local_position/pose" />
         <remap from="/sim/odometry"     to="/bebop/odometry_gt" />
-        <remap from="/cmd_vel"          to="cmd_vel"            />
         
         <!-- Do all the publisher remaps -->
         <remap from="control_state"     to="bebop/inspection_mode" />
-        <remap from="/sim/attitude_sp"  to="/bebop/att_override"/>
-        <remap from="/real/attitude_sp" to="/mavros_dummy/attitude_setpoint_raw"/>
+        <remap from="/sim/rpy_thrust"   to="/bebop/att_override"/>
+        <remap from="/real/attitude_sp" to="/mavros/setpoint_raw/attitude"/>
     </node>
 
 </launch>

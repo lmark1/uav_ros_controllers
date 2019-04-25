@@ -60,8 +60,7 @@ public:
 	 * @param lim_low	Lower saturation limit for for the PID integrator
 	 * @param lim_high 	Higher saturation limit for the PID integrator
 	 */	
-	DistanceControl(DistanceControlMode mode, double kp, double ki, double kd, 
-		double limLow, double limHigh);
+	DistanceControl(DistanceControlMode mode);
 	virtual ~DistanceControl();
 
 	/**
@@ -86,15 +85,28 @@ public:
 	void publishState(ros::Publisher& pub);
 
 	/**
+	 * Publish attitude setpoint on the given topic.
 	 * If in simulation mode, publisher is expected to be Vector3.
 	 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
 	 */
-	void publishSetpoint(ros::Publisher& pub);
+	void publishAttSp(ros::Publisher& pub);
 
 	/**
 	 * Publish distance setpoint as a std_msgs::Float64 message.
 	 */
-	void publishDistanceSetpoint(ros::Publisher& pub);
+	void publishDistSp(ros::Publisher& pub);
+
+	/**
+	 * Publish distance velocity setpoint on the given topic, 
+	 * as a Float64 ROS message.
+	 */
+	void publishDistVelSp(ros::Publisher& pub);
+
+	/**
+	 * Publish setpoint euler angles on the given topic,
+	 * as a Vector3 ROS message.
+	 */
+	void publishEulerSp(ros::Publisher& pub);
 
 	/**
 	 * Return true if in inspection state, otherwise false.
@@ -123,29 +135,25 @@ private:
 	 */
 	bool manualRequested();
 
-	/**
-	 * Current control mode.
-	 */
+	/** Current control mode. */
 	DistanceControlMode _mode;
 
-	/**
-	 * Current control state
-	 */
+	/** Current control state */
 	DistanceControlState _currState;
 
-	/**
-	 * Flag used to detect when deactivate inspection is requested.
-	 */
+	/** Flag used to detect when deactivate inspection is requested. */
 	bool _deactivateInspection;
 
-	/**
-	 * Referent distance value.
-	 */
-	double _distRef;
+	/** True if inspection state was requested and denied, false otherwise. */
+	bool _inspectionRequestFailed;
 
-	/**
-	 * Attitude setpoint array.
-	 */
+	/** Distance setpoint value */
+	double _distSp;
+
+	/** Distance velocity setpoint value. */
+	double _distVelSp;
+
+	/** Attitude setpoint array. */
 	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};
 };
 

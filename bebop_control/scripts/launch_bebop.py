@@ -9,7 +9,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, Int32
 from pid import PID
 from trajectory_msgs.msg import MultiDOFJointTrajectory
-
+from mav_msgs.msg import RollPitchYawrateThrust
 
 class LaunchBebop:
 
@@ -48,7 +48,10 @@ class LaunchBebop:
         # define PID for height control
         self.z_mv = 0
         
-        self.att_override = Vector3(0., 0., 0.)
+        self.att_override = RollPitchYawrateThrust()
+        self.att_override.thrust = Vector3()
+        self.override_enabled = False
+
         self.odom_subscriber = rospy.Subscriber(
             "bebop/odometry_gt",
             Odometry,
@@ -73,15 +76,8 @@ class LaunchBebop:
         # Attitude override subscriber
         self.att_sub = rospy.Subscriber(
             "bebop/att_override",
-            Vector3,
+            RollPitchYawrateThrust,
             self.att_cb)
-
-        #Mode subscriber
-        self.mode_subscriber = rospy.Subscriber(
-            "bebop/inspection_mode",
-            Int32,
-            self.mode_cb)
-        self.current_mode = 0
 
         # initialize publishers
         self.motor_pub = rospy.Publisher(
@@ -101,7 +97,6 @@ class LaunchBebop:
             Actuators,
             queue_size=10)
         self.actuator_msg = Actuators()
-        
 
         # Crontroller rate
         self.controller_rate = 50
@@ -156,12 +151,11 @@ class LaunchBebop:
         self.linvel_z = 0
 
     def att_cb(self, msg):
-        self.att_override.x = msg.x
-        self.att_override.y = msg.y
-        self.att_override.z = msg.z
-
-    def mode_cb(self, msg):
-        self.current_mode = msg.data
+        self.att_override.roll = msg.roll
+        self.att_override.pitch = msg.pitch
+        self.att_override.yaw_rate = msg.yaw_rate
+        self.att_override.thrust.z = msg.thrust.z
+        self.override_enabled = True
 
     def setpoint_cb(self, data):
 
@@ -278,11 +272,10 @@ class LaunchBebop:
 
             ##########################################################
             # Overrirde roll, pitch, yaw setpoints
-            if self.current_mode > 0:
+            if self.override_enabled:
                 print("LaunchBebop: Overriding attitude")
-                pitch_sp = self.att_override.x
-                roll_sp = self.att_override.y
-                yaw_sp = self.att_override.z                
+                pitch_sp = self.att_override.pitch
+                roll_sp = self.att_override.roll         
             ##########################################################
             
             # PITCH CONTROL INNER LOOP
@@ -298,8 +291,14 @@ class LaunchBebop:
             if math.fabs(error_yrc) > math.pi:
                 self.euler_sp.z = (self.euler_mv.z/math.fabs(self.euler_mv.z))*\
                                   (2*math.pi - math.fabs(self.euler_sp.z))
-            u_yaw = self.yaw_PID.compute(self.euler_sp.z, self.euler_mv.z, dt)
-
+            u_yaw = self.yaw_PID.compute(yaw_sp, self.euler_mv.z, dt)
+            
+            #####################################################
+            if self.override_enabled:
+                u_yaw = self.att_override.yaw_rate
+                print(u_yaw)
+            #####################################################
+            
             # Calculate position error
             error = math.sqrt((self.pose_sp.x - self.x_gt_mv)**2 +
                               (self.pose_sp.y - self.y_gt_mv)**2 +
@@ -313,10 +312,15 @@ class LaunchBebop:
             self.error_vel_pub.publish(error_vel)
 
             # angular velocity of certain rotor
-            motor_speed1 = self.hover_speed + u_height - u_roll - u_pitch - u_yaw
-            motor_speed2 = self.hover_speed + u_height + u_roll - u_pitch + u_yaw
-            motor_speed3 = self.hover_speed + u_height + u_roll + u_pitch - u_yaw
-            motor_speed4 = self.hover_speed + u_height - u_roll + u_pitch + u_yaw
+            rotor_vel = self.hover_speed + u_height
+            if self.override_enabled:
+                print("Overriding thrust {}".format(self.att_override.thrust.z))
+                rotor_vel = self.hover_speed + self.att_override.thrust.z 
+
+            motor_speed1 = rotor_vel - u_roll - u_pitch - u_yaw
+            motor_speed2 = rotor_vel + u_roll - u_pitch + u_yaw
+            motor_speed3 = rotor_vel + u_roll + u_pitch - u_yaw
+            motor_speed4 = rotor_vel - u_roll + u_pitch + u_yaw
             self.actuator_msg.angular_velocities = \
                 [self.magic_number * motor_speed1, self.magic_number * motor_speed2,
                  motor_speed3, motor_speed4]

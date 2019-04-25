@@ -9,8 +9,11 @@
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 
-#include "plane_detection_ros/detection/DetectionWrapper.h"
+// Own includes
+#include "plane_detection_ros/detection/KalmanDetection.h"
+#include <plane_detection_ros/PlaneDetectionParametersConfig.h>
 
+// Cpp includes
 #include <array>
 
 /**
@@ -31,39 +34,15 @@ int main(int argc, char **argv) {
 	ros::init(argc, argv, "plane_detection");
 	ros::NodeHandle nh;
 	
-	// Read all available parameters
-	std::string frameID {"velodyne"};
-	double rate = 10;
-	double lim_x = 2;
-	double lim_y = 2;
-	double lim_z = 2;
-	double min_x = 0.5;
-	double kalmanNoiseMv = 10;
-	double kalmanNoisePos = 1;
-	double kalmanNoiseVel = 10;
-	double threshold = 0.05;
-	nh.getParam("/detection/frame_id", frameID);
-	nh.getParam("/detection/rate", rate);
-	nh.getParam("/detection/lim_x", lim_x);
-	nh.getParam("/detection/lim_y", lim_y);
-	nh.getParam("/detection/lim_z", lim_z);
-	nh.getParam("/detection/min_x", min_x);
-	nh.getParam("/detection/threshold", threshold);
-	nh.getParam("/kalman/noise_mv", kalmanNoiseMv);
-	nh.getParam("/kalman/noise_pos", kalmanNoisePos);
-	nh.getParam("/kalman/noise_vel", kalmanNoiseVel);
-
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
 		ros::console::levels::Info))
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Setup a new planeDetection object
-	std::shared_ptr<DetectionWrapper> detectionWrapper
-		{ new DetectionWrapper {frameID, kalmanNoiseMv, kalmanNoisePos, kalmanNoiseVel} };
-	detectionWrapper->setFilterLimits(lim_x, lim_y, lim_z, min_x);
-	detectionWrapper->setDetectionThreshold(threshold);
-
+	std::shared_ptr<KalmanDetection> planeDetect { new KalmanDetection };
+	planeDetect->initializeParameters(nh);
+	
 	boost::recursive_mutex config_mutex;
 	// Initialize configure server
 	dynamic_reconfigure::
@@ -73,18 +52,23 @@ int main(int argc, char **argv) {
 	dynamic_reconfigure::
 		Server<plane_detection_ros::PlaneDetectionParametersConfig>::CallbackType
 		paramCallback;
+	
 	// Set initial reconfigure parameters
-	detectionWrapper->setReconfigureParameters(confServer);
+	plane_detection_ros::PlaneDetectionParametersConfig config;
+	confServer.setConfigDefault(config);
+	planeDetect->setReconfigureParameters(config);
+	confServer.updateConfig(config);
 
 	// Setup reconfigure server
 	paramCallback = boost::bind(
-			&DetectionWrapper::parametersCallback,
-			detectionWrapper, _1, _2);
+			&PlaneDetection::parametersCallback,
+			planeDetect, _1, _2);
 	confServer.setCallback(paramCallback);
 
 	// Pointcloud subscriber
 	ros::Subscriber pclSub = nh.subscribe("/pointcloud", 1,
-		&DetectionWrapper::pointCloudCallback, detectionWrapper.get());
+		&PlaneDetection::pointCloudCallback, 
+		dynamic_cast<DetectionBase*>(planeDetect.get()));
 
 	// Define some publishers
 	ros::Publisher planePub = nh.advertise<sensor_msgs::PointCloud2>(
@@ -95,29 +79,31 @@ int main(int argc, char **argv) {
 			"/distance", 1);
 	ros::Publisher distFiltPub = nh.advertise<std_msgs::Float64>(
 			"/distance_filtered", 1);
+	ros::Publisher distVelPub = nh.advertise<std_msgs::Float64>(
+			"/distance_velocity", 1);
 
-	// Setup the loop
+	// Setup loop rate
+	double rate = 10;
+	nh.getParam("/detection/rate", rate);
 	ROS_INFO("PlaneDetectionNode: Setting rate to %.2f", rate);
 	ros::Rate loopRate {rate};
 	double dt = 1.0 / rate;
+
+	// Start the main loop
 	while(ros::ok())
 	{
 		ros::spinOnce();
-		detectionWrapper->convertFromROSMsg();
-
-		// Detect normal
-		detectionWrapper->doCloudFiltering();
-		detectionWrapper->doPlaneDetection();
-		detectionWrapper->publishPlane(planePub);
-		detectionWrapper->publishNormal(normalPub);
-
-		// Calculate distance
-		detectionWrapper->calculateDistanceToPlane();
-		detectionWrapper->publishDistanceToPlane(distPub);
+		
+		// Do the plane detection
+		planeDetect->doPlaneDetection();
+		planeDetect->publishPlane(planePub);
+		planeDetect->publishNormal(normalPub);
+		planeDetect->publishDistanceToPlane(distPub);
 
 		// Filter distance
-		detectionWrapper->filterCurrentDistance(dt);
-		detectionWrapper->publishFilteredDistance(distFiltPub);
+		planeDetect->filterCurrentDistance(dt);
+		planeDetect->publishFiltDist(distFiltPub);
+		planeDetect->publishFiltDistVel(distVelPub);
 
 		loopRate.sleep();
 	}
