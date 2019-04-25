@@ -100,14 +100,24 @@ public:
 	PID& getPitchRatePID();
 
 	/**
-	 * Return a reference to the position y PID object.
+	 * Return a reference to the y position PID object.
 	 */
 	PID& getPosYPID();
 
 	/**
-	 * Return a reference to the position z PID object.
+	 * Return a reference to the z position PID object.
 	 */
 	PID& getPosZPID();
+
+	/**
+	 * Return a reference to the y velocity PID object.
+	 */
+	PID& getVelYPID();
+
+	/**
+	 * Return a reference to the z velocity PID object.
+	 */
+	PID& getVelZPID();
 
 	/**
 	 * Return plane yaw angle, with respect to the UAV base frame.
@@ -185,9 +195,15 @@ private:
 
 	/** PID controller for position along the y-axis.*/
 	std::unique_ptr<PID> _posYPID;
+	
+	/** PID controller for velocity along the y-axis */
+	std::unique_ptr<PID> _velYPID;
 
 	/** PID controller for position along the z-axis.*/
 	std::unique_ptr<PID> _posZPID;
+
+	/** PID controller for velocity along the y-axis */
+	std::unique_ptr<PID> _velZPID;
 
 	/** Current Joy message set in the /joy callback function. */
 	sensor_msgs::Joy _joyMsg;
