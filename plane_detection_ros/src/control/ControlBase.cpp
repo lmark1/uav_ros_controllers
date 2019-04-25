@@ -81,10 +81,17 @@ void ControlBase::imuCbSim(const nav_msgs::OdometryConstPtr& message)
 		message->pose.pose.orientation.z,
 		message->pose.pose.orientation.w);
 
-	updatePosition(
+	rotateVector(
 		message->pose.pose.position.x,
 		message->pose.pose.position.y,
-		message->pose.pose.position.z);
+		message->pose.pose.position.z,
+		_currentPosition);
+
+	rotateVector(
+		message->twist.twist.linear.x,
+		message->twist.twist.linear.y,
+		message->twist.twist.linear.z,
+		_currentVelocity);
 }
 
 void ControlBase::posCbReal(const geometry_msgs::PoseStampedConstPtr& message)
@@ -93,14 +100,25 @@ void ControlBase::posCbReal(const geometry_msgs::PoseStampedConstPtr& message)
 	_currentPosition[1] = message->pose.position.y;
 	_currentPosition[2] = message->pose.position.z;
 
-	updatePosition(
+	rotateVector(
 		message->pose.position.x,
 		message->pose.position.y,
-		message->pose.position.z
+		message->pose.position.z,
+		_currentPosition
 	);
 }
 
-void ControlBase::updatePosition(double x, double y, double z)
+void ControlBase::velCbReal(const geometry_msgs::TwistStampedConstPtr& message)
+{
+	rotateVector(
+		message->twist.linear.x,
+		message->twist.linear.y,
+		message->twist.linear.z,
+		_currentVelocity);
+}
+
+void ControlBase::rotateVector(
+	const double x, const double y, const double z, std::array<double, 3>& vector)
 {
 	_currentPosition[0] = x * cos(_uavYaw) - y * sin(_uavYaw);
 	_currentPosition[1] = x * sin(_uavYaw) + y * cos(_uavYaw);

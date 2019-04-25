@@ -24,6 +24,7 @@
  * 		- /joy			- Joystick topic used for enabling inspection mode
  *		- /real/imu		- IMU topic - realistic
  *		- /real/pos		- Local position topic - realistic
+ *		- /real/vel		- Velocity topic - realistic
  *		- /sim/odometry	- Odometry topic - simulation
  */
 int main(int argc, char **argv) {
@@ -68,9 +69,12 @@ int main(int argc, char **argv) {
 		&ControlBase::imuCbReal,
 		dynamic_cast<ControlBase*>(distanceControl.get()));
 	ros::Subscriber posSub = nh.subscribe("/real/pos", 1,
-		&ControlBase::imuCbReal,
+		&ControlBase::posCbReal,
 		dynamic_cast<ControlBase*>(distanceControl.get()));
-		
+	ros::Subscriber velSub = nh.subscribe("/real/vel", 1,
+		&ControlBase::velCbReal,
+		dynamic_cast<ControlBase*>(distanceControl.get()));
+
 	// Plane normal CB
 	ros::Subscriber planeSub = nh.subscribe("/plane_normal", 1,
 		&ControlBase::normalCb,

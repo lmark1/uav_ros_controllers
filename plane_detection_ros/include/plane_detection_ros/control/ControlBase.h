@@ -17,6 +17,7 @@
 #include <uav_ros_control/PID.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
 
 // Own includes
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
@@ -74,6 +75,11 @@ public:
 	 */
 	void posCbReal(const geometry_msgs::PoseStampedConstPtr& message);
 
+	/**
+	 * Velocity callback for real control mode.
+	 */
+	void velCbReal(const geometry_msgs::TwistStampedConstPtr& message);
+	
 	/**
 	 * Check if inspection is enabled.
 	 */
@@ -185,7 +191,7 @@ private:
 	/**
 	 * Update local position.
 	 */
-	void updatePosition(double x, double y, double z);
+	void rotateVector(const double x, const double y, const double z, std::array<double, 3>& vector);
 
 	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
@@ -216,6 +222,9 @@ private:
 
 	/** Current LOCAL position vector. */
 	std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};
+
+	/** Current velocity vector. */
+	std::array<double, 3> _currentVelocity {0.0, 0.0, 0.0};
 
 	/** Current distance measured value. Used both in sim and real mode. */
 	double _distanceMeasured;
