@@ -8,19 +8,17 @@
 #ifndef DETECTION_BASE_H
 #define DETECTION_BASE_H
 
+// PCL includes
+#include <pcl/pcl_base.h>
+#include <pcl/point_types.h>
+#include <pcl/ModelCoefficients.h>
+
 // ROS includes
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <plane_detection_ros/PlaneDetectionParametersConfig.h>
 #include <dynamic_reconfigure/server.h>
-
-// Own includes
-#include <uav_ros_control/KalmanFilter.h>
-
-// PCL includes
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
 
 typedef pcl::PointCloud<pcl::PointXYZ> pcl3d_t;
 typedef pcl::ModelCoefficients coef_t;
@@ -34,7 +32,7 @@ struct PlaneInformation
 	pcl::PointXYZ planeCentroid;
 
 	/** Current plane parameters. */
-	coef_t::Ptr planeParameters;
+	coef_t::Ptr planeParameters {new coef_t};
 
 	/** Last detected plane. */
 	pcl3d_t planePointCloud;
@@ -42,7 +40,7 @@ struct PlaneInformation
 
 /**
  * Base class for plane detection object. Used for relaying information
- * between ROS and plane detection algorithm.
+ * between ROS and plane detection algorithm. 
  */
 class DetectionBase
 {
@@ -53,16 +51,13 @@ class DetectionBase
 /** Minimium number of PointCloud points that need to be available. */
 #define MINIMUM_POINTS 3
 
-/** Maximum time with no measurements - Kalman filter*/
-#define MAX_INVALID_TIME 2
-
 public:
 
 	/**
 	 * Default contructor. Initializes class variables.
 	 */
 	DetectionBase();
-	~DetectionBase();
+	virtual ~DetectionBase();
 
 	/**
 	 * Callback function for PointCloud2 objects.
@@ -92,41 +87,68 @@ public:
 	void convertFromROSMsg(const sensor_msgs::PointCloud2&, pcl3d_t&);
 
 	/**
-	 * Callback function used for setting various parameters.
-	 */
-	void parametersCallback(
-			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
-			uint32_t level);
-
-	/**
-	 * Set reconfigure parameters.
-	 * 
-	 * @param server dynamic_reconfigure Server object, parametrised by type T.
-	 */
-	template <class T>
-	void setReconfigureParameters(dynamic_reconfigure::
-		Server<T>& server)
-	{
-		ROS_WARN("DetectionBase - Reconfigure parameters called.");
-		// No parameters need updating here
-	}
-
-private:
-
-	/**
 	 * Clear current solution.
 	 */
 	void clearCurrentSolution();
 
 	/**
-	 * Check if ready for detection.
+	 * Check if given PointCloud is ready for detection.
 	 */
-	bool readyForDetection();
+	bool readyForDetection(const pcl3d_t&);
 
 	/**
 	 * Check if solution is found.
 	 */
 	bool solutionFound();
+
+	/**
+	 * Returns plane information reference
+	 */
+	PlaneInformation& getPlaneRef();
+
+	/**
+	 * Return current PointCloud2 ROS message
+	 */
+	const sensor_msgs::PointCloud2& getPointCloudROS();
+
+	/**
+	 * Set current distance to the given value.
+	 */
+	void setCurrentDistance(double newDistance);
+	
+	/**
+	 * Get current measured distance.
+	 */
+	double getCurrentDistance();
+
+	/**
+	 * Check if new measurement is available.
+	 */
+	bool newMeasurementReady();
+
+	/**
+	 * Reset flag signaling new measurement is ready.
+	 */
+	void resetNewMeasurementFlag();
+
+	/**
+	 * Do all the parameter initialization here.
+	 */
+	virtual void initializeParameters(ros::NodeHandle& nh);
+
+	/**
+	 * Callback function used for setting various parameters.
+	 */
+	virtual void parametersCallback(
+			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
+			uint32_t level);
+
+	/**
+	 * Set reconfigure parameters in the given config object.
+	 */
+	virtual void setReconfigureParameters(plane_detection_ros::PlaneDetectionParametersConfig& config);
+
+private:
 
 	/** Currently detected plane */
 	std::unique_ptr<PlaneInformation> _currPlane;
@@ -134,17 +156,14 @@ private:
 	/** Currently available PointCloud from the callback function. */
 	sensor_msgs::PointCloud2 _currPointCloud;
 
-	/** Converted PointCloud from ROS msg. */
-	pcl3d_t _currPcl;
+	/** Frame ID where the lidar is located. */
+	std::string _frameID;
 
 	/** Current distance to plane. */
 	double _currDistance;
 
-	/** Frame ID where the lidar is located. */
-	std::string _frameID;
-
-	/** Flag indicating a new distance measurement was obtained */
-	bool _newDistMeasurement;
+	/** Flag indicating a new PointCloud2 ROS message was obtained */
+	bool _newPointCloud;
 };
 
 #endif /* DETECTION_BASE_H */

@@ -18,9 +18,9 @@
 DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode(mode),
 	_currState(DistanceControlState::MANUAL),
-	_vel_sp(0),
+	_distVelSp(0),
+	_distSp(-1),
 	_deactivateInspection(false),
-	_distRef(-1),
 	_inspectionRequestFailed(false),
 	ControlBase()
 {
@@ -62,7 +62,7 @@ void DistanceControl::detectStateChange()
 
 		ROS_INFO("Inspection activation successful-following distance %.2f",
 				getDistanceMeasured());
-		_distRef = getDistanceMeasured();
+		_distSp = getDistanceMeasured();
 		_currState = DistanceControlState::INSPECTION;
 		return;
 	}
@@ -80,8 +80,8 @@ void DistanceControl::deactivateInspection()
 {
 	_currState = DistanceControlState::MANUAL;
 	_deactivateInspection = true;
-	getPID().resetIntegrator();
-	getPID_vx().resetIntegrator();
+	getPitchPID().resetIntegrator();
+	getPitchRatePID().resetIntegrator();
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
@@ -96,73 +96,76 @@ void DistanceControl::publishState(ros::Publisher& pub)
 void DistanceControl::publishDistVelSp(ros::Publisher& pub)
 {
 	std_msgs::Float64 newMessage;
-	newMessage.data = _vel_sp;
+	newMessage.data = _distVelSp;
 	pub.publish(newMessage);
 }
 
 void DistanceControl::calculateSetpoint(double dt)
 {
-	if (inInspectionState())
-	{
-		_attitudeSetpoint[0] = - getRollSpManual();
-		_vel_sp = getPID().compute(_distRef, getDistanceMeasured(), dt);
-		_attitudeSetpoint[1] = - getPID_vx().compute(_vel_sp, getDistanceVelMeasured(), dt);
-
-		if (_mode == DistanceControlMode::SIMULATION)
-			_attitudeSetpoint[2] = getPlaneYaw() * 10; // Treat as yaw rate setpoint
-		else
-			_attitudeSetpoint[2] = getUAVYaw() - getPlaneYaw(); // Treat as yaw setpoint
-	}
-	else
-	{
+	// Calculate setpoint outside inspection state
+	if (!inInspectionState())
+	{	
 		_attitudeSetpoint[0] = - getRollSpManual();
 		_attitudeSetpoint[1] = getPitchSpManual();
 		_attitudeSetpoint[2] = - getYawSpManual();	
+		return;
 	}
+	
+	// Calculate setpoint inside inspection state
+	_attitudeSetpoint[0] = - getRollSpManual();
+	_distVelSp = getPitchPID().compute(_distSp, getDistanceMeasured(), dt);
+	_attitudeSetpoint[1] = - getPitchRatePID().compute(_distVelSp, getDistanceVelMeasured(), dt);
+
+	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
+	if (_mode == DistanceControlMode::SIMULATION)
+		_attitudeSetpoint[2] = getPlaneYaw() * 10;
+	else
+		_attitudeSetpoint[2] = getUAVYaw() - getPlaneYaw();
 }
 
-void DistanceControl::publishDistanceSetpoint(ros::Publisher& pub)
+void DistanceControl::publishDistSp(ros::Publisher& pub)
 {
 	std_msgs::Float64 newMessage;
-	newMessage.data = _distRef;
+	newMessage.data = _distSp;
 	pub.publish(newMessage);
 }
 
-void DistanceControl::publishSetpoint(ros::Publisher& pub)
+void DistanceControl::publishAttSp(ros::Publisher& pub)
 {	
+	mavros_msgs::AttitudeTarget newMessage;
+	tf2::Quaternion myQuaternion;
+
 	// If in REAL mode, publish mavros::msgs AttitudeTarget
 	if (_mode == DistanceControlMode::REAL)
 	{
-		mavros_msgs::AttitudeTarget newMessage;
 		if (inInspectionState())
 		{
-			tf2::Quaternion myQuaternion;
+			// Yaw is controlled in radians
 			myQuaternion.setEulerZYX(
 				_attitudeSetpoint[2],
 				_attitudeSetpoint[1],
 				_attitudeSetpoint[0]);
 
-			// Publish yaw
-			newMessage.type_mask = 7; //Ignore roll, pitch, yaw rate.
-			newMessage.orientation.x = myQuaternion.x();
-			newMessage.orientation.y = myQuaternion.y();
-			newMessage.orientation.z = myQuaternion.z();
-			newMessage.orientation.w = myQuaternion.w();	
+			//Ignore roll rate, pitch rate, yaw rate.
+			newMessage.type_mask = 7; 
 		}
 		else 
 		{
-			tf2::Quaternion myQuaternion;
+			// Yaw is controlled using yaw rate
 			myQuaternion.setEulerZYX(
-				getUAVYaw() * 0,
+				0,
 				_attitudeSetpoint[1],
 				_attitudeSetpoint[0]);
-			newMessage.type_mask = 3; //Ignore roll, pitch
-			newMessage.orientation.x = myQuaternion.x();
-			newMessage.orientation.y = myQuaternion.y();
-			newMessage.orientation.z = myQuaternion.z();
-			newMessage.orientation.w = myQuaternion.w();
+			
+			//Ignore roll rate, pitch rate
+			newMessage.type_mask = 3; 
 			newMessage.body_rate.z = _attitudeSetpoint[2];
 		}
+
+		newMessage.orientation.x = myQuaternion.x();
+		newMessage.orientation.y = myQuaternion.y();
+		newMessage.orientation.z = myQuaternion.z();
+		newMessage.orientation.w = myQuaternion.w();	
 		newMessage.thrust = getThrustSpUnscaled();
 		pub.publish(newMessage);
 		return;

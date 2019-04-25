@@ -6,19 +6,26 @@
  */
 
 #ifndef PLANE_DETECTION_H
-#define DETECTION_WRAPPER_H
+#define PLANE_DETECTION_H
 
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
+// Own includes
+#include <plane_detection_ros/detection/DetectionBase.h>
 
-
-typedef pcl::PointCloud<pcl::PointXYZ> pcl3d_t;
-typedef pcl::ModelCoefficients coef_t;
+// Cpp includes
+#include <array>
 
 /**
- * This namespace is used for plane detection from pcl3d_t objects.
+ * This class is used for plane detection from pcl3d_t objects.
  */
-namespace plane_detect {
+class PlaneDetection : public DetectionBase
+{
+public:
+
+	/**
+	 * Default contructor for PlaneDetection class
+	 */
+	PlaneDetection();
+	virtual ~PlaneDetection();
 
 	/**
 	 * Detect plane from the given PointCloud<PointXYZ> object.
@@ -31,7 +38,8 @@ namespace plane_detect {
 	coef_t::Ptr detectPlane (const pcl3d_t& inputCloud, pcl3d_t& planeCloud);
 
 	/**
-	 * Filter given PointCloud. Ignore all points outside of specified ranges.
+	 * Filter given PointCloudusing a BoxFilter. 
+	 * Ignore all points outside of specified ranges.
 	 *
 	 * @param inputCloud - Input Pointcloud
 	 */
@@ -61,34 +69,53 @@ namespace plane_detect {
 	double distanceToPlane(const pcl::PointXYZ& point, const coef_t& coef);
 
 	/**
-	 * Maximum distance from plane to the plane point.
+	 * Do all the necessary steps to perform plane detection algorithm.
 	 */
-	double DISTANCE_TRESHOLD = 0.01;
+	void doPlaneDetection();
 
 	/**
-	 * Enables optimization of parameters.
+	 * Callback function used for setting various parameters.
 	 */
-	bool ENABLE_OPTIMIZATION = true;
+	virtual void parametersCallback(
+			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
+			uint32_t level) override;
 
 	/**
-	 * Minimum filter threshold along the x-axis.
+	 * Do all the parameter initialization here.
 	 */
-	float FILTER_MIN_X = 1.5;
+	virtual void initializeParameters(ros::NodeHandle& nh) override;
 
 	/**
-	 * Filters given PointCloud along the x - axis.
+	 * Set reconfigure parameters in the given config object.
 	 */
-	float FILTER_X = 2;
+	virtual void setReconfigureParameters(plane_detection_ros::PlaneDetectionParametersConfig& config) override;
+
+private:
 
 	/**
-	 * Filters given PointCloud along the y - axis.
+	 * Convert last recieved PointCloud ROS message to
+	 * pcl::PointCloud<pcl:PointXYZ> type.
+	 * Do this before performing detection.
 	 */
-	float FILTER_Y = 2;
+	void convertFromROSMsg(const sensor_msgs::PointCloud2&, pcl3d_t&);
 
 	/**
-	 * Filters given PointCloud along the z - axis.
+	 * Print a ROS_INFO message about the current state of parameters.
 	 */
-	float FILTER_Z = 2;
-}
+	void printROSInfo();
+
+	/** Maximum distance from plane to the plane point. */
+	double _distanceThreshold;
+
+	/** Enables optimization of parameters. */
+	bool _enableOptimization;
+
+	/** Minimum values for box filter used in PointCloud filtering. */
+	std::array<float, 3> _boxFilterMin;
+
+	/** Maximum values for box filter used in PointCloud filtering */
+	std::array<float, 3> _boxFilterMax;
+
+};
 
 #endif /* PLANE_DETECTION_H */

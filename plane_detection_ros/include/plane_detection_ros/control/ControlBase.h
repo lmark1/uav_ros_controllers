@@ -22,6 +22,9 @@
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
 #include <plane_detection_ros/control/JoyStructure.h>
 
+//Cpp includes
+#include <array>
+
 /**
  * This class is used for defining Control subscribers and publishers.
  */
@@ -67,11 +70,9 @@ public:
 	void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
 
 	/**
-	 * Callback for parameter server.
+	 * Position callback for real control mode.
 	 */
-	void parametersCallback(
-			plane_detection_ros::DistanceControlParametersConfig& configMsg,
-			uint32_t level);
+	void posCbReal(const geometry_msgs::PoseStampedConstPtr& message);
 
 	/**
 	 * Check if inspection is enabled.
@@ -91,12 +92,22 @@ public:
 	/**
 	 * Return reference to the PID object.
 	 */
-	PID& getPID();
+	PID& getPitchPID();
 
 	/**
 	 * Return reference to velocity PID object.
 	 */
-	PID& getPID_vx();
+	PID& getPitchRatePID();
+
+	/**
+	 * Return a reference to the position y PID object.
+	 */
+	PID& getPosYPID();
+
+	/**
+	 * Return a reference to the position z PID object.
+	 */
+	PID& getPosZPID();
 
 	/**
 	 * Return plane yaw angle, with respect to the UAV base frame.
@@ -132,40 +143,51 @@ public:
 	 */
 	double getThrustSpUnscaled();
 
-	double getYawScale();
-	
 	/**
-	 * Update configuration parameters on the given server.
+	 * Return scale value for yaw control input.
 	 */
-	template <class T>
-	void setReconfigureParameters(dynamic_reconfigure::Server<T>& server)
-	{
-		plane_detection_ros::DistanceControlParametersConfig configMsg;
-		
-		// Distance controller
-		configMsg.k_p_x = _distancePID->get_kp();
-		configMsg.k_i_x = _distancePID->get_ki();
-		configMsg.k_d_x = _distancePID->get_kd();
-		configMsg.lim_high_x = _distancePID->get_lim_high();
-		configMsg.lim_low_x = _distancePID->get_lim_low();
+	double getYawScale();
 
-		// Distance velocity controller
-		configMsg.k_p_vx = _distanceRatePID->get_kp();
-		configMsg.k_i_vx = _distanceRatePID->get_ki();
-		configMsg.k_d_vx = _distanceRatePID->get_kd();
-		configMsg.lim_high_vx = _distanceRatePID->get_lim_high();
-		configMsg.lim_low_vx = _distanceRatePID->get_lim_low();
+	/**
+	 * Return constant reference to the current position.
+	 */
+	const std::array<double, 3>& getCurrPosition();
 
-		server.updateConfig(configMsg);
-	}
+	/**
+	 * Do all the parameter initialization here.
+	 */
+	virtual void initializeParameters(ros::NodeHandle& nh);
+
+	/**
+	 * Callback function used for setting various parameters.
+	 */
+	virtual void parametersCallback(
+			plane_detection_ros::DistanceControlParametersConfig& configMsg,
+			uint32_t level);
+
+	/**
+	 * Set reconfigure parameters in the given config object.
+	 */
+	virtual void setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config);
 
 private:
+
+	/**
+	 * Update local position.
+	 */
+	void updatePosition(double x, double y, double z);
 
 	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
 
 	/** Distance velocity PID controller */
-	std::unique_ptr<PID> _distanceRatePID;
+	std::unique_ptr<PID> _distanceVelPID;
+
+	/** PID controller for position along the y-axis.*/
+	std::unique_ptr<PID> _posYPID;
+
+	/** PID controller for position along the z-axis.*/
+	std::unique_ptr<PID> _posZPID;
 
 	/** Current Joy message set in the /joy callback function. */
 	sensor_msgs::Joy _joyMsg;
@@ -176,9 +198,13 @@ private:
 	/** Scale weights - Joy structure */
 	std::unique_ptr<joy_control::ScaleWeights> _joyScales;
 
+	/** Current LOCAL position vector. */
+	std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};
+
 	/** Current distance measured value. Used both in sim and real mode. */
 	double _distanceMeasured;
 
+	/** Currently measured distance velocity. Used both in sim and real mode. */
 	double _distanceVelocityMeasured;
 
 	/** Current UAV yaw angle. */

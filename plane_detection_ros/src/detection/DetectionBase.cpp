@@ -25,11 +25,10 @@ DetectionBase::DetectionBase():
 	_currPlane (new PlaneInformation),
 	_currDistance (-1),
 	_frameID ("default"),
-	_newDistMeasurement (false)
+	_newPointCloud (false)
 {
-	_currPlane->planeParameters.operator* = new coef_t();
+	ROS_DEBUG("DetectionBase - Constructor");
 	_currPlane->planeParameters->values = std::vector<float> (4, 0.0);
-	
 	_currPlane->planeCentroid.x = 0.0;
 	_currPlane->planeCentroid.y = 0.0;
 	_currPlane->planeCentroid.z = 0.0;	
@@ -42,15 +41,7 @@ DetectionBase::~DetectionBase()
 void DetectionBase::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pclMsg)
 {
 	_currPointCloud = *pclMsg;
-	_newDistMeasurement = true;
-}
-
-void DetectionBase::parametersCallback(
-		plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
-		uint32_t level)
-{
-	ROS_WARN("Hello from DetetionBase reconfigure - no parameters updating here.");
-	// No parameters need updating here
+	_newPointCloud = true;
 }
 
 void DetectionBase::publishPlane(ros::Publisher& pub)
@@ -86,7 +77,6 @@ void DetectionBase::publishNormal(ros::Publisher& pub)
 	double yaw = atan2(
 		_currPlane->planeParameters->values[1],
 		_currPlane->planeParameters->values[0]);
-	ROS_DEBUG("Normal angle is %f degrees.", yaw * 180/ M_PI);
 	myQuaternion.setRPY(0, 0, yaw);
 	outputMessage.pose.orientation.x = myQuaternion.x();
 	outputMessage.pose.orientation.y = myQuaternion.y();
@@ -123,14 +113,70 @@ bool DetectionBase::solutionFound()
 		_currPlane->planeParameters->values.size() == 4;
 }
 
-bool DetectionBase::readyForDetection()
+bool DetectionBase::readyForDetection(const pcl3d_t& input)
 {
-	return _currPcl.size() > MINIMUM_POINTS;
+	return input.size() > MINIMUM_POINTS;
 }
 
 void DetectionBase::clearCurrentSolution()
 {
-	_currPcl.clear();
 	_currPlane->planePointCloud.clear();
 	_currPlane->planeParameters->values = std::vector<float> (4, 0.0);
+	setCurrentDistance(NO_PLANE_DETECTED);
+}
+
+PlaneInformation& DetectionBase::getPlaneRef()
+{
+	return *_currPlane;
+}
+
+const sensor_msgs::PointCloud2& DetectionBase::getPointCloudROS()
+{
+	return _currPointCloud;
+}
+
+void DetectionBase::setCurrentDistance(double newDistance)
+{
+	_currDistance = newDistance;
+}
+
+double DetectionBase::getCurrentDistance()
+{
+	return _currDistance;
+}
+
+bool DetectionBase::newMeasurementReady()
+{
+	return _newPointCloud;
+}
+
+void DetectionBase::resetNewMeasurementFlag()
+{
+	_newPointCloud = false;
+}
+
+void DetectionBase::initializeParameters(ros::NodeHandle& nh)
+{
+	ROS_DEBUG("DetectionBase::initializeParameters()");
+	bool initialized = nh.getParam("/detection/frame_id", _frameID);
+	ROS_INFO("New frame ID: %s", _frameID.c_str());
+	if (!initialized)
+	{
+		ROS_FATAL("DetectionBase::initializeParameters() - parameter initialization failed.");
+		throw std::invalid_argument("BaseDetection parameters not properly set.");
+	}
+}
+
+void DetectionBase::parametersCallback(
+			plane_detection_ros::PlaneDetectionParametersConfig& configMsg,
+			uint32_t level)
+{
+	ROS_DEBUG("DetectionBase::parametersCallback()");
+	// No parameters need updating here
+}
+
+void DetectionBase::setReconfigureParameters(plane_detection_ros::PlaneDetectionParametersConfig& config)
+{
+	ROS_WARN("DetectionBase::setreconfigureParameters()");
+	// No parameters need updating here
 }

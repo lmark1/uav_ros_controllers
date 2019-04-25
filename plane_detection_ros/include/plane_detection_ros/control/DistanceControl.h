@@ -85,18 +85,27 @@ public:
 	void publishState(ros::Publisher& pub);
 
 	/**
+	 * Publish attitude setpoint on the given topic.
 	 * If in simulation mode, publisher is expected to be Vector3.
 	 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
 	 */
-	void publishSetpoint(ros::Publisher& pub);
-
-	void publishDistVelSp(ros::Publisher& pub);
+	void publishAttSp(ros::Publisher& pub);
 
 	/**
 	 * Publish distance setpoint as a std_msgs::Float64 message.
 	 */
-	void publishDistanceSetpoint(ros::Publisher& pub);
+	void publishDistSp(ros::Publisher& pub);
 
+	/**
+	 * Publish distance velocity setpoint on the given topic, 
+	 * as a Float64 ROS message.
+	 */
+	void publishDistVelSp(ros::Publisher& pub);
+
+	/**
+	 * Publish setpoint euler angles on the given topic,
+	 * as a Vector3 ROS message.
+	 */
 	void publishEulerSp(ros::Publisher& pub);
 
 	/**
@@ -138,9 +147,11 @@ private:
 	/** True if inspection state was requested and denied, false otherwise. */
 	bool _inspectionRequestFailed;
 
-	/** Referent distance value. */
-	double _distRef;
-	double _vel_sp;
+	/** Distance setpoint value */
+	double _distSp;
+
+	/** Distance velocity setpoint value. */
+	double _distVelSp;
 
 	/** Attitude setpoint array. */
 	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};
