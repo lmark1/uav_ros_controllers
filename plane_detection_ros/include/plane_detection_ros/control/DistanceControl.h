@@ -75,7 +75,12 @@ public:
 	 *
 	 * @param dt - Given discretization time.
 	 */
-	void calculateSetpoint(double dt);
+	void calculateAttitudeTarget(double dt);
+	
+	/**
+	 * Calculate appropriate attitude setpoint from the "carrot" control input.
+	 */
+	void calculateCarrotSetpoint(double dt);
 
 	/**
 	 * Publish current control state.
@@ -154,7 +159,10 @@ private:
 	double _distVelSp;
 
 	/** Attitude setpoint array. */
-	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};
+	std::array<double, 43> _attThrustSp {0.0, 0.0, 0.0, 0.0};
+
+	/** Carrot position array. */
+	std::array<double, 3> _carrotPos {0.0, 0.0, 0.0};
 };
 
 #endif /* DISTANCE_CONTROL_H */
