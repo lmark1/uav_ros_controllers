@@ -98,12 +98,17 @@ public:
 	/**
 	 * Return reference to the PID object.
 	 */
-	PID& getPitchPID();
+	PID& getDistancePID();
 
 	/**
 	 * Return reference to velocity PID object.
 	 */
-	PID& getPitchRatePID();
+	PID& getDistanceVelPID();
+
+	/**
+	 * Return a reference to the x position PID object.
+	 */
+	PID& getPosXPID();
 
 	/**
 	 * Return a reference to the y position PID object.
@@ -119,6 +124,11 @@ public:
 	 * Return a reference to the y velocity PID object.
 	 */
 	PID& getVelYPID();
+
+	/**
+	 * Return a reference to the x velocity PID object.
+	 */
+	PID& getVelXPID();
 
 	/**
 	 * Return a reference to the z velocity PID object.
@@ -160,14 +170,29 @@ public:
 	double getThrustSpUnscaled();
 
 	/**
+	 * Get z - pos carrot setpoing.
+	 */
+	double getZPosSpManual();
+
+	/**
 	 * Return scale value for yaw control input.
 	 */
 	double getYawScale();
 
 	/**
+	 * Return thrust scale value.
+	 */
+	double getThrustScale();
+
+	/**
 	 * Return constant reference to the current position.
 	 */
 	const std::array<double, 3>& getCurrPosition();
+
+	/**
+	 * Return constant reference to the current velocity.
+	 */
+	const std::array<double, 3>& getCurrVelocity();
 
 	/**
 	 * Do all the parameter initialization here.
@@ -204,6 +229,12 @@ private:
 	
 	/** PID controller for velocity along the y-axis */
 	std::unique_ptr<PID> _velYPID;
+
+	/** PID controller for position along the x-axis.*/
+	std::unique_ptr<PID> _posXPID;
+	
+	/** PID controller for velocity along the x-axis */
+	std::unique_ptr<PID> _velXPID;
 
 	/** PID controller for position along the z-axis.*/
 	std::unique_ptr<PID> _posZPID;
