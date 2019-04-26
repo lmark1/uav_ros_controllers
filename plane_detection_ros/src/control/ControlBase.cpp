@@ -85,11 +85,7 @@ void ControlBase::imuCbSim(const nav_msgs::OdometryConstPtr& message)
 		message->pose.pose.position.z,
 		_currentPosition);
 
-	rotateVector(
-		message->twist.twist.linear.x,
-		message->twist.twist.linear.y,
-		message->twist.twist.linear.z,
-		_currentVelocity);
+	// Velocity from Odometry is in local coordinate system
 }
 
 void ControlBase::posCbReal(const geometry_msgs::PoseStampedConstPtr& message)
