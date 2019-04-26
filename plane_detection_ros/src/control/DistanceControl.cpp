@@ -64,6 +64,9 @@ void DistanceControl::detectStateChange()
 				getDistanceMeasured());
 		_distSp = getDistanceMeasured();
 		_currState = DistanceControlState::INSPECTION;
+		_carrotPos[0] = getCurrPosition()[0];
+		_carrotPos[1] = getCurrPosition()[1];
+		_carrotPos[2] = getCurrPosition()[2];
 		return;
 	}
 
@@ -119,6 +122,7 @@ void DistanceControl::calculateAttitudeTarget(double dt)
 		_attThrustSp[0] = - getRollSpManual();
 		_attThrustSp[1] = getPitchSpManual();
 		_attThrustSp[2] = - getYawSpManual();	
+		_attThrustSp[3] = getThrustSpUnscaled();
 		return;
 	}
 	
@@ -169,7 +173,7 @@ void DistanceControl::calculateCarrotSetpoint(double dt)
 
 	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
 	if (_mode == DistanceControlMode::SIMULATION)
-		_attThrustSp[2] = getPlaneYaw() * 10;
+		_attThrustSp[2] = getPlaneYaw() * 5;
 	else
 		_attThrustSp[2] = getUAVYaw() - getPlaneYaw();
 }
@@ -233,7 +237,6 @@ void DistanceControl::publishAttSp(ros::Publisher& pub)
 		newMessage.thrust.x = 0;
 		newMessage.thrust.y = 0;
 		newMessage.thrust.z = _attThrustSp[3] * getThrustScale(); // Add base thrust
-		ROS_DEBUG("Thrust %.2f", newMessage.thrust.z);
 		pub.publish(newMessage);
 		return;
 	}

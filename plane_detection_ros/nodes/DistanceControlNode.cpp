@@ -133,7 +133,11 @@ int main(int argc, char **argv) {
 		ros::spinOnce();
 		distanceControl->detectStateChange();
 		distanceControl->publishState(statePub);
-		distanceControl->calculateCarrotSetpoint(dt);
+		
+		if (distanceControl->inInspectionState())
+			distanceControl->calculateCarrotSetpoint(dt);
+		else
+			distanceControl->calculateAttitudeTarget(dt);
 
 		// Publish setpoint based on the inspection status
 		if (simMode)
