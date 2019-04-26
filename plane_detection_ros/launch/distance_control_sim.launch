@@ -21,7 +21,7 @@
         <remap from="/real/imu"         to="/mavros/imu/data"   />
         <remap from="/real/pos"         to="/mavros/local_position/pose" />
         <remap from="/sim/odometry"     to="/bebop/odometry_gt" />
-        <remap from="/real/vel"         to="/mavros/local_position/twist">
+        <remap from="/real/vel"         to="/mavros/local_position/twist"/>
         
         <!-- Do all the publisher remaps -->
         <remap from="control_state"     to="bebop/inspection_mode" />

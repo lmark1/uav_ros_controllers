@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 	ros::NodeHandle nh;
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-		ros::console::levels::Info))
+		ros::console::levels::Debug))
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Check if sim mode or real
@@ -111,7 +111,6 @@ int main(int argc, char **argv) {
 
 	// Set initial parameters
 	plane_detection_ros::DistanceControlParametersConfig config;
-	confServer.setConfigDefault(config);
 	distanceControl->setReconfigureParameters(config);
 	confServer.updateConfig(config);
 

@@ -117,9 +117,9 @@ void ControlBase::velCbReal(const geometry_msgs::TwistStampedConstPtr& message)
 void ControlBase::rotateVector(
 	const double x, const double y, const double z, std::array<double, 3>& vector)
 {
-	_currentPosition[0] = x * cos(_uavYaw) - y * sin(_uavYaw);
-	_currentPosition[1] = x * sin(_uavYaw) + y * cos(_uavYaw);
-	_currentPosition[2] = z;
+	vector[0] = x * cos(-_uavYaw) - y * sin(-_uavYaw);
+	vector[1] = x * sin(-_uavYaw) + y * cos(-_uavYaw);
+	vector[2] = z;
 }
 
 void ControlBase::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
@@ -257,7 +257,7 @@ void ControlBase::parametersCallback(
 		plane_detection_ros::DistanceControlParametersConfig& configMsg,
 		uint32_t level)
 {
-	ROS_DEBUG("ControlBase::parametersCallback()");
+	ROS_WARN("ControlBase::parametersCallback()");
 	_distancePID->set_kp(configMsg.k_p_x);
 	_distancePID->set_kd(configMsg.k_d_x);
 	_distancePID->set_ki(configMsg.k_i_x);
@@ -386,4 +386,6 @@ void ControlBase::setReconfigureParameters(plane_detection_ros::DistanceControlP
 	config.k_d_vz = _velZPID->get_kd();
 	config.lim_low_vz = _velZPID->get_lim_low();
 	config.lim_high_vz = _velZPID->get_lim_high();
+
+	ROS_INFO_STREAM(*_posZPID);
 }

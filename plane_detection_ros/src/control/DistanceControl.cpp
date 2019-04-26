@@ -143,13 +143,17 @@ void DistanceControl::calculateCarrotSetpoint(double dt)
 	_carrotPos[0] += getPitchSpManual();
 	_carrotPos[1] += getRollSpManual();
 	_carrotPos[2] += getZPosSpManual();
-
+	ROS_DEBUG("Carrot pos: [%.2f, %.2f, %.2f]", _carrotPos[0], _carrotPos[1], _carrotPos[2]);
+	ROS_DEBUG("Current pos: [%.2f, %.2f, %.2f]", getCurrPosition()[0], getCurrPosition()[1], getCurrPosition()[2]);
+	ROS_DEBUG("Current vel: [%.2f, %.2f, %.2f]", getCurrVelocity()[0], getCurrVelocity()[1], getCurrVelocity()[2]);
+	
 	// Always the same along the y, z axes
 	double velSpY = getPosYPID().compute(_carrotPos[1], getCurrPosition()[1], dt);
 	double velSpZ = getPosZPID().compute(_carrotPos[2], getCurrPosition()[2], dt);
 	_attThrustSp[0] = - getVelYPID().compute(velSpY, getCurrVelocity()[1], dt);
 	_attThrustSp[3] = getVelZPID().compute(velSpZ, getCurrVelocity()[2], dt);
-	
+	ROS_DEBUG("VelSpZ=%.2f\tThrust=%.2f", velSpZ, _attThrustSp[3]);
+
 	// Carrot tracking if not in inspection mode
 	if (!inInspectionState())
 	{
@@ -229,6 +233,7 @@ void DistanceControl::publishAttSp(ros::Publisher& pub)
 		newMessage.thrust.x = 0;
 		newMessage.thrust.y = 0;
 		newMessage.thrust.z = _attThrustSp[3] * getThrustScale(); // Add base thrust
+		ROS_DEBUG("Thrust %.2f", newMessage.thrust.z);
 		pub.publish(newMessage);
 		return;
 	}
