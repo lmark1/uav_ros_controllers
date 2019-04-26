@@ -158,7 +158,8 @@ void DistanceControl::calculateCarrotSetpoint(double dt)
 	ROS_DEBUG("Carrot pos: [%.2f, %.2f, %.2f]", _carrotPos[0], _carrotPos[1], _carrotPos[2]);
 	ROS_DEBUG("Current pos: [%.2f, %.2f, %.2f]", getCurrPosition()[0], getCurrPosition()[1], getCurrPosition()[2]);
 	ROS_DEBUG("Current vel: [%.2f, %.2f, %.2f]", getCurrVelocity()[0], getCurrVelocity()[1], getCurrVelocity()[2]);
-	
+	ROS_DEBUG("Plane yaw: %.2f", getPlaneYaw() * 180 / M_PI);
+
 	// Always the same along the y, z axes
 	double velSpY = getPosYPID().compute(_carrotPos[1], getCurrPosition()[1], dt);
 	double velSpZ = getPosZPID().compute(_carrotPos[2], getCurrPosition()[2], dt);

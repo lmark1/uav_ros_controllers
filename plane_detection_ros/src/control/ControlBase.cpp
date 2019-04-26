@@ -122,6 +122,19 @@ void ControlBase::rotateVector(
 	vector[2] = z;
 }
 
+
+/* wrap x -> [0,max) */
+double wrapMax(double x, double max)
+{
+    /* integer math: `(max + x % max) % max` */
+    return fmod(max + fmod(x, max), max);
+}
+/* wrap x -> [min,max) */
+double wrapMinMax(double x, double min, double max)
+{
+    return min + wrapMax(x - min, max - min);
+}
+
 void ControlBase::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
 {
 	_planeYaw = calculateYaw(
@@ -134,6 +147,8 @@ void ControlBase::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
 	double xComponent = cos(_planeYaw);
 	if (xComponent < 0)
 		_planeYaw += M_PI;
+
+	_planeYaw = wrapMinMax(_planeYaw, -M_PI, M_PI);
 }
 
 bool ControlBase::inspectionEnabledJoy()
