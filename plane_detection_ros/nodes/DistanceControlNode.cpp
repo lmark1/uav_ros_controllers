@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
 
 	// Setup reconfigure server
 	paramCallback = boost::bind(
-			&ControlBase::parametersCallback,
-			dynamic_cast<ControlBase*>(distanceControl.get()), _1, _2);
+			&DistanceControl::parametersCallback,
+			distanceControl.get(), _1, _2);
 	confServer.setCallback(paramCallback);
 
 	// Setup loop rate
@@ -134,12 +134,13 @@ int main(int argc, char **argv) {
 		distanceControl->detectStateChange();
 		distanceControl->publishState(statePub);
 		
+		// Carrot mode in inspection state, attitude control otherwise
 		if (distanceControl->inInspectionState())
 			distanceControl->calculateCarrotSetpoint(dt);
 		else
 			distanceControl->calculateAttitudeTarget(dt);
 
-		// Publish setpoint based on the inspection status
+		// Publish setpoint based on the control mode
 		if (simMode)
 			distanceControl->publishAttSp(spPubSim);
 		else

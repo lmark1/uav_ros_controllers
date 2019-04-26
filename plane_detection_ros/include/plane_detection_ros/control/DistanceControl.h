@@ -118,6 +118,23 @@ public:
 	 */
 	bool inInspectionState();
 
+	/**
+	 * Do all the parameter initialization here.
+	 */
+	virtual void initializeParameters(ros::NodeHandle& nh) override;
+
+	/**
+	 * Callback function used for setting various parameters.
+	 */
+	virtual void parametersCallback(
+			plane_detection_ros::DistanceControlParametersConfig& configMsg,
+			uint32_t level) override;
+
+	/**
+	 * Set reconfigure parameters in the given config object.
+	 */
+	virtual void setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config) override;
+
 private:
 
 	/**
@@ -163,6 +180,9 @@ private:
 
 	/** Carrot position array. */
 	std::array<double, 3> _carrotPos {0.0, 0.0, 0.0};
+
+	/** Value from 0 to 1, hover thrust */
+	double _hoverThrust;
 };
 
 #endif /* DISTANCE_CONTROL_H */

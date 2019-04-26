@@ -20,6 +20,7 @@ DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_currState(DistanceControlState::MANUAL),
 	_distVelSp(0),
 	_distSp(-1),
+	_hoverThrust (0),
 	_deactivateInspection(false),
 	_inspectionRequestFailed(false),
 	ControlBase()
@@ -38,6 +39,13 @@ DistanceControl::~DistanceControl() {
 
 void DistanceControl::detectStateChange()
 {
+	if (inInspectionState() && fabs(getDistanceMeasured() - _distSp) > 2)
+	{
+		ROS_FATAL("Deactivating inspection mode - outside tolerance");
+		deactivateInspection();
+		return;
+	}
+
 	// If we're in inspection mode and received distance is invalid
 	// then deactivate inspection mode !
 	if (inspectionFailed())
@@ -173,7 +181,7 @@ void DistanceControl::calculateCarrotSetpoint(double dt)
 
 	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
 	if (_mode == DistanceControlMode::SIMULATION)
-		_attThrustSp[2] = getPlaneYaw() * 5;
+		_attThrustSp[2] = getPlaneYaw() * 10;
 	else
 		_attThrustSp[2] = getUAVYaw() - getPlaneYaw();
 }
@@ -221,7 +229,8 @@ void DistanceControl::publishAttSp(ros::Publisher& pub)
 		newMessage.orientation.y = myQuaternion.y();
 		newMessage.orientation.z = myQuaternion.z();
 		newMessage.orientation.w = myQuaternion.w();	
-		newMessage.thrust = _attThrustSp[3];
+		newMessage.thrust = _attThrustSp[3] + _hoverThrust;
+		ROS_DEBUG("MavrosMsg - thrust = %.2f", newMessage.thrust);
 		pub.publish(newMessage);
 		return;
 	}
@@ -273,4 +282,34 @@ void DistanceControl::publishEulerSp(ros::Publisher& pub)
 	newMessage.y = _attThrustSp[1];
 	newMessage.z = _attThrustSp[2];
 	pub.publish(newMessage);
+}
+
+void DistanceControl::initializeParameters(ros::NodeHandle& nh)
+{
+	ControlBase::initializeParameters(nh);
+	ROS_WARN("DistanceControl::initializeParameters()");
+	bool initialized = nh.getParam("/control/hover", _hoverThrust);
+	ROS_INFO("New hover thrust: %.2f", _hoverThrust);
+	if (!initialized)
+	{
+		ROS_FATAL("DistanceControl::initalizeParameters() - failed to initialize hover thrust");
+		throw std::invalid_argument("DistanceControl parameters not properly initialized.");
+	}
+}
+
+void DistanceControl::parametersCallback(
+		plane_detection_ros::DistanceControlParametersConfig& configMsg,
+		uint32_t level)
+{
+	ControlBase::parametersCallback(configMsg, level);
+	ROS_WARN("DistanceControl::parametersCallback()");;
+	_hoverThrust = configMsg.hover;
+	ROS_INFO("New hover thrust: %.2f", _hoverThrust);
+}
+
+void DistanceControl::setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config)
+{
+	ControlBase::setReconfigureParameters(config);
+	ROS_WARN("DistanceControl::setreconfigureParameters()");
+	config.hover = _hoverThrust;
 }

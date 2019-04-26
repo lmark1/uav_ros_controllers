@@ -2,6 +2,7 @@ control:
 
   rate: 20
   sim_mode: true
+  hover: 0.3
 
   pitch:
     kp: 2.0
