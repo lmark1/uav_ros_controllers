@@ -6,6 +6,7 @@
  */
 
 #include "plane_detection_ros/control/ControlBase.h"
+#include <nav_msgs/Odometry.h>
 
 // Cpp includes
 #include <iostream>
@@ -27,10 +28,14 @@ double calculateYaw(double qx, double qy, double qz, double qw)
 ControlBase::ControlBase():
 	_distanceMeasured (-1),
 	_distanceVelocityMeasured (0),
-	_distancePID (new PID),
-	_distanceVelPID (new PID),
-	_posYPID (new PID),
-	_posZPID (new PID),
+	_distancePID (new PID ("Distance")),
+	_distanceVelPID (new PID ("DistanceVel")),
+	_posYPID (new PID ("Y-Position")),
+	_velYPID (new PID ("Y-Velocity")),
+	_posXPID (new PID ("X-Position")),
+	_velXPID (new PID ("X-Velocity")),
+	_posZPID (new PID ("Z-Position")),
+	_velZPID (new PID ("Z-Velocity")),
 	_joyIndices (new joy_control::JoyIndices),
 	_joyScales (new joy_control::ScaleWeights)
 {
@@ -56,67 +61,90 @@ void ControlBase::distanceVelCb(const std_msgs::Float64ConstPtr& message)
 void ControlBase::joyCb(const sensor_msgs::JoyConstPtr& message)
 {
 	_joyMsg = *message;
-
-	// Scale thrust joy input from -1 - 1 to 0-1
-	_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] += 1;
-	_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] /= 2;
 }
 
 void ControlBase::imuCbReal(const sensor_msgs::ImuConstPtr& message)
 {
 	_uavYaw = calculateYaw(
-			message->orientation.x,
-			message->orientation.y,
-			message->orientation.z,
-			message->orientation.w);
+		message->orientation.x,
+		message->orientation.y,
+		message->orientation.z,
+		message->orientation.w);
 }
 
 void ControlBase::imuCbSim(const nav_msgs::OdometryConstPtr& message)
 {
 	_uavYaw = calculateYaw(
-			message->pose.pose.orientation.x,
-			message->pose.pose.orientation.y,
-			message->pose.pose.orientation.z,
-			message->pose.pose.orientation.w);
-	
-	updatePosition(
+		message->pose.pose.orientation.x,
+		message->pose.pose.orientation.y,
+		message->pose.pose.orientation.z,
+		message->pose.pose.orientation.w);
+
+	rotateVector(
 		message->pose.pose.position.x,
 		message->pose.pose.position.y,
-		message->pose.pose.position.z);
+		message->pose.pose.position.z,
+		_currentPosition);
+
+	_currentVelocity[0] = message->twist.twist.linear.x;
+	_currentVelocity[1] = message->twist.twist.linear.y;
+	_currentVelocity[2] = message->twist.twist.linear.z;
+	// Velocity from Odometry is in local coordinate system
 }
 
-void ControlBase::posCbReal(const geometry_msgs::PoseStampedConstPtr& message)
+void ControlBase::posCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	_currentPosition[0] = message->pose.position.x;
-	_currentPosition[1] = message->pose.position.y;
-	_currentPosition[2] = message->pose.position.z;
-
-	updatePosition(
-		message->pose.position.x,
-		message->pose.position.y,
-		message->pose.position.z
-	);
+	rotateVector(
+		message->pose.pose.position.x,
+		message->pose.pose.position.y,
+		message->pose.pose.position.z,
+		_currentPosition);
 }
 
-void ControlBase::updatePosition(double x, double y, double z)
+void ControlBase::velCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	_currentPosition[0] = x * cos(_uavYaw) - y * sin(_uavYaw);
-	_currentPosition[1] = x * sin(_uavYaw) + y * cos(_uavYaw);
-	_currentPosition[2] = z;
+	rotateVector(
+		message->twist.twist.linear.x,
+		message->twist.twist.linear.y,
+		- message->twist.twist.linear.z,
+		_currentVelocity);
+}
+
+void ControlBase::rotateVector(
+	const double x, const double y, const double z, std::array<double, 3>& vector)
+{
+	vector[0] = x * cos(-_uavYaw) - y * sin(-_uavYaw);
+	vector[1] = x * sin(-_uavYaw) + y * cos(-_uavYaw);
+	vector[2] = z;
+}
+
+
+/* wrap x -> [0,max) */
+double wrapMax(double x, double max)
+{
+    /* integer math: `(max + x % max) % max` */
+    return fmod(max + fmod(x, max), max);
+}
+/* wrap x -> [min,max) */
+double wrapMinMax(double x, double min, double max)
+{
+    return min + wrapMax(x - min, max - min);
 }
 
 void ControlBase::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
 {
 	_planeYaw = calculateYaw(
-			message->pose.orientation.x,
-			message->pose.orientation.y,
-			message->pose.orientation.z,
-			message->pose.orientation.w);
+		message->pose.orientation.x,
+		message->pose.orientation.y,
+		message->pose.orientation.z,
+		message->pose.orientation.w);
 
 	// Check in which direction is plane normal facing
 	double xComponent = cos(_planeYaw);
 	if (xComponent < 0)
 		_planeYaw += M_PI;
+
+	_planeYaw = wrapMinMax(_planeYaw, -M_PI, M_PI);
 }
 
 bool ControlBase::inspectionEnabledJoy()
@@ -134,12 +162,12 @@ double ControlBase::getDistanceVelMeasured()
 	return _distanceVelocityMeasured;
 }
 
-PID& ControlBase::getPitchPID()
+PID& ControlBase::getDistancePID()
 {
 	return *_distancePID;
 }
 
-PID& ControlBase::getPitchRatePID()
+PID& ControlBase::getDistanceVelPID()
 {
 	return *_distanceVelPID;
 }
@@ -149,9 +177,29 @@ PID& ControlBase::getPosYPID()
 	return *_posYPID;
 }
 
+PID& ControlBase::getPosXPID()
+{
+	return *_posXPID;
+}
+
 PID& ControlBase::getPosZPID()
 {
 	return *_posZPID;
+}
+
+PID& ControlBase::getVelYPID()
+{
+	return *_velYPID;
+}
+
+PID& ControlBase::getVelXPID()
+{
+	return *_velXPID;
+}
+
+PID& ControlBase::getVelZPID()
+{
+	return *_velZPID;
 }
 
 double ControlBase::getPlaneYaw()
@@ -181,12 +229,19 @@ double ControlBase::getYawSpManual()
 
 double ControlBase::getThrustSpManual()
 {
-	return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] * _joyScales->LINEAR_Z;
+	double val = (_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] + 1) / 2.0;
+	return val * _joyScales->LINEAR_Z;
 }
 
 double ControlBase::getThrustSpUnscaled()
 {
-	return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z];
+	return (_joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] + 1) / 2.0;
+}
+
+double ControlBase::getZPosSpManual()
+{
+	// TODO: Remove 0.1 magic number from here
+	return _joyMsg.axes[_joyIndices->AXIS_LINEAR_Z] * 0.1;
 }
 
 double ControlBase::getYawScale()
@@ -194,16 +249,26 @@ double ControlBase::getYawScale()
 	return _joyScales->ANGULAR_Z;
 }
 
+double ControlBase::getThrustScale()
+{
+	return _joyScales->LINEAR_Z;
+}
+
 const std::array<double, 3>& ControlBase::getCurrPosition()
 {
 	return _currentPosition;
+}
+
+const std::array<double, 3>& ControlBase::getCurrVelocity()
+{
+	return _currentVelocity;
 }
 
 void ControlBase::parametersCallback(
 		plane_detection_ros::DistanceControlParametersConfig& configMsg,
 		uint32_t level)
 {
-	ROS_DEBUG("ControlBase::parametersCallback()");
+	ROS_WARN("ControlBase::parametersCallback()");
 	_distancePID->set_kp(configMsg.k_p_x);
 	_distancePID->set_kd(configMsg.k_d_x);
 	_distancePID->set_ki(configMsg.k_i_x);
@@ -222,11 +287,35 @@ void ControlBase::parametersCallback(
 	_posYPID->set_lim_high(configMsg.lim_high_y);
 	_posYPID->set_lim_low(configMsg.lim_low_y);
 
+	_velYPID->set_kp(configMsg.k_p_vy);
+	_velYPID->set_kd(configMsg.k_d_vy);
+	_velYPID->set_ki(configMsg.k_i_vy);
+	_velYPID->set_lim_high(configMsg.lim_high_vy);
+	_velYPID->set_lim_low(configMsg.lim_low_vy);
+	
+	_posXPID->set_kp(configMsg.k_p_y);
+	_posXPID->set_kd(configMsg.k_d_y);
+	_posXPID->set_ki(configMsg.k_i_y);
+	_posXPID->set_lim_high(configMsg.lim_high_y);
+	_posXPID->set_lim_low(configMsg.lim_low_y);
+
+	_velXPID->set_kp(configMsg.k_p_vy);
+	_velXPID->set_kd(configMsg.k_d_vy);
+	_velXPID->set_ki(configMsg.k_i_vy);
+	_velXPID->set_lim_high(configMsg.lim_high_vy);
+	_velXPID->set_lim_low(configMsg.lim_low_vy);
+
 	_posZPID->set_kp(configMsg.k_p_z);
 	_posZPID->set_kd(configMsg.k_d_z);
 	_posZPID->set_ki(configMsg.k_i_z);
 	_posZPID->set_lim_high(configMsg.lim_high_z);
 	_posZPID->set_lim_low(configMsg.lim_low_z);
+
+	_velZPID->set_kp(configMsg.k_p_vz);
+	_velZPID->set_kd(configMsg.k_d_vz);
+	_velZPID->set_ki(configMsg.k_i_vz);
+	_velZPID->set_lim_high(configMsg.lim_high_vz);
+	_velZPID->set_lim_low(configMsg.lim_low_vz);
 }
 
 void ControlBase::initializeParameters(ros::NodeHandle& nh)
@@ -259,58 +348,15 @@ void ControlBase::initializeParameters(ros::NodeHandle& nh)
 		ROS_FATAL("ControlBase::initializeParameters() - JoyScales parameters are not properly set.");
 		throw std::invalid_argument("JoyScales parameters are not properly set.");
 	}
-
-	bool initialized =
-		nh.getParam("/control/pitch/kp", _distancePID->get_kp_ref()) &&
-		nh.getParam("/control/pitch/ki", _distancePID->get_ki_ref()) &&
-		nh.getParam("/control/pitch/kd", _distancePID->get_kd_ref()) &&
-		nh.getParam("/control/pitch/lim_low", _distancePID->get_lim_low_ref()) &&
-		nh.getParam("/control/pitch/lim_high", _distancePID->get_lim_high_ref());
-	ROS_INFO_STREAM(*_distancePID);
-	if (!initialized)
-	{
-		ROS_FATAL("ControlBase::initializeParameters() - parameter initialization failed.");
-		throw std::invalid_argument("Pitch PID parameters not properly set.");
-	}
-
-	initialized = 
-		nh.getParam("/control/pitch_rate/kp", _distanceVelPID->get_kp_ref()) &&
-		nh.getParam("/control/pitch_rate/ki", _distanceVelPID->get_ki_ref()) &&
-		nh.getParam("/control/pitch_rate/kd", _distanceVelPID->get_kd_ref()) &&
-		nh.getParam("/control/pitch_rate/lim_low", _distanceVelPID->get_lim_low_ref()) &&
-		nh.getParam("/control/pitch_rate/lim_high", _distanceVelPID->get_lim_high_ref());
-	ROS_INFO_STREAM(*_distanceVelPID);
-	if (!initialized)
-	{
-		ROS_FATAL("ControlBase::initializeParameters() - parameter initialization failed.");
-		throw std::invalid_argument("Pitch rate PID parameters not properly set.");
-	}
-
-	initialized = 
-		nh.getParam("/control/pos_y/kp", _posYPID->get_kp_ref()) &&
-		nh.getParam("/control/pos_y/ki", _posYPID->get_ki_ref()) &&
-		nh.getParam("/control/pos_y/kd", _posYPID->get_kd_ref()) &&
-		nh.getParam("/control/pos_y/lim_low", _posYPID->get_lim_low_ref()) &&
-		nh.getParam("/control/pos_y/lim_high", _posYPID->get_lim_high_ref());
-	ROS_INFO_STREAM(*_posYPID);
-	if (!initialized)
-	{
-		ROS_FATAL("ControlBase::initializeParameters() - parameter initialization failed.");
-		throw std::invalid_argument("Y-pos PID parameters not properly set.");
-	}
-
-	initialized = 
-		nh.getParam("/control/pos_z/kp", _posZPID->get_kp_ref()) &&
-		nh.getParam("/control/pos_z/ki", _posZPID->get_ki_ref()) &&
-		nh.getParam("/control/pos_z/kd", _posZPID->get_kd_ref()) &&
-		nh.getParam("/control/pos_z/lim_low", _posZPID->get_lim_low_ref()) &&
-		nh.getParam("/control/pos_z/lim_high", _posZPID->get_lim_high_ref());
-	ROS_INFO_STREAM(*_posZPID);
-	if (!initialized)
-	{
-		ROS_FATAL("ControlBase::initializeParameters() - parameter initialization failed.");
-		throw std::invalid_argument("Z-pos PID parameters not properly set.");
-	}
+	
+	_distancePID->initializeParameters(nh, "/control/pitch");
+	_distanceVelPID->initializeParameters(nh, "/control/pitch_rate");
+	_posYPID->initializeParameters(nh, "/control/pos_y");
+	_velYPID->initializeParameters(nh, "/control/vel_y");
+	_posXPID->initializeParameters(nh, "/control/pos_y");
+	_velXPID->initializeParameters(nh, "/control/vel_y");
+	_posZPID->initializeParameters(nh, "/control/pos_z");
+	_velZPID->initializeParameters(nh, "/control/vel_z");
 }
 
 void ControlBase::setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config)
@@ -334,9 +380,23 @@ void ControlBase::setReconfigureParameters(plane_detection_ros::DistanceControlP
 	config.lim_low_y = _posYPID->get_lim_low();
 	config.lim_high_y = _posYPID->get_lim_high();
 	
+	config.k_p_vy = _velYPID->get_kp();
+	config.k_i_vy = _velYPID->get_ki();
+	config.k_d_vy = _velYPID->get_kd();
+	config.lim_low_vy = _velYPID->get_lim_low();
+	config.lim_high_vy = _velYPID->get_lim_high();
+	
 	config.k_p_z = _posZPID->get_kp();
 	config.k_i_z = _posZPID->get_ki();
 	config.k_d_z = _posZPID->get_kd();
 	config.lim_low_z = _posZPID->get_lim_low();
 	config.lim_high_z = _posZPID->get_lim_high();
+
+	config.k_p_vz = _velZPID->get_kp();
+	config.k_i_vz = _velZPID->get_ki();
+	config.k_d_vz = _velZPID->get_kd();
+	config.lim_low_vz = _velZPID->get_lim_low();
+	config.lim_high_vz = _velZPID->get_lim_high();
+
+	ROS_INFO_STREAM(*_posZPID);
 }

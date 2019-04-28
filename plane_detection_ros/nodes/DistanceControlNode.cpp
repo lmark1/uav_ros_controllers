@@ -24,6 +24,7 @@
  * 		- /joy			- Joystick topic used for enabling inspection mode
  *		- /real/imu		- IMU topic - realistic
  *		- /real/pos		- Local position topic - realistic
+ *		- /real/vel		- Velocity topic - realistic
  *		- /sim/odometry	- Odometry topic - simulation
  */
 int main(int argc, char **argv) {
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
 	ros::NodeHandle nh;
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-		ros::console::levels::Info))
+		ros::console::levels::Debug))
 		ros::console::notifyLoggerLevelsChanged();
 
 	// Check if sim mode or real
@@ -68,9 +69,12 @@ int main(int argc, char **argv) {
 		&ControlBase::imuCbReal,
 		dynamic_cast<ControlBase*>(distanceControl.get()));
 	ros::Subscriber posSub = nh.subscribe("/real/pos", 1,
-		&ControlBase::imuCbReal,
+		&ControlBase::posCbReal,
 		dynamic_cast<ControlBase*>(distanceControl.get()));
-		
+	ros::Subscriber velSub = nh.subscribe("/real/vel", 1,
+		&ControlBase::velCbReal,
+		dynamic_cast<ControlBase*>(distanceControl.get()));
+
 	// Plane normal CB
 	ros::Subscriber planeSub = nh.subscribe("/plane_normal", 1,
 		&ControlBase::normalCb,
@@ -93,6 +97,14 @@ int main(int argc, char **argv) {
 	// Add euler_sp publisher
 	ros::Publisher eulerSpPub = nh.advertise<geometry_msgs::Vector3>(
 		"/euler_sp", 1);
+	ros::Publisher posSpPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_sp", 1);
+	ros::Publisher posMvPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_mv", 1);
+	ros::Publisher velSpPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_vel_sp", 1);
+	ros::Publisher velMvPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_vel_mv", 1);
 
 	boost::recursive_mutex config_mutex;
 	// Initialize configure server
@@ -107,14 +119,13 @@ int main(int argc, char **argv) {
 
 	// Set initial parameters
 	plane_detection_ros::DistanceControlParametersConfig config;
-	confServer.setConfigDefault(config);
 	distanceControl->setReconfigureParameters(config);
 	confServer.updateConfig(config);
 
 	// Setup reconfigure server
 	paramCallback = boost::bind(
-			&ControlBase::parametersCallback,
-			dynamic_cast<ControlBase*>(distanceControl.get()), _1, _2);
+			&DistanceControl::parametersCallback,
+			distanceControl.get(), _1, _2);
 	confServer.setCallback(paramCallback);
 
 	// Setup loop rate
@@ -130,9 +141,14 @@ int main(int argc, char **argv) {
 		ros::spinOnce();
 		distanceControl->detectStateChange();
 		distanceControl->publishState(statePub);
-		distanceControl->calculateSetpoint(dt);
+		
+		// Carrot mode in inspection state, attitude control otherwise
+		if (distanceControl->inInspectionState())
+			distanceControl->calculateCarrotSetpoint(dt);
+		else
+			distanceControl->calculateAttitudeTarget(dt);
 
-		// Publish setpoint based on the inspection status
+		// Publish setpoint based on the control mode
 		if (simMode)
 			distanceControl->publishAttSp(spPubSim);
 		else
@@ -141,6 +157,11 @@ int main(int argc, char **argv) {
 		distanceControl->publishDistSp(distRefPub);
 		distanceControl->publishDistVelSp(distVelRefPub);
 		distanceControl->publishEulerSp(eulerSpPub);
+
+		distanceControl->publishPosSp(posSpPub);
+		distanceControl->publishVelSp(velSpPub);
+		distanceControl->publishPosMv(posMvPub);
+		distanceControl->publishVelMv(velMvPub);
 		loopRate.sleep();
 	}
 }

@@ -75,7 +75,12 @@ public:
 	 *
 	 * @param dt - Given discretization time.
 	 */
-	void calculateSetpoint(double dt);
+	void calculateAttitudeTarget(double dt);
+	
+	/**
+	 * Calculate appropriate attitude setpoint from the "carrot" control input.
+	 */
+	void calculateCarrotSetpoint(double dt);
 
 	/**
 	 * Publish current control state.
@@ -95,23 +100,58 @@ public:
 	 * Publish distance setpoint as a std_msgs::Float64 message.
 	 */
 	void publishDistSp(ros::Publisher& pub);
-
+	
 	/**
-	 * Publish distance velocity setpoint on the given topic, 
-	 * as a Float64 ROS message.
+	 * Publish distance velocity setpoint as a Float64 ROS message.
 	 */
 	void publishDistVelSp(ros::Publisher& pub);
 
 	/**
-	 * Publish setpoint euler angles on the given topic,
-	 * as a Vector3 ROS message.
+	 * Publish setpoint euler angles as a Vector3 ROS message.
 	 */
 	void publishEulerSp(ros::Publisher& pub);
+
+	/**
+	 * Publish carrot position setpoint as a Vector3 ROS message.
+	 */
+	void publishPosSp(ros::Publisher& pub);
+
+	/**
+	 * Publish carrot velocity setpoint as a Vector3 ROS message.
+	 */ 
+	void publishVelSp(ros::Publisher& pub);
+
+	/**
+	 * Publish local position mesured value as a Vector3 ROS message.
+	 */
+	void publishPosMv(ros::Publisher& pub);
+
+	/**
+	 * Publish measured local velocity value as a Vector3 ROS message.
+	 */
+	void publishVelMv(ros::Publisher& pub);
 
 	/**
 	 * Return true if in inspection state, otherwise false.
 	 */
 	bool inInspectionState();
+
+	/**
+	 * Do all the parameter initialization here.
+	 */
+	virtual void initializeParameters(ros::NodeHandle& nh) override;
+
+	/**
+	 * Callback function used for setting various parameters.
+	 */
+	virtual void parametersCallback(
+			plane_detection_ros::DistanceControlParametersConfig& configMsg,
+			uint32_t level) override;
+
+	/**
+	 * Set reconfigure parameters in the given config object.
+	 */
+	virtual void setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config) override;
 
 private:
 
@@ -154,7 +194,16 @@ private:
 	double _distVelSp;
 
 	/** Attitude setpoint array. */
-	std::array<double, 3> _attitudeSetpoint {0.0, 0.0, 0.0};
+	std::array<double, 43> _attThrustSp {0.0, 0.0, 0.0, 0.0};
+
+	/** Carrot setpoint position array. */
+	std::array<double, 3> _carrotPos {0.0, 0.0, 0.0};
+
+	/** Carrot setpoint velocity array. */
+	std::array<double, 3> _carrotVel {0.0, 0.0, 0.0};
+
+	/** Value from 0 to 1, hover thrust */
+	double _hoverThrust;
 };
 
 #endif /* DISTANCE_CONTROL_H */

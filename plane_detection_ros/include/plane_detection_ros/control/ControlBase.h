@@ -17,6 +17,7 @@
 #include <uav_ros_control/PID.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
 
 // Own includes
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
@@ -72,8 +73,13 @@ public:
 	/**
 	 * Position callback for real control mode.
 	 */
-	void posCbReal(const geometry_msgs::PoseStampedConstPtr& message);
+	void posCbReal(const nav_msgs::OdometryConstPtr& message);
 
+	/**
+	 * Velocity callback for real control mode.
+	 */
+	void velCbReal(const nav_msgs::OdometryConstPtr& message);
+	
 	/**
 	 * Check if inspection is enabled.
 	 */
@@ -92,22 +98,42 @@ public:
 	/**
 	 * Return reference to the PID object.
 	 */
-	PID& getPitchPID();
+	PID& getDistancePID();
 
 	/**
 	 * Return reference to velocity PID object.
 	 */
-	PID& getPitchRatePID();
+	PID& getDistanceVelPID();
 
 	/**
-	 * Return a reference to the position y PID object.
+	 * Return a reference to the x position PID object.
+	 */
+	PID& getPosXPID();
+
+	/**
+	 * Return a reference to the y position PID object.
 	 */
 	PID& getPosYPID();
 
 	/**
-	 * Return a reference to the position z PID object.
+	 * Return a reference to the z position PID object.
 	 */
 	PID& getPosZPID();
+
+	/**
+	 * Return a reference to the y velocity PID object.
+	 */
+	PID& getVelYPID();
+
+	/**
+	 * Return a reference to the x velocity PID object.
+	 */
+	PID& getVelXPID();
+
+	/**
+	 * Return a reference to the z velocity PID object.
+	 */
+	PID& getVelZPID();
 
 	/**
 	 * Return plane yaw angle, with respect to the UAV base frame.
@@ -144,14 +170,29 @@ public:
 	double getThrustSpUnscaled();
 
 	/**
+	 * Get z - pos carrot setpoing.
+	 */
+	double getZPosSpManual();
+
+	/**
 	 * Return scale value for yaw control input.
 	 */
 	double getYawScale();
+	
+	/**   
+	 * @retval Returns scaled value for thrust.
+	 */
+	double getThrustScale();
 
 	/**
 	 * Return constant reference to the current position.
 	 */
 	const std::array<double, 3>& getCurrPosition();
+
+	/**
+	 * Return constant reference to the current velocity.
+	 */
+	const std::array<double, 3>& getCurrVelocity();
 
 	/**
 	 * Do all the parameter initialization here.
@@ -175,7 +216,7 @@ private:
 	/**
 	 * Update local position.
 	 */
-	void updatePosition(double x, double y, double z);
+	void rotateVector(const double x, const double y, const double z, std::array<double, 3>& vector);
 
 	/** Distance PID controller */
 	std::unique_ptr<PID> _distancePID;
@@ -185,9 +226,21 @@ private:
 
 	/** PID controller for position along the y-axis.*/
 	std::unique_ptr<PID> _posYPID;
+	
+	/** PID controller for velocity along the y-axis */
+	std::unique_ptr<PID> _velYPID;
+
+	/** PID controller for position along the x-axis.*/
+	std::unique_ptr<PID> _posXPID;
+	
+	/** PID controller for velocity along the x-axis */
+	std::unique_ptr<PID> _velXPID;
 
 	/** PID controller for position along the z-axis.*/
 	std::unique_ptr<PID> _posZPID;
+
+	/** PID controller for velocity along the y-axis */
+	std::unique_ptr<PID> _velZPID;
 
 	/** Current Joy message set in the /joy callback function. */
 	sensor_msgs::Joy _joyMsg;
@@ -200,6 +253,9 @@ private:
 
 	/** Current LOCAL position vector. */
 	std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};
+
+	/** Current velocity vector. */
+	std::array<double, 3> _currentVelocity {0.0, 0.0, 0.0};
 
 	/** Current distance measured value. Used both in sim and real mode. */
 	double _distanceMeasured;
