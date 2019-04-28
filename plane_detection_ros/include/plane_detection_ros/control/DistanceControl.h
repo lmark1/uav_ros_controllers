@@ -100,18 +100,35 @@ public:
 	 * Publish distance setpoint as a std_msgs::Float64 message.
 	 */
 	void publishDistSp(ros::Publisher& pub);
-
+	
 	/**
-	 * Publish distance velocity setpoint on the given topic, 
-	 * as a Float64 ROS message.
+	 * Publish distance velocity setpoint as a Float64 ROS message.
 	 */
 	void publishDistVelSp(ros::Publisher& pub);
 
 	/**
-	 * Publish setpoint euler angles on the given topic,
-	 * as a Vector3 ROS message.
+	 * Publish setpoint euler angles as a Vector3 ROS message.
 	 */
 	void publishEulerSp(ros::Publisher& pub);
+
+	/**
+	 * Publish carrot position setpoint as a Vector3 ROS message.
+	 */
+	void publishPosSp(ros::Publisher& pub);
+
+	/**
+	 * Publish carrot velocity setpoint as a Vector3 ROS message.
+	 */ 
+	void publishVelSp(ros::Publisher& pub);
+
+	/**
+	 * Publish local position mesured value as a Vector3 ROS message.
+	 */
+	void publishPosMv(ros::Publisher& pub);
+
+	/**
+	 * Publish measured local velocity value as a Vector3 ROS message.
+	void publishVelMv(ros::Publisher& pub);
 
 	/**
 	 * Return true if in inspection state, otherwise false.
@@ -178,8 +195,11 @@ private:
 	/** Attitude setpoint array. */
 	std::array<double, 43> _attThrustSp {0.0, 0.0, 0.0, 0.0};
 
-	/** Carrot position array. */
+	/** Carrot setpoint position array. */
 	std::array<double, 3> _carrotPos {0.0, 0.0, 0.0};
+
+	/** Carrot setpoint velocity array. */
+	std::array<double, 3> _carrotVel {0.0, 0.0, 0.0};
 
 	/** Value from 0 to 1, hover thrust */
 	double _hoverThrust;

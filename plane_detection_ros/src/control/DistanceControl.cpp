@@ -39,12 +39,13 @@ DistanceControl::~DistanceControl() {
 
 void DistanceControl::detectStateChange()
 {
+	/*
 	if (inInspectionState() && fabs(getDistanceMeasured() - _distSp) > 2)
 	{
 		ROS_FATAL("Deactivating inspection mode - outside tolerance");
 		deactivateInspection();
 		return;
-	}
+	}*/
 
 	// If we're in inspection mode and received distance is invalid
 	// then deactivate inspection mode !
@@ -149,12 +150,54 @@ void DistanceControl::calculateAttitudeTarget(double dt)
 	_attThrustSp[3] = getThrustSpUnscaled();
 }
 
+void DistanceControl::publishPosSp(ros::Publisher& pub)
+{
+	geometry_msgs::Vector3 mess;
+	mess.x = _carrotPos[0];
+	mess.y = _carrotPos[1];
+	mess.z = _carrotPos[2];
+	pub.publish(mess);
+}
+
+void DistanceControl::publishVelSp(ros::Publisher& pub)
+{
+	geometry_msgs::Vector3 mess;
+	mess.x = _carrotVel[0];
+	mess.y = _carrotVel[1];
+	mess.z = _carrotVel[2];;
+	pub.publish(mess);
+}
+
+void DistanceControl::publishPosMv(ros::Publisher& pub)
+{
+	geometry_msgs::Vector3 mess;
+	mess.x = getCurrPosition()[0];
+	mess.y = getCurrPosition()[1];
+	mess.z = getCurrPosition()[2];
+	pub.publish(mess);
+}
+
+void DistanceControl::publishVelMv(ros::Publisher& pub)
+{
+	geometry_msgs::Vector3 mess;
+	mess.x = getCurrVelocity()[0];
+	mess.y = getCurrVelocity()[1];
+	mess.z = getCurrVelocity()[2];
+	pub.publish(mess);
+}
+
 void DistanceControl::calculateCarrotSetpoint(double dt)
 {
 	// Update carrot
-	_carrotPos[0] += getPitchSpManual();
-	_carrotPos[1] += getRollSpManual();
-	_carrotPos[2] += getZPosSpManual();
+	double xUpdate = getPitchSpManual() * 0.1;
+	double yUpdate = getRollSpManual() * 0.1;
+	double zUpdate = getZPosSpManual() * 0.1;
+	ROS_WARN("zUpdate:%.5f", zUpdate);
+
+	// TODO: add a proper deadzone here
+	_carrotPos[0] += fabs(xUpdate) < 0.01 ? 0.0 : xUpdate;
+	_carrotPos[1] += fabs(yUpdate) < 0.01 ? 0.0 : yUpdate;
+	_carrotPos[2] += fabs(zUpdate) < 0.001 ? 0.0 : zUpdate;
 	ROS_DEBUG("Carrot pos: [%.2f, %.2f, %.2f]", _carrotPos[0], _carrotPos[1], _carrotPos[2]);
 	ROS_DEBUG("Current pos: [%.2f, %.2f, %.2f]", getCurrPosition()[0], getCurrPosition()[1], getCurrPosition()[2]);
 	ROS_DEBUG("Current vel: [%.2f, %.2f, %.2f]", getCurrVelocity()[0], getCurrVelocity()[1], getCurrVelocity()[2]);
@@ -164,8 +207,11 @@ void DistanceControl::calculateCarrotSetpoint(double dt)
 	double velSpY = getPosYPID().compute(_carrotPos[1], getCurrPosition()[1], dt);
 	double velSpZ = getPosZPID().compute(_carrotPos[2], getCurrPosition()[2], dt);
 	_attThrustSp[0] = - getVelYPID().compute(velSpY, getCurrVelocity()[1], dt);
-	_attThrustSp[3] = getVelZPID().compute(velSpZ, getCurrVelocity()[2], dt);
+	_attThrustSp[3] = getVelZPID().compute(velSpZ, getCurrVelocity()[2], dt) + _hoverThrust;
 	ROS_DEBUG("VelSpZ=%.2f\tThrust=%.2f", velSpZ, _attThrustSp[3]);
+	
+	_carrotVel[1] = velSpY;
+	_carrotVel[2] = velSpZ;
 
 	// Carrot tracking if not in inspection mode
 	if (!inInspectionState())
@@ -173,18 +219,22 @@ void DistanceControl::calculateCarrotSetpoint(double dt)
 		double velSpX = getPosXPID().compute(_carrotPos[0], getCurrPosition()[0], dt);
 		_attThrustSp[1] = getVelXPID().compute(velSpX, getCurrVelocity()[0], dt);
 		_attThrustSp[2] = - getYawSpManual();
+		_carrotVel[0] = velSpX;
 		return;
 	}
 
 	// Calculate pitch setpoint using measured distance
 	_distVelSp = getDistancePID().compute(_distSp, getDistanceMeasured(), dt);
 	_attThrustSp[1] = - getDistanceVelPID().compute(_distVelSp, getDistanceVelMeasured(), dt);
+	_carrotVel[0] = _distVelSp;
 
 	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
 	if (_mode == DistanceControlMode::SIMULATION)
 		_attThrustSp[2] = getPlaneYaw() * 10;
 	else
 		_attThrustSp[2] = getUAVYaw() - getPlaneYaw();
+
+	
 }
 
 void DistanceControl::publishDistSp(ros::Publisher& pub)
@@ -230,7 +280,7 @@ void DistanceControl::publishAttSp(ros::Publisher& pub)
 		newMessage.orientation.y = myQuaternion.y();
 		newMessage.orientation.z = myQuaternion.z();
 		newMessage.orientation.w = myQuaternion.w();	
-		newMessage.thrust = _attThrustSp[3] + _hoverThrust;
+		newMessage.thrust = _attThrustSp[3];
 		ROS_DEBUG("MavrosMsg - thrust = %.2f", newMessage.thrust);
 		pub.publish(newMessage);
 		return;
