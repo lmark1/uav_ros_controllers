@@ -97,6 +97,14 @@ int main(int argc, char **argv) {
 	// Add euler_sp publisher
 	ros::Publisher eulerSpPub = nh.advertise<geometry_msgs::Vector3>(
 		"/euler_sp", 1);
+	ros::Publisher posSpPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_sp", 1);
+	ros::Publisher posMvPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_mv", 1);
+	ros::Publisher velSpPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_vel_sp", 1);
+	ros::Publisher velMvPub = nh.advertise<geometry_msgs::Vector3>(
+		"/carrot_vel_mv", 1);
 
 	boost::recursive_mutex config_mutex;
 	// Initialize configure server
@@ -149,6 +157,11 @@ int main(int argc, char **argv) {
 		distanceControl->publishDistSp(distRefPub);
 		distanceControl->publishDistVelSp(distVelRefPub);
 		distanceControl->publishEulerSp(eulerSpPub);
+
+		distanceControl->publishPosSp(posSpPub);
+		distanceControl->publishVelSp(velSpPub);
+		distanceControl->publishPosMv(posMvPub);
+		distanceControl->publishVelMv(velMvPub);
 		loopRate.sleep();
 	}
 }
