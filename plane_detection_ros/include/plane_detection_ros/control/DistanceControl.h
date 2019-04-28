@@ -128,6 +128,7 @@ public:
 
 	/**
 	 * Publish measured local velocity value as a Vector3 ROS message.
+	 */
 	void publishVelMv(ros::Publisher& pub);
 
 	/**
