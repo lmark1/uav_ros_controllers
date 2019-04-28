@@ -6,6 +6,7 @@
  */
 
 #include "plane_detection_ros/control/ControlBase.h"
+#include <nav_msgs/Odometry.h>
 
 // Cpp includes
 #include <iostream>
@@ -91,24 +92,22 @@ void ControlBase::imuCbSim(const nav_msgs::OdometryConstPtr& message)
 	// Velocity from Odometry is in local coordinate system
 }
 
-void ControlBase::posCbReal(const geometry_msgs::PoseStampedConstPtr& message)
+void ControlBase::posCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	_currentPosition[0] = message->pose.position.x;
-	_currentPosition[1] = message->pose.position.y;
-	_currentPosition[2] = message->pose.position.z;
-
 	rotateVector(
-		message->pose.position.x,
-		message->pose.position.y,
-		message->pose.position.z,
+		message->pose.pose.position.x,
+		message->pose.pose.position.y,
+		message->pose.pose.position.z,
 		_currentPosition);
 }
 
-void ControlBase::velCbReal(const geometry_msgs::TwistStampedConstPtr& message)
+void ControlBase::velCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	_currentVelocity[0] = message->twist.linear.x;
-	_currentVelocity[1] = message->twist.linear.y;
-	_currentVelocity[2] = message->twist.linear.z;
+	rotateVector(
+		message->twist.twist.linear.x,
+		message->twist.twist.linear.y,
+		- message->twist.twist.linear.z,
+		_currentVelocity);
 }
 
 void ControlBase::rotateVector(

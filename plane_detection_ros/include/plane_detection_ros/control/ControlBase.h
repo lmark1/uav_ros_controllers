@@ -73,12 +73,12 @@ public:
 	/**
 	 * Position callback for real control mode.
 	 */
-	void posCbReal(const geometry_msgs::PoseStampedConstPtr& message);
+	void posCbReal(const nav_msgs::OdometryConstPtr& message);
 
 	/**
 	 * Velocity callback for real control mode.
 	 */
-	void velCbReal(const geometry_msgs::TwistStampedConstPtr& message);
+	void velCbReal(const nav_msgs::OdometryConstPtr& message);
 	
 	/**
 	 * Check if inspection is enabled.
@@ -179,6 +179,9 @@ public:
 	 */
 	double getYawScale();
 	
+	/**   
+	 * @retval Returns scaled value for thrust.
+	 */
 	double getThrustScale();
 
 	/**
