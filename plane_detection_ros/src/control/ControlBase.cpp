@@ -54,7 +54,7 @@ void control_base::ControlBase::odomCbSim(const nav_msgs::OdometryConstPtr& mess
 		message->pose.pose.position.z,
 		_currentPosition);
 
-	// Odometry simulation callback, velocity vector is alread in the Local base frame
+	// Odometry simulation callback, velocity vector is already in the Local base frame
 	_currentVelocity[0] = message->twist.twist.linear.x;
 	_currentVelocity[1] = message->twist.twist.linear.y;
 	_currentVelocity[2] = message->twist.twist.linear.z;

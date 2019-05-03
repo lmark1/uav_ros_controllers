@@ -157,7 +157,7 @@ void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 
 	// Calculate pitch setpoint using measured distance
 	_distVelSp = _distancePID->compute(_distSp, _distanceMeasured, dt);
-	double pitch = - _distanceVelPID->compute(_distVelSp, _distanceMeasured, dt);
+	double pitch = - _distanceVelPID->compute(_distVelSp, _distanceVelocityMeasured, dt);
 
 	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
 	double yaw;
