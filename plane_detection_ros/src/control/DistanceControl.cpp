@@ -1,4 +1,5 @@
-#include "plane_detection_ros/control/DistanceControl.h"
+#include <plane_detection_ros/control/DistanceControl.h>
+#include <uav_ros_control/NonlinearFilters.h>
 
 #include <ros/ros.h>
 #include <std_msgs/Int32.h>
@@ -6,6 +7,7 @@
 
 #define DIST_PID_PARAMS "/control/distance"
 #define DISTVEL_PID_PARAMS "/control/distance_vel"
+#define DIST_SP_DEADZONE 0.001
 
 dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode (mode),
@@ -154,6 +156,10 @@ void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
 	updateCarrot();
 	calculateAttThrustSp(dt);
+
+	// update distance setpoint
+	_distSp -= nonlinear_filters::deadzone(
+		getXOffsetManual(), - DIST_SP_DEADZONE, DIST_SP_DEADZONE);
 
 	// Calculate pitch setpoint using measured distance
 	_distVelSp = _distancePID->compute(_distSp, _distanceMeasured, dt);

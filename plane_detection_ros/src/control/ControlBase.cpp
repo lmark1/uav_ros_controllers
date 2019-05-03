@@ -125,7 +125,7 @@ void control_base::ControlBase::publishAttitudeSim(
 }
 
 void control_base::ControlBase::publishAttitudeSim(ros::Publisher& pub, double thrustScale)
-{
+{	
 	mav_msgs::RollPitchYawrateThrust newMessage;
 	newMessage.roll = _attThrustSp[0];
 	newMessage.pitch = _attThrustSp[1];
