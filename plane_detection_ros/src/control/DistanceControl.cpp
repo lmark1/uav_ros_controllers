@@ -241,8 +241,11 @@ void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 	_distancePID->initializeParameters(nh, DIST_PID_PARAMS);
 	_distanceVelPID->initializeParameters(nh, DISTVEL_PID_PARAMS);
 	
-	bool initialized = nh.getParam("/joy/detection_state", _inspectIndices->INSPECTION_MODE);
-	ROS_INFO("Detection state index: %d", _inspectIndices->INSPECTION_MODE);
+	bool initialized = 
+		nh.getParam("/joy/detection_state", _inspectIndices->INSPECTION_MODE) &&
+		nh.getParam("/joy/left_seq", _inspectIndices->LEFT_SEQUENCE) &&
+		nh.getParam("/joy/right_seq", _inspectIndices->RIGHT_SEQUENCE);
+	ROS_INFO_STREAM(*_inspectIndices);
 	if (!initialized)
 	{
 		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
@@ -290,4 +293,14 @@ void dist_control::DistanceControl::setReconfigureParameters(
 bool dist_control::DistanceControl::inspectionEnabled()
 {
 	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1;
+}
+
+bool dist_control::DistanceControl::leftSeqEnbled()
+{
+	return getJoyButtons()[_inspectIndices->LEFT_SEQUENCE] == 1;
+}
+
+bool dist_control::DistanceControl::rightSeqEnabled()
+{
+	return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
 }

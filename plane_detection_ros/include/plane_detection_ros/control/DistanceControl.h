@@ -155,6 +155,16 @@ class DistanceControl : public carrot_control::CarrotControl {
 			plane_detection_ros::DistanceControlParametersConfig& config);
 
 	private:
+		
+		/**
+		 * From the current Joy message determine if left sequence is enabled.
+		 */
+		bool leftSeqEnbled();
+
+		/**
+		 * From the current Joy message determine if right sequence is enabled.
+		 */
+		bool rightSeqEnabled();
 
 		/**
 		 * From the current Joy message determine if inspection if not.
@@ -192,7 +202,7 @@ class DistanceControl : public carrot_control::CarrotControl {
 
 		/** Distance velocity PID controller */
 		std::unique_ptr<PID> _distanceVelPID;
-
+		
 		/** Inspection indices for ROS Joy messages */
 		std::unique_ptr<joy_struct::InspectionIndices> _inspectIndices;
 
