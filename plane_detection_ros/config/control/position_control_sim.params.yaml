@@ -4,14 +4,14 @@ control:
   sim_mode: true
   hover: 0.3
 
-  pitch:
+  pos_x:
     kp: 2.0
     ki: 0.0
     kd: 0.0
     lim_low: -2
     lim_high: 2
   
-  pitch_rate:
+  vel_x:
     kp: 0.1
     ki: 0.0
     kd: 0.0

@@ -21,8 +21,9 @@ find_package(cmake_modules REQUIRED)
 
 
 generate_dynamic_reconfigure_options(
-    config/PlaneDetectionParameters.cfg
-    config/DistanceControlParameters.cfg
+    config/detection/PlaneDetectionParameters.cfg
+    config/control/PositionControlParameters.cfg
+    config/control/DistanceControlParameters.cfg
 )
 
 # TODO: Write the catkin_package command properly
@@ -45,8 +46,11 @@ target_link_libraries(plane_detection ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_library(distance_control 
     src/control/ControlBase.cpp
-    src/control/DistanceControl.cpp)
+    src/control/DistanceControl.cpp
+    src/control/JoyControl.cpp
+    src/control/CarrotControl.cpp)
 target_link_libraries(distance_control ${catkin_LIBRARIES})
+add_dependencies(distance_control ${PROJECT_NAME}_gencfg)
 
 add_executable(plane_detection_node nodes/PlaneDetectionNode.cpp)
 target_link_libraries(plane_detection_node 
@@ -54,4 +58,8 @@ target_link_libraries(plane_detection_node
     
 add_executable(distance_control_node nodes/DistanceControlNode.cpp)
 target_link_libraries(distance_control_node
-    ${catkin_LIBRARIES} distance_control) 
+    ${catkin_LIBRARIES} distance_control)
+
+add_executable(carrot_control_node nodes/CarrotControlNode.cpp)
+target_link_libraries(carrot_control_node
+    ${catkin_LIBRARIES} distance_control)

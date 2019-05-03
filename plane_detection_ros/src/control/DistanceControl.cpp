@@ -1,31 +1,27 @@
-/*
- * DistanceControl.cpp
- *
- *  Created on: Apr 13, 2019
- *      Author: lmark
- */
-
 #include "plane_detection_ros/control/DistanceControl.h"
 
 #include <ros/ros.h>
 #include <std_msgs/Int32.h>
-#include <mavros_msgs/AttitudeTarget.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <mav_msgs/RollPitchYawrateThrust.h>
-
 #include <array>
 
-DistanceControl::DistanceControl(DistanceControlMode mode) :
-	_mode(mode),
-	_currState(DistanceControlState::MANUAL),
-	_distVelSp(0),
-	_distSp(-1),
-	_hoverThrust (0),
-	_deactivateInspection(false),
-	_inspectionRequestFailed(false),
-	ControlBase()
-{
+#define DIST_PID_PARAMS "/control/distance"
+#define DISTVEL_PID_PARAMS "/control/distance_vel"
 
+dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
+	_mode (mode),
+	_currState (DistanceControlState::MANUAL),
+	_inspectIndices {new joy_struct::InspectionIndices},
+	_distancePID {new PID("Distance")},
+	_distanceVelPID {new PID("Distance vel")},
+	_distanceMeasured (-1),
+	_distanceVelocityMeasured (0),
+	_distVelSp (0),
+	_distSp (-1),
+	_deactivateInspection (false),
+	_inspectionRequestFailed (false),
+	_planeYaw (0),
+	carrot_control::CarrotControl()
+{
 	// Info messages about node start.
 	if (_mode == DistanceControlMode::SIMULATION)
 		ROS_INFO("DistanceControl: Starting node in simulation mode.");
@@ -33,20 +29,38 @@ DistanceControl::DistanceControl(DistanceControlMode mode) :
 		ROS_INFO("DistanceControl: Starting node in real mode.");
 }
 
-DistanceControl::~DistanceControl() {
+dist_control::DistanceControl::~DistanceControl() {
 	// TODO Auto-generated destructor stub
 }
 
-void DistanceControl::detectStateChange()
+void dist_control::DistanceControl::distanceCb(const std_msgs::Float64ConstPtr& message)
 {
-	/*
-	if (inInspectionState() && fabs(getDistanceMeasured() - _distSp) > 2)
-	{
-		ROS_FATAL("Deactivating inspection mode - outside tolerance");
-		deactivateInspection();
-		return;
-	}*/
+	_distanceMeasured = message->data;
+}
 
+void dist_control::DistanceControl::distanceVelCb(const std_msgs::Float64ConstPtr& message)
+{
+	_distanceVelocityMeasured = message->data;
+}
+
+void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
+{
+	_planeYaw = calculateYaw(
+		message->pose.orientation.x,
+		message->pose.orientation.y,
+		message->pose.orientation.z,
+		message->pose.orientation.w);
+
+	// Check in which direction is plane normal facing
+	double xComponent = cos(_planeYaw);
+	if (xComponent < 0)
+		_planeYaw += M_PI;
+
+	_planeYaw = wrapMinMax(_planeYaw, -M_PI, M_PI);
+}
+
+void dist_control::DistanceControl::detectStateChange()
+{
 	// If we're in inspection mode and received distance is invalid
 	// then deactivate inspection mode !
 	if (inspectionFailed())
@@ -62,7 +76,7 @@ void DistanceControl::detectStateChange()
 	{
 		ROS_DEBUG("Inspection mode requested.");
 		// Check if current distance is valid
-		if (getDistanceMeasured() < 0)
+		if (_distanceMeasured < 0)
 		{
 			ROS_FATAL("Unable to enter inspection mode.");
 			_inspectionRequestFailed = true;
@@ -70,12 +84,15 @@ void DistanceControl::detectStateChange()
 		}
 
 		ROS_INFO("Inspection activation successful-following distance %.2f",
-				getDistanceMeasured());
-		_distSp = getDistanceMeasured();
+				_distanceMeasured);
+		_distSp = _distanceMeasured;
 		_currState = DistanceControlState::INSPECTION;
-		_carrotPos[0] = getCurrPosition()[0];
-		_carrotPos[1] = getCurrPosition()[1];
-		_carrotPos[2] = getCurrPosition()[2];
+		ROS_DEBUG("Setting carrot position");
+		setCarrotPosition(
+			getCurrPosition()[0],
+			getCurrPosition()[1],
+			getCurrPosition()[2]);
+		ROS_DEBUG("Finish setting carrot");
 		return;
 	}
 
@@ -88,27 +105,28 @@ void DistanceControl::detectStateChange()
 	}
 }
 
-void DistanceControl::deactivateInspection()
+void dist_control::DistanceControl::deactivateInspection()
 {
 	_currState = DistanceControlState::MANUAL;
 	_deactivateInspection = true;
 	
 	// Reset all PIDs
-	getDistancePID().resetIntegrator();
-	getDistanceVelPID().resetIntegrator();
-	getPosYPID().resetIntegrator();
-	getVelYPID().resetIntegrator();
-	getPosZPID().resetIntegrator();
-	getVelZPID().resetIntegrator();
-	
+	_distancePID->resetIntegrator();
+	_distanceVelPID->resetIntegrator();
+	resetPositionPID();
+	resetVelocityPID();
+
+	ROS_DEBUG("Setting carrot position");
 	// Reset Carrot position
-	_carrotPos[0] = getCurrPosition()[0];
-	_carrotPos[1] = getCurrPosition()[1];
-	_carrotPos[2] = getCurrPosition()[2];
+	setCarrotPosition(
+		getCurrPosition()[0],
+		getCurrPosition()[1],
+		getCurrPosition()[2]);
+	ROS_DEBUG("Finish setting carrot");
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
-void DistanceControl::publishState(ros::Publisher& pub)
+void dist_control::DistanceControl::publishState(ros::Publisher& pub)
 {
 	// Publish 0 for manual state and 1 for inspection state
 	std_msgs::Int32 newMessage;
@@ -116,251 +134,154 @@ void DistanceControl::publishState(ros::Publisher& pub)
 	pub.publish(newMessage);
 }
 
-void DistanceControl::publishDistVelSp(ros::Publisher& pub)
+void dist_control::DistanceControl::publishDistVelSp(ros::Publisher& pub)
 {
 	std_msgs::Float64 newMessage;
 	newMessage.data = _distVelSp;
 	pub.publish(newMessage);
 }
 
-void DistanceControl::calculateAttitudeTarget(double dt)
+void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 {	
-	// Calculate setpoint outside inspection state
-	if (!inInspectionState())
-	{	
-		_attThrustSp[0] = - getRollSpManual();
-		_attThrustSp[1] = getPitchSpManual();
-		_attThrustSp[2] = - getYawSpManual();	
-		_attThrustSp[3] = getThrustSpUnscaled();
-		return;
-	}
-	
-	// Calculate setpoint inside inspection state
-	_attThrustSp[0] = - getRollSpManual();
-	_distVelSp = getDistancePID().compute(_distSp, getDistanceMeasured(), dt);
-	_attThrustSp[1] = - getDistanceVelPID().compute(_distVelSp, getDistanceVelMeasured(), dt);
-
-	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
-	if (_mode == DistanceControlMode::SIMULATION)
-		_attThrustSp[2] = getPlaneYaw() * 10;
-	else
-		_attThrustSp[2] = getUAVYaw() - getPlaneYaw();
-
-	// Set thrust
-	_attThrustSp[3] = getThrustSpUnscaled();
+	setAttitudeSp(
+		-getRollSpManual(),				//roll
+		getPitchSpManual(),				//pitch
+		-getYawSpManual());				//yaw
+	setThrustSp(getThrustSpUnscaled());	//thrust
 }
 
-void DistanceControl::publishPosSp(ros::Publisher& pub)
+void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
-	geometry_msgs::Vector3 mess;
-	mess.x = _carrotPos[0];
-	mess.y = _carrotPos[1];
-	mess.z = _carrotPos[2];
-	pub.publish(mess);
-}
-
-void DistanceControl::publishVelSp(ros::Publisher& pub)
-{
-	geometry_msgs::Vector3 mess;
-	mess.x = _carrotVel[0];
-	mess.y = _carrotVel[1];
-	mess.z = _carrotVel[2];;
-	pub.publish(mess);
-}
-
-void DistanceControl::publishPosMv(ros::Publisher& pub)
-{
-	geometry_msgs::Vector3 mess;
-	mess.x = getCurrPosition()[0];
-	mess.y = getCurrPosition()[1];
-	mess.z = getCurrPosition()[2];
-	pub.publish(mess);
-}
-
-void DistanceControl::publishVelMv(ros::Publisher& pub)
-{
-	geometry_msgs::Vector3 mess;
-	mess.x = getCurrVelocity()[0];
-	mess.y = getCurrVelocity()[1];
-	mess.z = getCurrVelocity()[2];
-	pub.publish(mess);
-}
-
-void DistanceControl::calculateCarrotSetpoint(double dt)
-{
-	// Update carrot
-	double xUpdate = getPitchSpManual() * 0.1;
-	double yUpdate = getRollSpManual() * 0.1;
-	double zUpdate = getZPosSpManual() * 0.1;
-	ROS_WARN("zUpdate:%.5f", zUpdate);
-
-	// TODO: add a proper deadzone here
-	_carrotPos[0] += fabs(xUpdate) < 0.01 ? 0.0 : xUpdate;
-	_carrotPos[1] += fabs(yUpdate) < 0.01 ? 0.0 : yUpdate;
-	_carrotPos[2] += fabs(zUpdate) < 0.001 ? 0.0 : zUpdate;
-	ROS_DEBUG("Carrot pos: [%.2f, %.2f, %.2f]", _carrotPos[0], _carrotPos[1], _carrotPos[2]);
-	ROS_DEBUG("Current pos: [%.2f, %.2f, %.2f]", getCurrPosition()[0], getCurrPosition()[1], getCurrPosition()[2]);
-	ROS_DEBUG("Current vel: [%.2f, %.2f, %.2f]", getCurrVelocity()[0], getCurrVelocity()[1], getCurrVelocity()[2]);
-	ROS_DEBUG("Plane yaw: %.2f", getPlaneYaw() * 180 / M_PI);
-
-	// Always the same along the y, z axes
-	double velSpY = getPosYPID().compute(_carrotPos[1], getCurrPosition()[1], dt);
-	double velSpZ = getPosZPID().compute(_carrotPos[2], getCurrPosition()[2], dt);
-	_attThrustSp[0] = - getVelYPID().compute(velSpY, getCurrVelocity()[1], dt);
-	_attThrustSp[3] = getVelZPID().compute(velSpZ, getCurrVelocity()[2], dt) + _hoverThrust;
-	ROS_DEBUG("VelSpZ=%.2f\tThrust=%.2f", velSpZ, _attThrustSp[3]);
-	
-	_carrotVel[1] = velSpY;
-	_carrotVel[2] = velSpZ;
-
-	// Carrot tracking if not in inspection mode
-	if (!inInspectionState())
-	{
-		double velSpX = getPosXPID().compute(_carrotPos[0], getCurrPosition()[0], dt);
-		_attThrustSp[1] = getVelXPID().compute(velSpX, getCurrVelocity()[0], dt);
-		_attThrustSp[2] = - getYawSpManual();
-		_carrotVel[0] = velSpX;
-		return;
-	}
+	updateCarrot();
+	calculateAttThrustSp(dt);
 
 	// Calculate pitch setpoint using measured distance
-	_distVelSp = getDistancePID().compute(_distSp, getDistanceMeasured(), dt);
-	_attThrustSp[1] = - getDistanceVelPID().compute(_distVelSp, getDistanceVelMeasured(), dt);
-	_carrotVel[0] = _distVelSp;
+	_distVelSp = _distancePID->compute(_distSp, _distanceMeasured, dt);
+	double pitch = - _distanceVelPID->compute(_distVelSp, _distanceMeasured, dt);
 
 	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
+	double yaw;
 	if (_mode == DistanceControlMode::SIMULATION)
-		_attThrustSp[2] = getPlaneYaw() * 10;
-	else
-		_attThrustSp[2] = getUAVYaw() - getPlaneYaw();
+		yaw = _planeYaw * getYawScale();
+	else 
+		yaw = getUAVYaw() - _planeYaw;
 
-	
+	setAttitudeSp(
+		getAttThrustSp()[0],	// old roll
+		pitch,					// new pitch 		
+		yaw);					// new yaw
 }
 
-void DistanceControl::publishDistSp(ros::Publisher& pub)
+void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
 {
 	std_msgs::Float64 newMessage;
 	newMessage.data = _distSp;
 	pub.publish(newMessage);
 }
 
-void DistanceControl::publishAttSp(ros::Publisher& pub)
+void dist_control::DistanceControl::publishAttSp(ros::Publisher& pub)
 {	
-	mavros_msgs::AttitudeTarget newMessage;
-	tf2::Quaternion myQuaternion;
-
-	// If in REAL mode, publish mavros::msgs AttitudeTarget
-	if (_mode == DistanceControlMode::REAL)
+	// REAL - setpoint while in inspection mode
+	if (_mode == DistanceControlMode::REAL && inInspectionState())
 	{
-		if (inInspectionState())
-		{
-			// Yaw is controlled in radians
-			myQuaternion.setEulerZYX(
-				_attThrustSp[2],
-				_attThrustSp[1],
-				_attThrustSp[0]);
-
-			//Ignore roll rate, pitch rate, yaw rate.
-			newMessage.type_mask = 7; 
-		}
-		else 
-		{
-			// Yaw is controlled using yaw rate
-			myQuaternion.setEulerZYX(
-				0,
-				_attThrustSp[1],
-				_attThrustSp[0]);
-			
-			//Ignore roll rate, pitch rate
-			newMessage.type_mask = 3; 
-			newMessage.body_rate.z = _attThrustSp[2];
-		}
-
-		newMessage.orientation.x = myQuaternion.x();
-		newMessage.orientation.y = myQuaternion.y();
-		newMessage.orientation.z = myQuaternion.z();
-		newMessage.orientation.w = myQuaternion.w();	
-		newMessage.thrust = _attThrustSp[3];
-		ROS_DEBUG("MavrosMsg - thrust = %.2f", newMessage.thrust);
-		pub.publish(newMessage);
+		publishAttitudeReal(pub, getAttThrustSp(), 0, MASK_IGNORE_RPY_RATE);
 		return;
 	}
 
-	// If in simulation mode, publish mav_msgs::RollPitchYawrateThrust
+	// REAL - setpoint while not in inspction mode
+	if (_mode == DistanceControlMode::REAL && !inInspectionState())
+	{		
+		publishAttitudeReal(pub);
+		return;
+	}
+
+	// SIM - setpoint while in simulation mode
 	if (_mode == DistanceControlMode::SIMULATION)
 	{
-		mav_msgs::RollPitchYawrateThrust newMessage;
-		newMessage.roll = _attThrustSp[0];
-		newMessage.pitch = _attThrustSp[1];
-		newMessage.yaw_rate = _attThrustSp[2];
-		newMessage.thrust = geometry_msgs::Vector3();
-		newMessage.thrust.x = 0;
-		newMessage.thrust.y = 0;
-		newMessage.thrust.z = _attThrustSp[3] * getThrustScale(); // Add base thrust
-		pub.publish(newMessage);
+		publishAttitudeSim(pub, getThrustScale());
 		return;
 	}
 }
 
-bool DistanceControl::inInspectionState()
+bool dist_control::DistanceControl::inInspectionState()
 {
 	return _currState == DistanceControlState::INSPECTION;
 }
 
-bool DistanceControl::inspectionRequested()
+bool dist_control::DistanceControl::inspectionRequested()
 {
-	return inspectionEnabledJoy() &&
+	return inspectionEnabled() &&
 			_currState == DistanceControlState::MANUAL;
 }
 
-bool DistanceControl::inspectionFailed()
+bool dist_control::DistanceControl::inspectionFailed()
 {
 	return _currState == DistanceControlState::INSPECTION &&
-			getDistanceMeasured() < 0;
+			_distanceMeasured < 0;
 }
 
-bool DistanceControl::manualRequested()
+bool dist_control::DistanceControl::manualRequested()
 {
-	return !inspectionEnabledJoy() && (
+	return !inspectionEnabled() && (
 		_currState == DistanceControlState::INSPECTION || 
 		_inspectionRequestFailed);
 }
 
-void DistanceControl::publishEulerSp(ros::Publisher& pub)
-{
-	geometry_msgs::Vector3 newMessage;
-	newMessage.x = _attThrustSp[0];
-	newMessage.y = _attThrustSp[1];
-	newMessage.z = _attThrustSp[2];
-	pub.publish(newMessage);
-}
-
-void DistanceControl::initializeParameters(ros::NodeHandle& nh)
-{
-	ControlBase::initializeParameters(nh);
+void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
+{	
+	CarrotControl::initializeParameters(nh);
 	ROS_WARN("DistanceControl::initializeParameters()");
-	bool initialized = nh.getParam("/control/hover", _hoverThrust);
-	ROS_INFO("New hover thrust: %.2f", _hoverThrust);
+
+	_distancePID->initializeParameters(nh, DIST_PID_PARAMS);
+	_distanceVelPID->initializeParameters(nh, DISTVEL_PID_PARAMS);
+	
+	bool initialized = nh.getParam("/joy/detection_state", _inspectIndices->INSPECTION_MODE);
+	ROS_INFO("Detection state index: %d", _inspectIndices->INSPECTION_MODE);
 	if (!initialized)
 	{
-		ROS_FATAL("DistanceControl::initalizeParameters() - failed to initialize hover thrust");
-		throw std::invalid_argument("DistanceControl parameters not properly initialized.");
+		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
+		throw std::runtime_error("DistanceControl parameters are not properly set.");
 	}
 }
 
-void DistanceControl::parametersCallback(
-		plane_detection_ros::DistanceControlParametersConfig& configMsg,
-		uint32_t level)
+void dist_control::DistanceControl::parametersCallback(
+	plane_detection_ros::DistanceControlParametersConfig& configMsg,
+	uint32_t level)
 {
-	ControlBase::parametersCallback(configMsg, level);
-	ROS_WARN("DistanceControl::parametersCallback()");;
-	_hoverThrust = configMsg.hover;
-	ROS_INFO("New hover thrust: %.2f", _hoverThrust);
+	ROS_WARN("DistanceControl::parametersCallback");
+
+	_distancePID->set_kp(configMsg.k_p_dist);
+	_distancePID->set_kd(configMsg.k_d_dist);
+	_distancePID->set_ki(configMsg.k_i_dist);
+	_distancePID->set_lim_high(configMsg.lim_high_dist);
+	_distancePID->set_lim_low(configMsg.lim_low_dist);
+
+	_distanceVelPID->set_kp(configMsg.k_p_vdist);
+	_distanceVelPID->set_kd(configMsg.k_d_vdist);
+	_distanceVelPID->set_ki(configMsg.k_i_vdist);
+	_distanceVelPID->set_lim_high(configMsg.lim_high_vdist);
+	_distanceVelPID->set_lim_low(configMsg.lim_low_vdist);
 }
 
-void DistanceControl::setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config)
+void dist_control::DistanceControl::setReconfigureParameters(
+	plane_detection_ros::DistanceControlParametersConfig& config)
 {
-	ControlBase::setReconfigureParameters(config);
-	ROS_WARN("DistanceControl::setreconfigureParameters()");
-	config.hover = _hoverThrust;
+	ROS_WARN("DistanceControl::setReconfigureParameters");
+	
+	config.k_p_dist = _distancePID->get_kp();
+	config.k_i_dist = _distancePID->get_ki();
+	config.k_d_dist = _distancePID->get_kd();
+	config.lim_low_dist = _distancePID->get_lim_low();
+	config.lim_high_dist = _distancePID->get_lim_high();
+
+	config.k_p_vdist = _distanceVelPID->get_kp();
+	config.k_i_vdist = _distanceVelPID->get_ki();
+	config.k_d_vdist = _distanceVelPID->get_kd();
+	config.lim_low_vdist = _distanceVelPID->get_lim_low();
+	config.lim_high_vdist = _distanceVelPID->get_lim_high();
+}
+
+bool dist_control::DistanceControl::inspectionEnabled()
+{
+	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1;
 }
