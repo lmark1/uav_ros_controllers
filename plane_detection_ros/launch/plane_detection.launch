@@ -1,7 +1,7 @@
 <launch>
     
     <!-- Load parameters -->
-    <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters.yaml" />
+    <rosparam command="load" file="$(find plane_detection_ros)/config/detection/detection_parameters.yaml" />
     
     <!-- Launch plane detection -->
     <node 

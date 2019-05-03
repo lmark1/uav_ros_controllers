@@ -5,7 +5,7 @@
  *      Author: lmark
  */
 
-#include "plane_detection_ros/control/DistanceControl.h"
+#include <plane_detection_ros/control/DistanceControl.h>
 #include <plane_detection_ros/DistanceControlParametersConfig.h>
 
 // ROS Includes
@@ -42,59 +42,53 @@ int main(int argc, char **argv) {
 	nh.getParam("/control/sim_mode", simMode);
 
 	// Initialize distance control object
-	std::shared_ptr<DistanceControl> distanceControl
-		{ new DistanceControl { ((simMode) ? 
-			DistanceControlMode::SIMULATION : 
-			DistanceControlMode::REAL) } };
+	std::shared_ptr<dist_control::DistanceControl> distanceControl
+		{ new dist_control::DistanceControl { ((simMode) ? 
+			dist_control::DistanceControlMode::SIMULATION : 
+			dist_control::DistanceControlMode::REAL) } };
 	distanceControl->initializeParameters(nh);
 	
 	// Setup callbacks
 	ros::Subscriber distSub = nh.subscribe("/distance", 1,
-			&ControlBase::distanceCb,
-			dynamic_cast<ControlBase*>(distanceControl.get()));
+		&dist_control::DistanceControl::distanceCb,
+		distanceControl.get());
 	ros::Subscriber distVelSub = nh.subscribe("/distance_velocity", 1,
-			&ControlBase::distanceVelCb,
-			dynamic_cast<ControlBase*>(distanceControl.get()));
+		&dist_control::DistanceControl::distanceVelCb,
+		distanceControl.get());
+	// Plane normal CB
+	ros::Subscriber planeSub = nh.subscribe("/plane_normal", 1,
+		&dist_control::DistanceControl::normalCb,
+		distanceControl.get());
+
+	// Joy callback
 	ros::Subscriber joySub = nh.subscribe("/joy", 1,
-			&ControlBase::joyCb,
-			dynamic_cast<ControlBase*>(distanceControl.get()));
+		&joy_control::JoyControl::joyCb,
+		distanceControl->getJoyPointer());
 
 	// Simulation callbacks
 	ros::Subscriber odomSub = nh.subscribe("/sim/odometry", 1,
-		&ControlBase::imuCbSim,
-		dynamic_cast<ControlBase*>(distanceControl.get()));
+		&control_base::ControlBase::odomCbSim,
+		distanceControl->getBasePointer());
 
 	// Realistic callbacks
 	ros::Subscriber imuSub = nh.subscribe("/real/imu", 1,
-		&ControlBase::imuCbReal,
-		dynamic_cast<ControlBase*>(distanceControl.get()));
-	ros::Subscriber posSub = nh.subscribe("/real/pos", 1,
-		&ControlBase::posCbReal,
-		dynamic_cast<ControlBase*>(distanceControl.get()));
-	ros::Subscriber velSub = nh.subscribe("/real/vel", 1,
-		&ControlBase::velCbReal,
-		dynamic_cast<ControlBase*>(distanceControl.get()));
-
-	// Plane normal CB
-	ros::Subscriber planeSub = nh.subscribe("/plane_normal", 1,
-		&ControlBase::normalCb,
-		dynamic_cast<ControlBase*>(distanceControl.get()));
+		&control_base::ControlBase::imuCbReal,
+		distanceControl->getBasePointer());
+	ros::Subscriber posSub = nh.subscribe("/real/odometry", 1,
+		&control_base::ControlBase::odomCbReal,
+		distanceControl->getBasePointer());
 
 	// Define publishers
 	ros::Publisher statePub = nh.advertise<std_msgs::Int32>(
-			"/control_state", 1);
-	// Simulation setpointconfServer
+		"/control_state", 1);
 	ros::Publisher spPubSim = nh.advertise<mav_msgs::RollPitchYawrateThrust>(
-			"/sim/rpy_thrust", 1);
-	// Real setpoint
+		"/sim/rpy_thrust", 1);
 	ros::Publisher spPubReal = nh.advertise<mavros_msgs::AttitudeTarget>(
-			"/real/attitude_sp", 1);
-	// Referent distance publisher
+		"/real/attitude_sp", 1);
 	ros::Publisher distRefPub = nh.advertise<std_msgs::Float64>(
 		"/dist_sp", 1);
 	ros::Publisher distVelRefPub = nh.advertise<std_msgs::Float64>(
 		"/dist_vel_sp", 1);
-	// Add euler_sp publisher
 	ros::Publisher eulerSpPub = nh.advertise<geometry_msgs::Vector3>(
 		"/euler_sp", 1);
 	ros::Publisher posSpPub = nh.advertise<geometry_msgs::Vector3>(
@@ -106,27 +100,38 @@ int main(int argc, char **argv) {
 	ros::Publisher velMvPub = nh.advertise<geometry_msgs::Vector3>(
 		"/carrot_vel_mv", 1);
 
-	boost::recursive_mutex config_mutex;
-	// Initialize configure server
+	// Initialize distance reconfigure server
+	// TODO: Move these blocks to appropriate classes
+	boost::recursive_mutex distConfigMutex;
 	dynamic_reconfigure::
 		Server<plane_detection_ros::DistanceControlParametersConfig>
-		confServer {config_mutex};
-	// Initialize reconfigure callback
+		distConfigServer {distConfigMutex, ros::NodeHandle("distance_config")};
 	dynamic_reconfigure::
-		Server<plane_detection_ros::DistanceControlParametersConfig>::
-		CallbackType
-		paramCallback;
+		Server<plane_detection_ros::DistanceControlParametersConfig>::CallbackType
+		distParamCallback;
+	plane_detection_ros::DistanceControlParametersConfig distConfig;
+	distanceControl->setReconfigureParameters(distConfig);
+	distConfigServer.updateConfig(distConfig);
+	distParamCallback = boost::bind(
+		&dist_control::DistanceControl::parametersCallback,
+		distanceControl.get(), _1, _2);
+	distConfigServer.setCallback(distParamCallback);
 
-	// Set initial parameters
-	plane_detection_ros::DistanceControlParametersConfig config;
-	distanceControl->setReconfigureParameters(config);
-	confServer.updateConfig(config);
-
-	// Setup reconfigure server
-	paramCallback = boost::bind(
-			&DistanceControl::parametersCallback,
-			distanceControl.get(), _1, _2);
-	confServer.setCallback(paramCallback);
+	// Initialize position reconfigure server
+	boost::recursive_mutex posConfigMutex;
+	dynamic_reconfigure::
+		Server<plane_detection_ros::PositionControlParametersConfig>
+		posConfigServer {posConfigMutex, ros::NodeHandle("position_config")};
+	dynamic_reconfigure::
+		Server<plane_detection_ros::PositionControlParametersConfig>::CallbackType
+		posParamCallback;
+	plane_detection_ros::PositionControlParametersConfig posConfig;
+	distanceControl->getCarrotPointer()->setReconfigureParameters(posConfig);
+	posConfigServer.updateConfig(posConfig);
+	posParamCallback = boost::bind(
+		&carrot_control::CarrotControl::parametersCallback,
+		distanceControl->getCarrotPointer(), _1, _2);
+	posConfigServer.setCallback(posParamCallback);
 
 	// Setup loop rate
 	double rate = 25;
@@ -144,9 +149,9 @@ int main(int argc, char **argv) {
 		
 		// Carrot mode in inspection state, attitude control otherwise
 		if (distanceControl->inInspectionState())
-			distanceControl->calculateCarrotSetpoint(dt);
+			distanceControl->calculateInspectionSetpoint(dt);
 		else
-			distanceControl->calculateAttitudeTarget(dt);
+			distanceControl->calculateManualSetpoint(dt);
 
 		// Publish setpoint based on the control mode
 		if (simMode)
@@ -154,14 +159,17 @@ int main(int argc, char **argv) {
 		else
 			distanceControl->publishAttSp(spPubReal);
 
+		// Publish distance and angle setpoints
 		distanceControl->publishDistSp(distRefPub);
 		distanceControl->publishDistVelSp(distVelRefPub);
-		distanceControl->publishEulerSp(eulerSpPub);
 
+		// Publish carrot setpoints
+		distanceControl->publishEulerSp(eulerSpPub);
 		distanceControl->publishPosSp(posSpPub);
 		distanceControl->publishVelSp(velSpPub);
 		distanceControl->publishPosMv(posMvPub);
 		distanceControl->publishVelMv(velMvPub);
+		
 		loopRate.sleep();
 	}
 }

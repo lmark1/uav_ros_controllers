@@ -3,9 +3,6 @@
     <!-- Load configuration parameters -->
     <rosparam 
         command="load" 
-        file="$(find plane_detection_ros)/config/control/distance_control.params.yaml" />
-    <rosparam 
-        command="load" 
         file="$(find plane_detection_ros)/config/control/position_control.params.yaml" />
     
     <rosparam 
@@ -20,7 +17,6 @@
         output="screen">
         
         <!-- Do all the subscriber remaps -->
-        <remap from="distance"          to="distance_filtered"  />
         <remap from="joy"               to="/px4/joy"           />
         <remap from="/real/imu"         to="/mavros/imu/data"   />
         <remap from="/real/odometry"    to="/mavros/global_position/local" />

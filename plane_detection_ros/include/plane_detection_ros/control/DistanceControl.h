@@ -8,7 +8,9 @@
 #ifndef DISTANCE_CONTROL_H
 #define DISTANCE_CONTROL_H
 
-#include "plane_detection_ros/control/ControlBase.h"
+#include <plane_detection_ros/control/ControlBase.h>
+#include <plane_detection_ros/control/CarrotControl.h>
+#include <plane_detection_ros/DistanceControlParametersConfig.h>
 
 // ROS Includes
 #include <ros/ros.h>
@@ -16,194 +18,206 @@
 #include <iostream>
 #include <array>
 
-/**
- * Define control modes used in DistanceControl algorithm.
- */
-enum DistanceControlMode
+namespace dist_control 
 {
+
 	/**
-	 * Simulation control mode.
+	 * Define control modes used in DistanceControl algorithm.
 	 */
-	SIMULATION,
+	enum DistanceControlMode
+	{
+		/**
+		 * Simulation control mode.
+		 */
+		SIMULATION,
 
-	/**
-	 * Realistic control mode.
-	 */
-	REAL
-};
+		/**
+		 * Realistic control mode.
+		 */
+		REAL
+	};
 
-enum DistanceControlState
-{
-	/**
-	 * User controls the UAV manually using joystick commands.
-	 */
-	MANUAL,
+	enum DistanceControlState
+	{
+		/**
+		 * User controls the UAV manually using joystick commands.
+		 */
+		MANUAL,
 
-	/**
-	 * User controls the UAV while it performs inspection, maintaining
-	 * the distance from the callback function feedback loop.
-	 */
-	INSPECTION
-};
+		/**
+		 * User controls the UAV while it performs inspection, maintaining
+		 * the distance from the callback function feedback loop.
+		 */
+		INSPECTION
+	};
 
-class DistanceControl : public ControlBase {
+class DistanceControl : public carrot_control::CarrotControl {
 
-public:
+	public:
 
-	/**
-	 * Defualt DistanceControl constructor. 
-	 * 
-	 * @param mode 	Defines control mode
-	 * @param kp	Distance controller proportional gain
-	 * @param ki	Distance controller integrator gain
-	 * @param kd	Distance controller derivator gain
-	 * @param lim_low	Lower saturation limit for for the PID integrator
-	 * @param lim_high 	Higher saturation limit for the PID integrator
-	 */	
-	DistanceControl(DistanceControlMode mode);
-	virtual ~DistanceControl();
+		/**
+		 * Defualt DistanceControl constructor. 
+		 * 
+		 * @param mode 	Defines control mode
+		 * @param kp	Distance controller proportional gain
+		 * @param ki	Distance controller integrator gain
+		 * @param kd	Distance controller derivator gain
+		 * @param lim_low	Lower saturation limit for for the PID integrator
+		 * @param lim_high 	Higher saturation limit for the PID integrator
+		 */	
+		DistanceControl(DistanceControlMode mode);
+		virtual ~DistanceControl();
 
-	/**
-	 * Change the state back to manual if received distance is invalid.
-	 * Change the state to inspection mode if appropriate joystick command is
-	 * given.
-	 */
-	void detectStateChange();
+		/**	
+		 * Distance callback function.
+		 */
+		void distanceCb(const std_msgs::Float64ConstPtr& message);
 
-	/**
-	 * Calculate appropriate attitude setpoint.
-	 *
-	 * @param dt - Given discretization time.
-	 */
-	void calculateAttitudeTarget(double dt);
-	
-	/**
-	 * Calculate appropriate attitude setpoint from the "carrot" control input.
-	 */
-	void calculateCarrotSetpoint(double dt);
+		/**
+		 * Distance velocity callback function.
+		 */
+		void distanceVelCb(const std_msgs::Float64ConstPtr& message);
 
-	/**
-	 * Publish current control state.
-	 *
-	 * @param pub - Given Int32 publisher
-	 */
-	void publishState(ros::Publisher& pub);
+		/**
+		 * Plane normal callback function.
+		 */
+		void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
 
-	/**
-	 * Publish attitude setpoint on the given topic.
-	 * If in simulation mode, publisher is expected to be Vector3.
-	 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
-	 */
-	void publishAttSp(ros::Publisher& pub);
+		/**
+		 * Change the state back to manual if received distance is invalid.
+		 * Change the state to inspection mode if appropriate joystick command is
+		 * given.
+		 */
+		void detectStateChange();
 
-	/**
-	 * Publish distance setpoint as a std_msgs::Float64 message.
-	 */
-	void publishDistSp(ros::Publisher& pub);
-	
-	/**
-	 * Publish distance velocity setpoint as a Float64 ROS message.
-	 */
-	void publishDistVelSp(ros::Publisher& pub);
+		/**
+		 * Calculate target attitude setpoint while in manual mode. 
+		 * During Manual mode UAV is controlled with direct attitude commands.
+		 *
+		 * @param dt - Given discretization time.
+		 */
+		void calculateManualSetpoint(double dt);
+		
+		/**
+		 * Calculate tearget attitude setpoin while in inspection mode.
+		 * During Inspection mode UAV is controlled using "Carrot commands" i.e. 
+		 * position control.
+		 * 
+		 * @param dt - Given discretization time.
+		 */
+		void calculateInspectionSetpoint(double dt);
 
-	/**
-	 * Publish setpoint euler angles as a Vector3 ROS message.
-	 */
-	void publishEulerSp(ros::Publisher& pub);
+		/**
+		 * Publish current control state.
+		 *
+		 * @param pub - Given Int32 publisher
+		 */
+		void publishState(ros::Publisher& pub);
 
-	/**
-	 * Publish carrot position setpoint as a Vector3 ROS message.
-	 */
-	void publishPosSp(ros::Publisher& pub);
+		/**
+		 * Publish attitude setpoint on the given topic.
+		 * If in simulation mode, publisher is expected to be Vector3.
+		 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
+		 */
+		void publishAttSp(ros::Publisher& pub);
 
-	/**
-	 * Publish carrot velocity setpoint as a Vector3 ROS message.
-	 */ 
-	void publishVelSp(ros::Publisher& pub);
+		/**
+		 * Publish distance setpoint as a std_msgs::Float64 message.
+		 */
+		void publishDistSp(ros::Publisher& pub);
+		
+		/**
+		 * Publish distance velocity setpoint as a Float64 ROS message.
+		 */
+		void publishDistVelSp(ros::Publisher& pub);
 
-	/**
-	 * Publish local position mesured value as a Vector3 ROS message.
-	 */
-	void publishPosMv(ros::Publisher& pub);
+		/**
+		 * Return true if in inspection state, otherwise false.
+		 */
+		bool inInspectionState();
 
-	/**
-	 * Publish measured local velocity value as a Vector3 ROS message.
-	 */
-	void publishVelMv(ros::Publisher& pub);
+		/**
+		 * Initialize parameters.
+		 */
+		virtual void initializeParameters(ros::NodeHandle& nh) override;
 
-	/**
-	 * Return true if in inspection state, otherwise false.
-	 */
-	bool inInspectionState();
+		/**
+		 * Callback function used for setting various parameters.
+		 */
+		void parametersCallback(
+				plane_detection_ros::DistanceControlParametersConfig& configMsg,
+				uint32_t level);
 
-	/**
-	 * Do all the parameter initialization here.
-	 */
-	virtual void initializeParameters(ros::NodeHandle& nh) override;
+		/**
+		 * Set reconfigure parameters in the given config object.
+		 */
+		void setReconfigureParameters(
+			plane_detection_ros::DistanceControlParametersConfig& config);
 
-	/**
-	 * Callback function used for setting various parameters.
-	 */
-	virtual void parametersCallback(
-			plane_detection_ros::DistanceControlParametersConfig& configMsg,
-			uint32_t level) override;
+	private:
 
-	/**
-	 * Set reconfigure parameters in the given config object.
-	 */
-	virtual void setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config) override;
+		/**
+		 * From the current Joy message determine if inspection if not.
+		 */
+		bool inspectionEnabled();
 
-private:
+		/**
+		 * Perform all necessary steps in order to deactivate inspection mode.
+		 */
+		void deactivateInspection();
 
-	/**
-	 * Perform all necessary steps in order to deactivate inspection mode.
-	 */
-	void deactivateInspection();
+		/**
+		 * Returns true if inspection is requested, otherwise return false.
+		 */
+		bool inspectionRequested();
 
-	/**
-	 * Returns true if inspection is requested, otherwise return false.
-	 */
-	bool inspectionRequested();
+		/**
+		 * Returns true if inspection failed, otherwise return false.
+		 */
+		bool inspectionFailed();
 
-	/**
-	 * Returns true if inspection failed, otherwise return false.
-	 */
-	bool inspectionFailed();
+		/**
+		 * Returns true if manual mode is requested, otherwise return false.
+		 */
+		bool manualRequested();
 
-	/**
-	 * Returns true if manual mode is requested, otherwise return false.
-	 */
-	bool manualRequested();
+		/** Current control mode. */
+		DistanceControlMode _mode;
 
-	/** Current control mode. */
-	DistanceControlMode _mode;
+		/** Current control state */
+		DistanceControlState _currState;
 
-	/** Current control state */
-	DistanceControlState _currState;
+		/** Distance PID controller */
+		std::unique_ptr<PID> _distancePID;
 
-	/** Flag used to detect when deactivate inspection is requested. */
-	bool _deactivateInspection;
+		/** Distance velocity PID controller */
+		std::unique_ptr<PID> _distanceVelPID;
 
-	/** True if inspection state was requested and denied, false otherwise. */
-	bool _inspectionRequestFailed;
+		/** Inspection indices for ROS Joy messages */
+		std::unique_ptr<joy_struct::InspectionIndices> _inspectIndices;
 
-	/** Distance setpoint value */
-	double _distSp;
+		/** Flag used to detect when deactivate inspection is requested. */
+		bool _deactivateInspection;
 
-	/** Distance velocity setpoint value. */
-	double _distVelSp;
+		/** True if inspection state was requested and denied, false otherwise. */
+		bool _inspectionRequestFailed;
 
-	/** Attitude setpoint array. */
-	std::array<double, 43> _attThrustSp {0.0, 0.0, 0.0, 0.0};
+		/** Current distance measured value. Used both in sim and real mode. */
+		double _distanceMeasured;
 
-	/** Carrot setpoint position array. */
-	std::array<double, 3> _carrotPos {0.0, 0.0, 0.0};
+		/** Currently measured distance velocity. Used both in sim and real mode. */
+		double _distanceVelocityMeasured;
 
-	/** Carrot setpoint velocity array. */
-	std::array<double, 3> _carrotVel {0.0, 0.0, 0.0};
+		/** Distance setpoint value */
+		double _distSp;
 
-	/** Value from 0 to 1, hover thrust */
-	double _hoverThrust;
-};
+		/** Distance velocity setpoint value. */
+		double _distVelSp;
+
+		/** Yaw of the plane normal with respect to UAV base frame. */
+		double _planeYaw;
+	};
+
+}
 
 #endif /* DISTANCE_CONTROL_H */

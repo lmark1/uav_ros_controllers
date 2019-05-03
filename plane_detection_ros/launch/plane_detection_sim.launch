@@ -3,7 +3,7 @@
     <arg name="rviz_config" value="$(find bebop_gazebo)/config/rviz_detection.rviz" />
     
     <!-- Load parameters -->
-    <rosparam command="load" file="$(find plane_detection_ros)/config/detection_parameters_sim.yaml" />
+    <rosparam command="load" file="$(find plane_detection_ros)/config/detection/detection_parameters_sim.yaml" />
     
     <!-- Launch plane detection -->
     <node 

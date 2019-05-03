@@ -63,6 +63,7 @@ void PID::resetIntegrator()
     firstPass = false;
     ui_old = 0;
     error_old = 0;
+    ROS_DEBUG("PID %s is reset.", _name.c_str());
 }
 
 void PID::set_kp(float invar)
@@ -244,6 +245,6 @@ void PID::initializeParameters(ros::NodeHandle& nh, std::string prefix)
     if (!initialized)
 	{
 		ROS_FATAL("PID() - parameter initialization failed.");
-		throw std::invalid_argument("PID parameters not properly set.");
+		throw std::runtime_error("PID parameters not properly set.");
 	}
 }

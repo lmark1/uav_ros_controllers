@@ -6,6 +6,7 @@
  */
 
 #include <uav_ros_control/NonlinearFilters.h>
+#include <iostream>
 
 double nonlinear_filters::saturation(
 		double value,
@@ -22,8 +23,12 @@ double nonlinear_filters::deadzone(
 		double lowLimit,
 		double highLimit)
 {
-	if (value < highLimit && value > lowLimit) { return 0; }
-	else { return value; }
+	if (value < highLimit && value > lowLimit)  
+		return 0; 
+	else if (value >= highLimit) 
+		return value - highLimit;
+	else if (value <= lowLimit)
+		return value - lowLimit;
 }
 
 double nonlinear_filters::filterPT1(
