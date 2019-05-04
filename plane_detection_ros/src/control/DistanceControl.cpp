@@ -12,6 +12,7 @@
 dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode (mode),
 	_currState (DistanceControlState::MANUAL),
+	_currSeq (Sequence::NONE),
 	_inspectIndices {new joy_struct::InspectionIndices},
 	_distancePID {new PID("Distance")},
 	_distanceVelPID {new PID("Distance vel")},
@@ -19,7 +20,6 @@ dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_distanceVelocityMeasured (0),
 	_distVelSp (0),
 	_distSp (-1),
-	_deactivateInspection (false),
 	_inspectionRequestFailed (false),
 	_planeYaw (0),
 	carrot_control::CarrotControl()
@@ -63,6 +63,25 @@ void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedCon
 
 void dist_control::DistanceControl::detectStateChange()
 {
+	// Reset carrot position when changing sequence direction
+	if (inInspectionState() && (
+			leftSeqEnbled() && _currSeq == Sequence::RIGHT ||
+			rightSeqEnabled() && _currSeq == Sequence::LEFT ))
+	{
+		ROS_DEBUG("Inspection sequence changed - reset carrot.");
+		setCarrotPosition(
+			getCurrPosition()[0],
+			getCurrPosition()[1],
+			getCurrPosition()[2]);
+		_currSeq = _currSeq == Sequence::LEFT ? Sequence::RIGHT : Sequence::LEFT;
+	}
+
+	if (inInspectionState() && leftSeqEnbled())
+		_currSeq = Sequence::LEFT;
+
+	if (inInspectionState() && rightSeqEnabled())
+		_currSeq = Sequence::RIGHT;
+
 	// If we're in inspection mode and received distance is invalid
 	// then deactivate inspection mode !
 	if (inspectionFailed())
@@ -110,21 +129,19 @@ void dist_control::DistanceControl::detectStateChange()
 void dist_control::DistanceControl::deactivateInspection()
 {
 	_currState = DistanceControlState::MANUAL;
-	_deactivateInspection = true;
-	
+	_currSeq = Sequence::NONE;
+
 	// Reset all PIDs
 	_distancePID->resetIntegrator();
 	_distanceVelPID->resetIntegrator();
 	resetPositionPID();
 	resetVelocityPID();
 
-	ROS_DEBUG("Setting carrot position");
 	// Reset Carrot position
 	setCarrotPosition(
 		getCurrPosition()[0],
 		getCurrPosition()[1],
 		getCurrPosition()[2]);
-	ROS_DEBUG("Finish setting carrot");
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
@@ -154,7 +171,23 @@ void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 
 void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
-	updateCarrot();
+	if (_currSeq == Sequence::LEFT)
+	{
+		updateCarrotX();
+		updateCarrotY(1);
+		updateCarrotZ();	
+	}
+	else if (_currSeq == Sequence::RIGHT)
+	{
+		updateCarrotX();
+		updateCarrotY(-1);
+		updateCarrotZ();	
+	}
+	else if (_currSeq == Sequence::NONE)
+	{
+		updateCarrot();
+	}
+	
 	calculateAttThrustSp(dt);
 
 	// update distance setpoint
@@ -292,7 +325,9 @@ void dist_control::DistanceControl::setReconfigureParameters(
 
 bool dist_control::DistanceControl::inspectionEnabled()
 {
-	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1;
+	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1
+		|| leftSeqEnbled()
+		|| rightSeqEnabled();
 }
 
 bool dist_control::DistanceControl::leftSeqEnbled()

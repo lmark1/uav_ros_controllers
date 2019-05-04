@@ -42,19 +42,53 @@ void carrot_control::CarrotControl::setCarrotPosition(double x, double y, double
 
 void carrot_control::CarrotControl::updateCarrot()
 {
-	_carrotPos[0] += nonlinear_filters::deadzone(
-		getXOffsetManual(), -X_DEADZONE, X_DEADZONE);
-	_carrotPos[1] += nonlinear_filters::deadzone(
-		getYOffsetManual(), -Y_DEADZONE, Y_DEADZONE);
-	_carrotPos[2] += nonlinear_filters::deadzone(
-		getZOffsetManual(), -Z_DEADZONE, Z_DEADZONE);
+	updateCarrotX(nonlinear_filters::deadzone(
+		getXOffsetManual(), -X_DEADZONE, X_DEADZONE));
+	updateCarrotY(nonlinear_filters::deadzone(
+		getYOffsetManual(), -Y_DEADZONE, Y_DEADZONE));
+	updateCarrotZ(nonlinear_filters::deadzone(
+		getZOffsetManual(), -Z_DEADZONE, Z_DEADZONE));
 }
 
-void carrot_control::CarrotControl::updateCarrot(double xOff = 0, double yOff = 0, double zOff = 0)
+void carrot_control::CarrotControl::updateCarrotX(double xOff)
 {
 	_carrotPos[0] += xOff;
+}
+
+void carrot_control::CarrotControl::updateCarrotX()
+{
+	updateCarrotX(nonlinear_filters::deadzone(
+		getXOffsetManual(), -X_DEADZONE, X_DEADZONE));
+}
+
+void carrot_control::CarrotControl::updateCarrotY()
+{
+	updateCarrotY(nonlinear_filters::deadzone(
+		getYOffsetManual(), -Y_DEADZONE, Y_DEADZONE));
+}
+
+void carrot_control::CarrotControl::updateCarrotZ()
+{
+	updateCarrotX(nonlinear_filters::deadzone(
+		getZOffsetManual(), -Z_DEADZONE, Z_DEADZONE));
+}
+
+void carrot_control::CarrotControl::updateCarrotY(double yOff)
+{
 	_carrotPos[1] += yOff;
+}
+
+void carrot_control::CarrotControl::updateCarrotZ(double zOff)
+{
 	_carrotPos[2] += zOff;
+}
+
+double carrot_control::CarrotControl::distanceToCarrot()
+{
+	return sqrt(
+		pow((getCurrPosition()[0] - _carrotPos[0]), 2) +
+		pow((getCurrPosition()[1] - _carrotPos[1]), 2) +
+		pow((getCurrPosition()[2] - _carrotPos[2]), 2));
 }
 
 void carrot_control::CarrotControl::publishPosSp(ros::Publisher& pub)

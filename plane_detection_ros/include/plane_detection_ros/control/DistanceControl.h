@@ -51,6 +51,13 @@ namespace dist_control
 		INSPECTION
 	};
 
+	enum Sequence
+	{
+		LEFT,
+		RIGHT,
+		NONE
+	};
+
 class DistanceControl : public carrot_control::CarrotControl {
 
 	public:
@@ -197,6 +204,9 @@ class DistanceControl : public carrot_control::CarrotControl {
 		/** Current control state */
 		DistanceControlState _currState;
 
+		/** Current sequence */
+		Sequence _currSeq;
+
 		/** Distance PID controller */
 		std::unique_ptr<PID> _distancePID;
 
@@ -205,10 +215,7 @@ class DistanceControl : public carrot_control::CarrotControl {
 		
 		/** Inspection indices for ROS Joy messages */
 		std::unique_ptr<joy_struct::InspectionIndices> _inspectIndices;
-
-		/** Flag used to detect when deactivate inspection is requested. */
-		bool _deactivateInspection;
-
+		
 		/** True if inspection state was requested and denied, false otherwise. */
 		bool _inspectionRequestFailed;
 
