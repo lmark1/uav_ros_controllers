@@ -8,6 +8,8 @@
 #define DIST_PID_PARAMS "/control/distance"
 #define DISTVEL_PID_PARAMS "/control/distance_vel"
 #define DIST_SP_DEADZONE 0.001
+#define CARROT_TOL 0.1 // TODO: Make this a parameter
+#define SEQUENCE_STEP 0.5 // TODO: Make this a parameter
 
 dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode (mode),
@@ -61,7 +63,7 @@ void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedCon
 	_planeYaw = wrapMinMax(_planeYaw, -M_PI, M_PI);
 }
 
-void dist_control::DistanceControl::detectStateChange()
+void dist_control::DistanceControl::detectSequenceChange()
 {
 	// Reset carrot position when changing sequence direction
 	if (inInspectionState() && (
@@ -76,12 +78,26 @@ void dist_control::DistanceControl::detectStateChange()
 		_currSeq = _currSeq == Sequence::LEFT ? Sequence::RIGHT : Sequence::LEFT;
 	}
 
+	// Determine current sequence
 	if (inInspectionState() && leftSeqEnbled())
+	{	
+		ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
 		_currSeq = Sequence::LEFT;
-
-	if (inInspectionState() && rightSeqEnabled())
+	}
+	else if (inInspectionState() && rightSeqEnabled())
+	{
+		ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
 		_currSeq = Sequence::RIGHT;
+	}
+	else 
+	{
+		//ROS_DEBUG("DistanceControl::detectSequenceChange - sequence deactivated");
+		_currSeq = Sequence::NONE;
+	}
+}
 
+void dist_control::DistanceControl::detectStateChange()
+{
 	// If we're in inspection mode and received distance is invalid
 	// then deactivate inspection mode !
 	if (inspectionFailed())
@@ -108,12 +124,10 @@ void dist_control::DistanceControl::detectStateChange()
 				_distanceMeasured);
 		_distSp = _distanceMeasured;
 		_currState = DistanceControlState::INSPECTION;
-		ROS_DEBUG("Setting carrot position");
 		setCarrotPosition(
 			getCurrPosition()[0],
 			getCurrPosition()[1],
 			getCurrPosition()[2]);
-		ROS_DEBUG("Finish setting carrot");
 		return;
 	}
 
@@ -171,25 +185,37 @@ void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 
 void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
-	if (_currSeq == Sequence::LEFT)
-	{
-		updateCarrotX();
-		updateCarrotY(1);
-		updateCarrotZ();	
-	}
-	else if (_currSeq == Sequence::RIGHT)
-	{
-		updateCarrotX();
-		updateCarrotY(-1);
-		updateCarrotZ();	
-	}
-	else if (_currSeq == Sequence::NONE)
-	{
-		updateCarrot();
-	}
-	
+	updateCarrot();	
 	calculateAttThrustSp(dt);
+	doDistanceControl(dt);
+}
 
+void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
+{
+	updateCarrotX();
+	updateCarrotZ();
+
+	// Calculate distance to next setpoint
+	double distance = sqrt(
+			pow(distanceToYCarrot(), 2) +
+			pow(distanceToZCarrot(), 2) +
+			pow(_distSp -  _distanceMeasured, 2));
+
+	if (distance < CARROT_TOL && _currSeq == Sequence::LEFT)
+		updateCarrotY(- SEQUENCE_STEP);
+
+	else if (distance < CARROT_TOL && _currSeq == Sequence::RIGHT)
+		updateCarrotY(SEQUENCE_STEP);
+
+	else 
+		ROS_WARN("\nDistance to next setpoint: %.2f\nTolerance: %.2f", distance, CARROT_TOL);
+
+	calculateAttThrustSp(dt);
+	doDistanceControl(dt);
+}
+
+void dist_control::DistanceControl::doDistanceControl(double dt)
+{
 	// update distance setpoint
 	_distSp -= nonlinear_filters::deadzone(
 		getXOffsetManual(), - DIST_SP_DEADZONE, DIST_SP_DEADZONE);
@@ -205,10 +231,8 @@ void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 	else 
 		yaw = getUAVYaw() - _planeYaw;
 
-	setAttitudeSp(
-		getAttThrustSp()[0],	// old roll
-		pitch,					// new pitch 		
-		yaw);					// new yaw
+	overridePitch(pitch);
+	overrideYaw(yaw);
 }
 
 void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
@@ -240,6 +264,11 @@ void dist_control::DistanceControl::publishAttSp(ros::Publisher& pub)
 		publishAttitudeSim(pub, getThrustScale());
 		return;
 	}
+}
+
+dist_control::Sequence dist_control::DistanceControl::getSequence()
+{
+	return _currSeq;
 }
 
 bool dist_control::DistanceControl::inInspectionState()

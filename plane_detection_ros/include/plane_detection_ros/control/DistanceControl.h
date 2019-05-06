@@ -98,6 +98,12 @@ class DistanceControl : public carrot_control::CarrotControl {
 		void detectStateChange();
 
 		/**
+		 * Check for any change in desired seqnce of inspection and perform all
+		 * necessary changes.
+		 */
+		void detectSequenceChange();
+
+		/**
 		 * Calculate target attitude setpoint while in manual mode. 
 		 * During Manual mode UAV is controlled with direct attitude commands.
 		 *
@@ -106,13 +112,21 @@ class DistanceControl : public carrot_control::CarrotControl {
 		void calculateManualSetpoint(double dt);
 		
 		/**
-		 * Calculate tearget attitude setpoin while in inspection mode.
+		 * Calculate target attitude setpoint while in inspection mode.
 		 * During Inspection mode UAV is controlled using "Carrot commands" i.e. 
 		 * position control.
 		 * 
 		 * @param dt - Given discretization time.
 		 */
 		void calculateInspectionSetpoint(double dt);
+
+		/**
+		 * Calculate target attitude setpoint while in a sequence.
+		 * When performing a sequence the UAV is moved a fixed amount to either
+		 * left or right side. It will hold position for a fixed amount of time
+		 * before moving again.
+		 */
+		void calculateSequenceSetpoint(double dt);
 
 		/**
 		 * Publish current control state.
@@ -144,6 +158,11 @@ class DistanceControl : public carrot_control::CarrotControl {
 		bool inInspectionState();
 
 		/**
+		 * Return the currently active sequence.
+		 */
+		Sequence getSequence();
+
+		/**
 		 * Initialize parameters.
 		 */
 		virtual void initializeParameters(ros::NodeHandle& nh) override;
@@ -160,9 +179,15 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 */
 		void setReconfigureParameters(
 			plane_detection_ros::DistanceControlParametersConfig& config);
-
+		
 	private:
 		
+		/**
+		 * Perform distance control. Set attitude setpoint according to the 
+		 * current distance.
+		 */
+		void doDistanceControl(double dt);
+
 		/**
 		 * From the current Joy message determine if left sequence is enabled.
 		 */

@@ -134,6 +134,21 @@ namespace carrot_control
 		double distanceToCarrot();
 
 		/**
+		 * Return distance to carrot along x axis.
+		 */
+		double distanceToXCarrot();
+
+		/**
+		 * Return distance to carrot along y axis.
+		 */
+		double distanceToYCarrot();
+
+		/**
+		 * Return distance to carrot along z axis.
+		 */
+		double distanceToZCarrot();
+
+		/**
 		 * Return pointer to the CarrotControl object.
 		 */
 		CarrotControl* getCarrotPointer();

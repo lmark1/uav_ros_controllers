@@ -90,6 +90,21 @@ double carrot_control::CarrotControl::distanceToCarrot()
 		pow((getCurrPosition()[2] - _carrotPos[2]), 2));
 }
 
+double carrot_control::CarrotControl::distanceToXCarrot()
+{
+	return sqrt(pow((getCurrPosition()[0] - _carrotPos[0]), 2));
+}
+
+double carrot_control::CarrotControl::distanceToYCarrot()
+{
+	return sqrt(pow((getCurrPosition()[1] - _carrotPos[1]), 2));
+}
+
+double carrot_control::CarrotControl::distanceToZCarrot()
+{
+	return sqrt(pow((getCurrPosition()[2] - _carrotPos[2]), 2));
+}
+
 void carrot_control::CarrotControl::publishPosSp(ros::Publisher& pub)
 {
 	geometry_msgs::Vector3 mess;
