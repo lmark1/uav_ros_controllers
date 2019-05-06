@@ -123,6 +123,27 @@ namespace control_base
 		void setAttitudeSp(const double roll, const double pitch, const double yaw);
 
 		/**
+		 * Override pitch attitude setpoint.
+		 * 
+		 * @param pitch - new pitch setpoint
+		 */
+		void overridePitch(const double pitch);
+
+		/**
+		 * Override roll attitude setpoint.
+		 *
+		 * @param roll - new roll setpoint.
+		 */
+		void overrideRoll(const double roll);
+
+		/**
+		 * Override yaw attitude setpoint.
+		 *
+		 * @param yaw - new yaw setpoint.
+		 */
+		void overrideYaw(const double yaw);
+
+		/**
 		 * Publish setpoint euler angles as a Vector3 ROS message.
 		 */
 		void publishEulerSp(ros::Publisher& pub);
