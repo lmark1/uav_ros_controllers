@@ -51,6 +51,13 @@ namespace dist_control
 		INSPECTION
 	};
 
+	enum Sequence
+	{
+		LEFT,
+		RIGHT,
+		NONE
+	};
+
 class DistanceControl : public carrot_control::CarrotControl {
 
 	public:
@@ -91,6 +98,12 @@ class DistanceControl : public carrot_control::CarrotControl {
 		void detectStateChange();
 
 		/**
+		 * Check for any change in desired seqnce of inspection and perform all
+		 * necessary changes.
+		 */
+		void detectSequenceChange();
+
+		/**
 		 * Calculate target attitude setpoint while in manual mode. 
 		 * During Manual mode UAV is controlled with direct attitude commands.
 		 *
@@ -99,13 +112,21 @@ class DistanceControl : public carrot_control::CarrotControl {
 		void calculateManualSetpoint(double dt);
 		
 		/**
-		 * Calculate tearget attitude setpoin while in inspection mode.
+		 * Calculate target attitude setpoint while in inspection mode.
 		 * During Inspection mode UAV is controlled using "Carrot commands" i.e. 
 		 * position control.
 		 * 
 		 * @param dt - Given discretization time.
 		 */
 		void calculateInspectionSetpoint(double dt);
+
+		/**
+		 * Calculate target attitude setpoint while in a sequence.
+		 * When performing a sequence the UAV is moved a fixed amount to either
+		 * left or right side. It will hold position for a fixed amount of time
+		 * before moving again.
+		 */
+		void calculateSequenceSetpoint(double dt);
 
 		/**
 		 * Publish current control state.
@@ -137,6 +158,11 @@ class DistanceControl : public carrot_control::CarrotControl {
 		bool inInspectionState();
 
 		/**
+		 * Return the currently active sequence.
+		 */
+		Sequence getSequence();
+
+		/**
 		 * Initialize parameters.
 		 */
 		virtual void initializeParameters(ros::NodeHandle& nh) override;
@@ -153,8 +179,24 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 */
 		void setReconfigureParameters(
 			plane_detection_ros::DistanceControlParametersConfig& config);
-
+		
 	private:
+		
+		/**
+		 * Perform distance control. Set attitude setpoint according to the 
+		 * current distance.
+		 */
+		void doDistanceControl(double dt);
+
+		/**
+		 * From the current Joy message determine if left sequence is enabled.
+		 */
+		bool leftSeqEnbled();
+
+		/**
+		 * From the current Joy message determine if right sequence is enabled.
+		 */
+		bool rightSeqEnabled();
 
 		/**
 		 * From the current Joy message determine if inspection if not.
@@ -187,18 +229,18 @@ class DistanceControl : public carrot_control::CarrotControl {
 		/** Current control state */
 		DistanceControlState _currState;
 
+		/** Current sequence */
+		Sequence _currSeq;
+
 		/** Distance PID controller */
 		std::unique_ptr<PID> _distancePID;
 
 		/** Distance velocity PID controller */
 		std::unique_ptr<PID> _distanceVelPID;
-
+		
 		/** Inspection indices for ROS Joy messages */
 		std::unique_ptr<joy_struct::InspectionIndices> _inspectIndices;
-
-		/** Flag used to detect when deactivate inspection is requested. */
-		bool _deactivateInspection;
-
+		
 		/** True if inspection state was requested and denied, false otherwise. */
 		bool _inspectionRequestFailed;
 

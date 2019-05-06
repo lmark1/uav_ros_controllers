@@ -15,9 +15,18 @@ namespace joy_struct
         /** Index for enabling inspection mode. */
         int INSPECTION_MODE;
 
+        /** Index for enabling the left sequence. */
+        int LEFT_SEQUENCE;
+
+        /** Index for enabling the right sequence. */
+        int RIGHT_SEQUENCE;
+
         friend std::ostream& operator << (std::ostream& out, const InspectionIndices& a)
         {
-            out << "InspectionIndices are:\ninspect=" << a.INSPECTION_MODE << std::endl;
+            out << "InspectionIndices are:\ninspect=" << a.INSPECTION_MODE 
+                << "\nleft sequence=" << a.LEFT_SEQUENCE
+                << "\nright sequence=" << a.RIGHT_SEQUENCE
+                << std::endl;
             return out;
         }
     };

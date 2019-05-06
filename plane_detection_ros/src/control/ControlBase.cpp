@@ -187,6 +187,21 @@ void control_base::ControlBase::setAttitudeSp(const double roll, const double pi
 	_attThrustSp[2] = yaw;
 }
 
+void control_base::ControlBase::overridePitch(const double pitch)
+{
+	_attThrustSp[1] = pitch;
+}
+
+void control_base::ControlBase::overrideRoll(const double roll)
+{
+	_attThrustSp[0] = roll;
+}
+
+void control_base::ControlBase::overrideYaw(const double yaw)
+{
+	_attThrustSp[2] = yaw;
+}
+
 const std::array<double, 4>& control_base::ControlBase::getAttThrustSp()
 {
 	return _attThrustSp;
@@ -211,3 +226,4 @@ control_base::ControlBase* control_base::ControlBase::getBasePointer()
 {
 	return this;
 }
+

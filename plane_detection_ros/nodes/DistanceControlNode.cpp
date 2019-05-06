@@ -145,17 +145,28 @@ int main(int argc, char **argv) {
 	{
 		ros::spinOnce();
 		distanceControl->detectStateChange();
+		distanceControl->detectSequenceChange();
 		distanceControl->publishState(statePub);
 		
-		// Carrot mode in inspection state, attitude control otherwise
-		if (distanceControl->inInspectionState())
+		// Do regular "Manual" Inspection when sequence is not set
+		if (distanceControl->inInspectionState() && 
+			distanceControl->getSequence() == dist_control::Sequence::NONE)
 			distanceControl->calculateInspectionSetpoint(dt);
+
+		// Do "Sequence" Inpsection when sequence is set
+		else if (distanceControl->inInspectionState() &&
+			distanceControl->getSequence() != dist_control::Sequence::NONE)
+			distanceControl->calculateSequenceSetpoint(dt);
+
+		// If not in inspection state go to attitude control
 		else
 			distanceControl->calculateManualSetpoint(dt);
 
-		// Publish setpoint based on the control mode
+		// Publish simulation setpoint
 		if (simMode)
 			distanceControl->publishAttSp(spPubSim);
+
+		// Publish real setpoint
 		else
 			distanceControl->publishAttSp(spPubReal);
 

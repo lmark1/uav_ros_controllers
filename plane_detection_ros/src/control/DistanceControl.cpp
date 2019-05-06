@@ -8,10 +8,13 @@
 #define DIST_PID_PARAMS "/control/distance"
 #define DISTVEL_PID_PARAMS "/control/distance_vel"
 #define DIST_SP_DEADZONE 0.001
+#define CARROT_TOL 0.1 // TODO: Make this a parameter
+#define SEQUENCE_STEP 0.5 // TODO: Make this a parameter
 
 dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode (mode),
 	_currState (DistanceControlState::MANUAL),
+	_currSeq (Sequence::NONE),
 	_inspectIndices {new joy_struct::InspectionIndices},
 	_distancePID {new PID("Distance")},
 	_distanceVelPID {new PID("Distance vel")},
@@ -19,7 +22,6 @@ dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_distanceVelocityMeasured (0),
 	_distVelSp (0),
 	_distSp (-1),
-	_deactivateInspection (false),
 	_inspectionRequestFailed (false),
 	_planeYaw (0),
 	carrot_control::CarrotControl()
@@ -61,6 +63,39 @@ void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedCon
 	_planeYaw = wrapMinMax(_planeYaw, -M_PI, M_PI);
 }
 
+void dist_control::DistanceControl::detectSequenceChange()
+{
+	// Reset carrot position when changing sequence direction
+	if (inInspectionState() && (
+			leftSeqEnbled() && _currSeq == Sequence::RIGHT ||
+			rightSeqEnabled() && _currSeq == Sequence::LEFT ))
+	{
+		ROS_DEBUG("Inspection sequence changed - reset carrot.");
+		setCarrotPosition(
+			getCurrPosition()[0],
+			getCurrPosition()[1],
+			getCurrPosition()[2]);
+		_currSeq = _currSeq == Sequence::LEFT ? Sequence::RIGHT : Sequence::LEFT;
+	}
+
+	// Determine current sequence
+	if (inInspectionState() && leftSeqEnbled())
+	{	
+		ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
+		_currSeq = Sequence::LEFT;
+	}
+	else if (inInspectionState() && rightSeqEnabled())
+	{
+		ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
+		_currSeq = Sequence::RIGHT;
+	}
+	else 
+	{
+		//ROS_DEBUG("DistanceControl::detectSequenceChange - sequence deactivated");
+		_currSeq = Sequence::NONE;
+	}
+}
+
 void dist_control::DistanceControl::detectStateChange()
 {
 	// If we're in inspection mode and received distance is invalid
@@ -89,12 +124,10 @@ void dist_control::DistanceControl::detectStateChange()
 				_distanceMeasured);
 		_distSp = _distanceMeasured;
 		_currState = DistanceControlState::INSPECTION;
-		ROS_DEBUG("Setting carrot position");
 		setCarrotPosition(
 			getCurrPosition()[0],
 			getCurrPosition()[1],
 			getCurrPosition()[2]);
-		ROS_DEBUG("Finish setting carrot");
 		return;
 	}
 
@@ -110,21 +143,19 @@ void dist_control::DistanceControl::detectStateChange()
 void dist_control::DistanceControl::deactivateInspection()
 {
 	_currState = DistanceControlState::MANUAL;
-	_deactivateInspection = true;
-	
+	_currSeq = Sequence::NONE;
+
 	// Reset all PIDs
 	_distancePID->resetIntegrator();
 	_distanceVelPID->resetIntegrator();
 	resetPositionPID();
 	resetVelocityPID();
 
-	ROS_DEBUG("Setting carrot position");
 	// Reset Carrot position
 	setCarrotPosition(
 		getCurrPosition()[0],
 		getCurrPosition()[1],
 		getCurrPosition()[2]);
-	ROS_DEBUG("Finish setting carrot");
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
@@ -154,9 +185,37 @@ void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 
 void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
-	updateCarrot();
+	updateCarrot();	
 	calculateAttThrustSp(dt);
+	doDistanceControl(dt);
+}
 
+void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
+{
+	updateCarrotX();
+	updateCarrotZ();
+
+	// Calculate distance to next setpoint
+	double distance = sqrt(
+			distanceToYCarrot() + 
+			distanceToZCarrot() +
+			pow(_distSp -  _distanceMeasured, 2));
+
+	if (distance < CARROT_TOL && _currSeq == Sequence::LEFT)
+		updateCarrotY(- SEQUENCE_STEP);
+
+	else if (distance < CARROT_TOL && _currSeq == Sequence::RIGHT)
+		updateCarrotY(SEQUENCE_STEP);
+
+	else 
+		ROS_WARN("\nDistance to next setpoint: %.2f\nTolerance: %.2f", distance, CARROT_TOL);
+
+	calculateAttThrustSp(dt);
+	doDistanceControl(dt);
+}
+
+void dist_control::DistanceControl::doDistanceControl(double dt)
+{
 	// update distance setpoint
 	_distSp -= nonlinear_filters::deadzone(
 		getXOffsetManual(), - DIST_SP_DEADZONE, DIST_SP_DEADZONE);
@@ -172,10 +231,8 @@ void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 	else 
 		yaw = getUAVYaw() - _planeYaw;
 
-	setAttitudeSp(
-		getAttThrustSp()[0],	// old roll
-		pitch,					// new pitch 		
-		yaw);					// new yaw
+	overridePitch(pitch);
+	overrideYaw(yaw);
 }
 
 void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
@@ -207,6 +264,11 @@ void dist_control::DistanceControl::publishAttSp(ros::Publisher& pub)
 		publishAttitudeSim(pub, getThrustScale());
 		return;
 	}
+}
+
+dist_control::Sequence dist_control::DistanceControl::getSequence()
+{
+	return _currSeq;
 }
 
 bool dist_control::DistanceControl::inInspectionState()
@@ -241,8 +303,11 @@ void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 	_distancePID->initializeParameters(nh, DIST_PID_PARAMS);
 	_distanceVelPID->initializeParameters(nh, DISTVEL_PID_PARAMS);
 	
-	bool initialized = nh.getParam("/joy/detection_state", _inspectIndices->INSPECTION_MODE);
-	ROS_INFO("Detection state index: %d", _inspectIndices->INSPECTION_MODE);
+	bool initialized = 
+		nh.getParam("/joy/detection_state", _inspectIndices->INSPECTION_MODE) &&
+		nh.getParam("/joy/left_seq", _inspectIndices->LEFT_SEQUENCE) &&
+		nh.getParam("/joy/right_seq", _inspectIndices->RIGHT_SEQUENCE);
+	ROS_INFO_STREAM(*_inspectIndices);
 	if (!initialized)
 	{
 		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
@@ -289,5 +354,17 @@ void dist_control::DistanceControl::setReconfigureParameters(
 
 bool dist_control::DistanceControl::inspectionEnabled()
 {
-	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1;
+	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1
+		|| leftSeqEnbled()
+		|| rightSeqEnabled();
+}
+
+bool dist_control::DistanceControl::leftSeqEnbled()
+{
+	return getJoyButtons()[_inspectIndices->LEFT_SEQUENCE] == 1;
+}
+
+bool dist_control::DistanceControl::rightSeqEnabled()
+{
+	return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
 }
