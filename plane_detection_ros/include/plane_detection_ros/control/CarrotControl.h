@@ -131,7 +131,7 @@ namespace carrot_control
 		/**
 		 * Return distance to carrot.
 		 */
-		double distanceToCarrot();
+		virtual double distanceToCarrot();
 
 		/**
 		 * Return distance to carrot along x axis.

@@ -139,6 +139,9 @@ int main(int argc, char **argv) {
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
 	ROS_INFO("DistanceControlNode: Setting rate to %.2f", rate);
+	
+	double timeElapsed = 0;
+	//TODO: Inicijalizirati override servis ovdje
 
 	// Start the main loop
 	while (ros::ok())
@@ -155,8 +158,26 @@ int main(int argc, char **argv) {
 
 		// Do "Sequence" Inpsection when sequence is set
 		else if (distanceControl->inInspectionState() &&
-			distanceControl->getSequence() != dist_control::Sequence::NONE)
-			distanceControl->calculateSequenceSetpoint(dt);
+			distanceControl->getSequence() != dist_control::Sequence::NONE)	
+		{
+			// If sequence target is reached, hold position
+			if (distanceControl->seqTargetReached() && timeElapsed < 5)
+			{
+				timeElapsed += dt;
+				distanceControl->updateCarrotZ();
+				distanceControl->doDistanceControl(dt);
+				// TODO: Do the override call here
+			}
+
+			// When done holding position, go to new sequence target.
+			else
+			{
+				ROS_DEBUG("New sequence target.");
+				timeElapsed = 0;
+				distanceControl->calculateSequenceSetpoint(dt);
+			}
+				
+		}			
 
 		// If not in inspection state go to attitude control
 		else

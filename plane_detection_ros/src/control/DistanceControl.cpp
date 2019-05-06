@@ -186,7 +186,6 @@ void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
 	updateCarrot();	
-	calculateAttThrustSp(dt);
 	doDistanceControl(dt);
 }
 
@@ -196,10 +195,7 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 	updateCarrotZ();
 
 	// Calculate distance to next setpoint
-	double distance = sqrt(
-			distanceToYCarrot() + 
-			distanceToZCarrot() +
-			pow(_distSp -  _distanceMeasured, 2));
+	double distance = distanceToCarrot();
 
 	if (distance < CARROT_TOL && _currSeq == Sequence::LEFT)
 		updateCarrotY(- SEQUENCE_STEP);
@@ -210,12 +206,13 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 	else 
 		ROS_WARN("\nDistance to next setpoint: %.2f\nTolerance: %.2f", distance, CARROT_TOL);
 
-	calculateAttThrustSp(dt);
 	doDistanceControl(dt);
 }
 
 void dist_control::DistanceControl::doDistanceControl(double dt)
 {
+	calculateAttThrustSp(dt);
+
 	// update distance setpoint
 	_distSp -= nonlinear_filters::deadzone(
 		getXOffsetManual(), - DIST_SP_DEADZONE, DIST_SP_DEADZONE);
@@ -367,4 +364,18 @@ bool dist_control::DistanceControl::leftSeqEnbled()
 bool dist_control::DistanceControl::rightSeqEnabled()
 {
 	return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
+}
+
+double dist_control::DistanceControl::distanceToCarrot()
+{
+	return sqrt(
+		distanceToYCarrot() + 
+		distanceToZCarrot() +
+		pow(_distSp -  _distanceMeasured, 2));
+}
+
+bool dist_control::DistanceControl::seqTargetReached()
+{
+	return _currSeq != Sequence::NONE &&
+		distanceToCarrot() < CARROT_TOL;
 }
