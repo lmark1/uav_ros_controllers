@@ -1,10 +1,3 @@
-/*
- * DistanceControl.h
- *
- *  Created on: Apr 11, 2019
- *      Author: lmark
- */
-
 #ifndef CONTROL_BASE_H
 #define CONTROL_BASE_H
 
@@ -20,255 +13,157 @@
 #include <geometry_msgs/TwistStamped.h>
 
 // Own includes
-#include <plane_detection_ros/DistanceControlParametersConfig.h>
 #include <plane_detection_ros/control/JoyStructure.h>
 
 //Cpp includes
 #include <array>
 
-/**
- * This class is used for defining Control subscribers and publishers.
- */
-class ControlBase {
-public:
+namespace control_base
+{
+	#define MASK_IGNORE_RPY_RATE 7
+	#define MASK_IGNORE_RP_RATE 3
 
 	/**
-	 * Default constructor. Used for reading ROS parameters and initalizing private variables.
+	 * This class is used for defining Control subscribers and publishers.
 	 */
-	ControlBase();
-	virtual ~ControlBase();
+	class ControlBase {
+	public:
 
-	/**	
-	 * Distance callback function.
-	 */
-	void distanceCb(const std_msgs::Float64ConstPtr& message);
+		/**
+		 * Default constructor. Used for reading ROS parameters and initalizing private variables.
+		 */
+		ControlBase();
+		virtual ~ControlBase();
 
-	/**
-	 * Distance velocity callback function.
-	 */
-	void distanceVelCb(const std_msgs::Float64ConstPtr& message);
+		/**
+		 * IMU callback function for realistic control mode. 
+		 * Calculates UAV yaw.
+		 */
+		void imuCbReal(const sensor_msgs::ImuConstPtr& message);
 
-	/**
-	 * Joystick callback function.
-	 */
-	void joyCb(const sensor_msgs::JoyConstPtr& message);
+		/**
+		 * Odometry callback function for simulation control mode.
+		 */
+		void odomCbSim(const nav_msgs::OdometryConstPtr& message);
 
-	/**
-	 * IMU callback function for realistic control mode. 
-	 * Calculates UAV yaw.
-	 */
-	void imuCbReal(const sensor_msgs::ImuConstPtr& message);
+		/**
+		 * Odometry callback function for real control mode.
+		 */
+		void odomCbReal(const nav_msgs::OdometryConstPtr& message);
 
-	/**
-	 * Imu callback function for simulation control mode.
-	 * Calculates UAV yaw.
-	 */
-	void imuCbSim(const nav_msgs::OdometryConstPtr& message);
+		/**
+		 * Return the current UAV yaw angle.
+		 */
+		double getUAVYaw();
 
-	/**
-	 * Plane normal callback function.
-	 */
-	void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
+		/**
+		 * Return constant reference to the current position.
+		 */
+		const std::array<double, 3>& getCurrPosition();
 
-	/**
-	 * Position callback for real control mode.
-	 */
-	void posCbReal(const nav_msgs::OdometryConstPtr& message);
+		/**
+		 * Return constant reference to the current velocity.
+		 */
+		const std::array<double, 3>& getCurrVelocity();
 
-	/**
-	 * Velocity callback for real control mode.
-	 */
-	void velCbReal(const nav_msgs::OdometryConstPtr& message);
-	
-	/**
-	 * Check if inspection is enabled.
-	 */
-	bool inspectionEnabledJoy();
+		/**
+		 * Calculates yaw angle from given quaternion components.
+		 */
+		double calculateYaw(double qx, double qy, double qz, double qw);
 
-	/**
-	 * Return currently measured distance.
-	 */
-	double getDistanceMeasured();
+		/**
+		 *  wrap x -> [min,max) 
+		 */
+		double wrapMinMax(double x, double min, double max);
 
-	/**
-	 * Get rate of change of measured distance.
-	 */
-	double getDistanceVelMeasured();
+		/**
+		 * Publish UAV attitude setpoint message of type mav_msgs::RollPitchYawRateThrust
+		 * 
+		 * @param pub 			- attitude setpoint publisher
+		 * @param attThrustSp 	- attitude, thrust setpoint array
+		 * @param yawRateSp  	- yaw rate setpoint
+		 */
+		void publishAttitudeSim(ros::Publisher& pub, const std::array<double, 4>& attThrustSp, double yawRateSp);
 
-	/**
-	 * Return reference to the PID object.
-	 */
-	PID& getDistancePID();
+		/**
+		 * Publish currently set UAV attitude setpoint message of type mav_msgs::RollPitchYawRateThrust.
+		 * This method will put yaw angle in currently set attitude setpoint to yaw rate in the message.
+		 * 
+		 * @param pub			- attitude setpoint publisher
+		 * @param thrustScale	- scaling factor for thrust
+		 */
+		void publishAttitudeSim(ros::Publisher& pub, double thrustScale);
 
-	/**
-	 * Return reference to velocity PID object.
-	 */
-	PID& getDistanceVelPID();
+		/**
+		 * Publish UAV attitude setpoint message of type mavros_msgs::AttitudeTarget
+		 * 
+		 * @param pub 			- attitude setpoint publisher
+		 * @param attThrustSp 	- attitude, thrust setpoint array
+		 * @param yawRateSp  	- yaw rate setpoint
+		 * @param typeMask 		- Byte mask used in mavros_msgs::AttitudeTarget message
+		 */
+		void publishAttitudeReal(ros::Publisher& pub, const std::array<double, 4>& attThrustSp, double yawRateSp, int typeMask);
 
-	/**
-	 * Return a reference to the x position PID object.
-	 */
-	PID& getPosXPID();
+		/**
+		 * Publish UAV attitude setpoint message of type mavros_msgs::AttitudeTarget.
+		 * This method will put yaw angle in currently set attitude setpoint to yaw rate in the message.
+		 * Type mask will not ignore the yaw rate.
+		 * 
+		 * @param pub	- attitude setpoint publisher
+		 */
+		void publishAttitudeReal(ros::Publisher& pub);
 
-	/**
-	 * Return a reference to the y position PID object.
-	 */
-	PID& getPosYPID();
+		/**
+		 * Set roll, pitch, yaw attitude setpoint.
+		 * 
+		 * @param roll 	- Roll angle setpoint
+		 * @param pitch - Pitch angle setpoint
+		 * @param yaw 	- Yaw angle setpoint
+		 */
+		void setAttitudeSp(const double roll, const double pitch, const double yaw);
 
-	/**
-	 * Return a reference to the z position PID object.
-	 */
-	PID& getPosZPID();
+		/**
+		 * Publish setpoint euler angles as a Vector3 ROS message.
+		 */
+		void publishEulerSp(ros::Publisher& pub);
 
-	/**
-	 * Return a reference to the y velocity PID object.
-	 */
-	PID& getVelYPID();
+		/**
+		 * Set thrust setpoint.
+		 * 
+		 * @param thrust - New thrust setpoint
+		 */
+		void setThrustSp(const double thrust);
 
-	/**
-	 * Return a reference to the x velocity PID object.
-	 */
-	PID& getVelXPID();
+		/**
+		 * Return attitude thrust setpoint array;
+		 */
+		const std::array<double, 4>& getAttThrustSp();
 
-	/**
-	 * Return a reference to the z velocity PID object.
-	 */
-	PID& getVelZPID();
+		/**
+		 * Return pointer to the control base class.
+		 */
+		ControlBase* getBasePointer();
 
-	/**
-	 * Return plane yaw angle, with respect to the UAV base frame.
-	 */
-	double getPlaneYaw();
+	private:
 
-	/**
-	 * Return the current UAV yaw angle.
-	 */
-	double getUAVYaw();
+		/**
+		 * Update local position.
+		 */
+		void rotateVector(const double x, const double y, const double z, std::array<double, 3>& vector);
 
-	/**
-	 * Return the value for current roll setpoint.
-	 */
-	double getRollSpManual();
+		/** Current local position vector. */
+		std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};
 
-	/**
-	 * Return the value for current pitch setpoint.
-	 */
-	double getPitchSpManual();
+		/** Current local velocity vector. */
+		std::array<double, 3> _currentVelocity {0.0, 0.0, 0.0};
 
-	/**
-	 * Return the value for current yaw setpoint.
-	 */
-	double getYawSpManual();
-	/**
-	 * Return the value for current thrust setpoint.
-	 */
-	double getThrustSpManual();
+		/** Attitude setpoint array. */
+		std::array<double, 4> _attThrustSp {0.0, 0.0, 0.0, 0.0};
 
-	/**
-	 * Return the unscaled value for current thrust setpoint.
-	 */
-	double getThrustSpUnscaled();
+		/** Current UAV yaw angle. */
+		double _uavYaw = 0;
+	};
 
-	/**
-	 * Get z - pos carrot setpoing.
-	 */
-	double getZPosSpManual();
-
-	/**
-	 * Return scale value for yaw control input.
-	 */
-	double getYawScale();
-	
-	/**   
-	 * @retval Returns scaled value for thrust.
-	 */
-	double getThrustScale();
-
-	/**
-	 * Return constant reference to the current position.
-	 */
-	const std::array<double, 3>& getCurrPosition();
-
-	/**
-	 * Return constant reference to the current velocity.
-	 */
-	const std::array<double, 3>& getCurrVelocity();
-
-	/**
-	 * Do all the parameter initialization here.
-	 */
-	virtual void initializeParameters(ros::NodeHandle& nh);
-
-	/**
-	 * Callback function used for setting various parameters.
-	 */
-	virtual void parametersCallback(
-			plane_detection_ros::DistanceControlParametersConfig& configMsg,
-			uint32_t level);
-
-	/**
-	 * Set reconfigure parameters in the given config object.
-	 */
-	virtual void setReconfigureParameters(plane_detection_ros::DistanceControlParametersConfig& config);
-
-private:
-
-	/**
-	 * Update local position.
-	 */
-	void rotateVector(const double x, const double y, const double z, std::array<double, 3>& vector);
-
-	/** Distance PID controller */
-	std::unique_ptr<PID> _distancePID;
-
-	/** Distance velocity PID controller */
-	std::unique_ptr<PID> _distanceVelPID;
-
-	/** PID controller for position along the y-axis.*/
-	std::unique_ptr<PID> _posYPID;
-	
-	/** PID controller for velocity along the y-axis */
-	std::unique_ptr<PID> _velYPID;
-
-	/** PID controller for position along the x-axis.*/
-	std::unique_ptr<PID> _posXPID;
-	
-	/** PID controller for velocity along the x-axis */
-	std::unique_ptr<PID> _velXPID;
-
-	/** PID controller for position along the z-axis.*/
-	std::unique_ptr<PID> _posZPID;
-
-	/** PID controller for velocity along the y-axis */
-	std::unique_ptr<PID> _velZPID;
-
-	/** Current Joy message set in the /joy callback function. */
-	sensor_msgs::Joy _joyMsg;
-
-	/** Indices - Joy structure */
-	std::unique_ptr<joy_control::JoyIndices> _joyIndices;
-
-	/** Scale weights - Joy structure */
-	std::unique_ptr<joy_control::ScaleWeights> _joyScales;
-
-	/** Current LOCAL position vector. */
-	std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};
-
-	/** Current velocity vector. */
-	std::array<double, 3> _currentVelocity {0.0, 0.0, 0.0};
-
-	/** Current distance measured value. Used both in sim and real mode. */
-	double _distanceMeasured;
-
-	/** Currently measured distance velocity. Used both in sim and real mode. */
-	double _distanceVelocityMeasured;
-
-	/** Current UAV yaw angle. */
-	double _uavYaw = 0;
-
-	/** Yaw of the plane normal with respect to UAV base frame. */
-	double _planeYaw = 0;
-
-};
+}
 
 #endif /* CONTROL_BASE_H */

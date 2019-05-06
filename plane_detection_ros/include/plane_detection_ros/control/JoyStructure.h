@@ -1,15 +1,31 @@
-
-
 #ifndef JOY_STRUCTURE_H
 #define JOY_STRUCTURE_H
 
-namespace joy_control
+#include <iostream>
+#include <string>
+
+namespace joy_struct
 {
+
     /**
-     * This structure defines at which indices of the joy message are
-     * the desired values located.
+     * This structure defines all joy indices needed for managing inspection mode.
      */
-    struct JoyIndices
+    struct InspectionIndices
+    {
+        /** Index for enabling inspection mode. */
+        int INSPECTION_MODE;
+
+        friend std::ostream& operator << (std::ostream& out, const InspectionIndices& a)
+        {
+            out << "InspectionIndices are:\ninspect=" << a.INSPECTION_MODE << std::endl;
+            return out;
+        }
+    };
+
+    /**
+     * This structure defines all joy indices needed for the UAV control mode.
+     */
+    struct ControlIndices
     {   
         /** Movement along the x-axis */
         int AXIS_LINEAR_X;
@@ -23,22 +39,18 @@ namespace joy_control
         /** Movement around the z-axis */
         int AXIS_ANGULAR_YAW;
 
-        /** Inspection mode enable */
-        int INSPECTION_MODE;
-
-        friend std::ostream& operator << (std::ostream& out, const JoyIndices& a)
+        friend std::ostream& operator << (std::ostream& out, const ControlIndices& a)
         {       
-            out << "JoyIndices are:\nlin_x=" << a.AXIS_LINEAR_X << "\nlin_y=" << a.AXIS_LINEAR_Y
+            out << "ControlIndices are:\nlin_x=" << a.AXIS_LINEAR_X << "\nlin_y=" << a.AXIS_LINEAR_Y
                 << "\nlin_z=" << a.AXIS_LINEAR_Z << "\nang_z=" << a.AXIS_ANGULAR_YAW
-                << "\ninspect=" << a.INSPECTION_MODE << std::endl;
+                << std::endl;
 
             return out;
         }
     };
 
     /**
-     * This structure defines values which scale the received control
-     * inputs.
+     * This structure defines values which scale the received control inputs.
      */
     struct ScaleWeights
     {
