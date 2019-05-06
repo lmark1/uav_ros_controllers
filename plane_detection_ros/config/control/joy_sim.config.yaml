@@ -20,5 +20,5 @@ joy:
     yaw: 25
 
   detection_state: 5
-  left_seq: 0
-  right_seq: 2
+  left_seq: 2
+  right_seq: 0
