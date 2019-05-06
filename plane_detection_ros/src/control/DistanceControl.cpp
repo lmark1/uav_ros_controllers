@@ -197,8 +197,8 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 
 	// Calculate distance to next setpoint
 	double distance = sqrt(
-			pow(distanceToYCarrot(), 2) +
-			pow(distanceToZCarrot(), 2) +
+			distanceToYCarrot() + 
+			distanceToZCarrot() +
 			pow(_distSp -  _distanceMeasured, 2));
 
 	if (distance < CARROT_TOL && _currSeq == Sequence::LEFT)
