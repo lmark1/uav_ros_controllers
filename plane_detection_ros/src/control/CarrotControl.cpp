@@ -26,7 +26,6 @@ carrot_control::CarrotControl::CarrotControl() :
     control_base::ControlBase(), 
 	joy_control::JoyControl()
 {
-
 }
 
 carrot_control::CarrotControl::~CarrotControl()

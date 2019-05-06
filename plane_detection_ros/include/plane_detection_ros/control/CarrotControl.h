@@ -98,6 +98,10 @@ namespace carrot_control
 		 * @param - x carrot offset
 		 */
 		void updateCarrotX(double x);
+
+		/**
+		 * Update x component of carrot position setpoint with default joystick offset value.
+		 */
 		void updateCarrotX();
 
 		/**
@@ -106,6 +110,10 @@ namespace carrot_control
 		 * @param - y carrot offset
 		 */
 		void updateCarrotY(double y);
+
+		/**
+		 * Update y component of carrot position setpoint with default joystick offset value.
+		 */
 		void updateCarrotY();
 
 		/**
@@ -114,6 +122,10 @@ namespace carrot_control
 		 * @param - z carrot offset
 		 */
 		void updateCarrotZ(double z);
+
+		/**
+		 * Update z component of carrot position setpoint with default joystick offset value.
+		 */
 		void updateCarrotZ();
 
 		/**
