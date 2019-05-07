@@ -1,7 +1,7 @@
 control:
 
-  hold_time: 5
-  sequence_step: 0.5
+  hold_time: 1
+  sequence_step: 0.25
   
   distance:
     kp: 2.0
