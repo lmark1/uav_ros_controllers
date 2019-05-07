@@ -81,12 +81,12 @@ void dist_control::DistanceControl::detectSequenceChange()
 	// Determine current sequence
 	if (inInspectionState() && leftSeqEnbled())
 	{	
-		ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
+		// ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
 		_currSeq = Sequence::LEFT;
 	}
 	else if (inInspectionState() && rightSeqEnabled())
 	{
-		ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
+		// ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
 		_currSeq = Sequence::RIGHT;
 	}
 	else 

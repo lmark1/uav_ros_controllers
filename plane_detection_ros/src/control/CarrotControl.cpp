@@ -241,7 +241,6 @@ void carrot_control::CarrotControl::setReconfigureParameters(
 {
     ROS_WARN("CarrotControl::setReconfigureParameters");
 
-    // TODO: Rename x / y config parameters to k_p_xy
 	config.k_p_xy = _posYPID->get_kp();
 	config.k_i_xy = _posYPID->get_ki();
 	config.k_d_xy = _posYPID->get_kd();
