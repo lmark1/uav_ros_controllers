@@ -143,6 +143,8 @@ int main(int argc, char **argv) {
 	
 	double timeElapsed = 0;
 	bool holdPosition = false;
+	double holdTime = 5;
+	nh.getParam("/control/hold_time", holdTime);
 
 	// Initialize override service here
 	ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>(
@@ -178,7 +180,7 @@ int main(int argc, char **argv) {
 				holdPosition = true;
 
 			// If hold position is activated, hold position for fixed time
-			if (holdPosition && timeElapsed < 5)
+			if (holdPosition && timeElapsed < holdTime)
 			{
 				timeElapsed += dt;
 				distanceControl->updateCarrotZ();

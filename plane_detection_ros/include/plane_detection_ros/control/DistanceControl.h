@@ -269,6 +269,9 @@ class DistanceControl : public carrot_control::CarrotControl {
 
 		/** Yaw of the plane normal with respect to UAV base frame. */
 		double _planeYaw;
+
+		/** Sequence step. */
+		double _sequenceStep;
 	};
 
 }
