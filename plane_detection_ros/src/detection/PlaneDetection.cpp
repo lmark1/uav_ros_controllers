@@ -26,6 +26,7 @@ PlaneDetection::PlaneDetection():
 	_enableOptimization (true),
 	_boxFilterMin {0.5, -2, -2},
 	_boxFilterMax {2, 2, 2},
+	_minPoints (0),
 	DetectionBase()
 {
 }
@@ -162,9 +163,26 @@ void PlaneDetection::doPlaneDetection()
 	ROS_DEBUG("Found plane with %lu points", getPlaneRef().planePointCloud.size());
 
 	// Calculate distance to the found plane
-	double newDistance = distanceToPlane(pcl::PointXYZ {0,  0, 0}, *getPlaneRef().planeParameters);
-	setCurrentDistance(newDistance);
-	ROS_DEBUG("Distance to found plane is %.2f", newDistance);
+	double newDistance = distanceToPlane(pcl::PointXYZ {0, 0, 0}, *getPlaneRef().planeParameters);
+	
+	if (getPlaneRef().planePointCloud.size() < _minPoints)
+		clearCurrentSolution();
+	else
+		setCurrentDistance(newDistance);
+
+	ROS_INFO("Distance to found plane is %.2f", newDistance);
+	ROS_INFO("Point count is: %d", getPlaneRef().planePointCloud.size());
+	ROS_INFO("Plane percent is: %.2f", ((double) getPlaneRef().planePointCloud.size()) / convertedPcl.size());
+	ROS_INFO("Plane error is: %.3f\n", planeError(getPlaneRef().planePointCloud, *getPlaneRef().planeParameters));
+}
+
+double PlaneDetection::planeError(const pcl3d_t& planeCloud, const coef_t& planeCoef)
+{
+	double errorSum = 0;
+	for (auto& point : planeCloud)
+		errorSum += distanceToPlane(point, planeCoef);
+
+	return errorSum / planeCloud.points.size();
 }
 
 void PlaneDetection::convertFromROSMsg(
@@ -192,7 +210,8 @@ void PlaneDetection::initializeParameters(ros::NodeHandle& nh)
 		nh.getParam("/detection/lim_y", _boxFilterMax[1]) &&
 		nh.getParam("/detection/lim_z", _boxFilterMax[2]) &&
 		nh.getParam("/detection/min_x", _boxFilterMin[0]) &&
-		nh.getParam("/detection/threshold", _distanceThreshold);
+		nh.getParam("/detection/threshold", _distanceThreshold) &&
+		nh.getParam("/detection/min_points", _minPoints);
 
 	_boxFilterMin[1] = - _boxFilterMax[1];
 	_boxFilterMin[2] = - _boxFilterMax[2];
@@ -221,6 +240,7 @@ void PlaneDetection::parametersCallback(
 	_boxFilterMin[2] = - configMsg.lim_z;
 	_distanceThreshold = configMsg.dist_tresh;
 	_enableOptimization = configMsg.param_opt;
+	_minPoints = configMsg.min_points;
 	printROSInfo();
 }
 
@@ -234,6 +254,7 @@ void PlaneDetection::setReconfigureParameters(plane_detection_ros::PlaneDetectio
 	config.lim_y = _boxFilterMax[1];
 	config.lim_z = _boxFilterMax[2];
 	config.min_lim_x = _boxFilterMin[0];
+	config.min_points = _minPoints;
 }
 
 void PlaneDetection::printROSInfo()
@@ -243,4 +264,5 @@ void PlaneDetection::printROSInfo()
 	ROS_INFO("New BoxFilter Min - [%.2f, %.2f, %.2f]",
 		_boxFilterMin[0], _boxFilterMin[1], _boxFilterMin[2]);
 	ROS_INFO("New distance threshold: %.2f", _distanceThreshold);
+	ROS_INFO("Minimum number of points is %d.", _minPoints);
 }
