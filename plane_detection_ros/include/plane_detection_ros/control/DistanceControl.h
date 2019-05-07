@@ -179,15 +179,26 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 */
 		void setReconfigureParameters(
 			plane_detection_ros::DistanceControlParametersConfig& config);
-		
-	private:
-		
+
+		/**
+		 * Calculate distance from carrot, taking account of distance from
+		 * the plane instead of x-axis carrot position.
+		 */
+		virtual double distanceToCarrot() override;
+
+		/**
+		 * Checks if sequence target is reached.
+		 */
+		bool seqTargetReached();
+
 		/**
 		 * Perform distance control. Set attitude setpoint according to the 
 		 * current distance.
 		 */
 		void doDistanceControl(double dt);
 
+	private:
+		
 		/**
 		 * From the current Joy message determine if left sequence is enabled.
 		 */
@@ -258,6 +269,9 @@ class DistanceControl : public carrot_control::CarrotControl {
 
 		/** Yaw of the plane normal with respect to UAV base frame. */
 		double _planeYaw;
+
+		/** Sequence step. */
+		double _sequenceStep;
 	};
 
 }

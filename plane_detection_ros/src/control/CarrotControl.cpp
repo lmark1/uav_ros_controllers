@@ -10,6 +10,7 @@
 #define PID_VY_PARAM "/control/vel_y"
 #define PID_VZ_PARAM "/control/vel_z"
 #define HOVER_PARAM "/control/hover"
+#define TOL_PARAM "/control/carrot_tol"
 
 // Define deadzone constants
 #define X_DEADZONE 0.001
@@ -23,6 +24,8 @@ carrot_control::CarrotControl::CarrotControl() :
     _velXPID {new PID ("Velocity - x")},
     _velYPID {new PID ("Velocity - y")},
     _velZPID {new PID ("Velocity - z")}, 
+	_hoverThrust (0),
+	_targetTolerance (0.1),
     control_base::ControlBase(), 
 	joy_control::JoyControl()
 {
@@ -213,6 +216,7 @@ void carrot_control::CarrotControl::parametersCallback(
 	_velZPID->set_lim_low(configMsg.lim_low_vz);
 
 	_hoverThrust = configMsg.hover;
+	_targetTolerance = configMsg.carrot_tol;
 }
 
 void carrot_control::CarrotControl::initializeParameters(ros::NodeHandle& nh)
@@ -227,11 +231,14 @@ void carrot_control::CarrotControl::initializeParameters(ros::NodeHandle& nh)
 	_posZPID->initializeParameters(nh, PID_Z_PARAM);
 	_velZPID->initializeParameters(nh, PID_VZ_PARAM);
 
-	bool initialized = nh.getParam(HOVER_PARAM, _hoverThrust);
+	bool initialized = 
+		nh.getParam(HOVER_PARAM, _hoverThrust) &&
+		nh.getParam(TOL_PARAM, _targetTolerance);
 	ROS_INFO("New hover thrust: %.2f", _hoverThrust);
+	ROS_INFO("New target tolerance: %.2f", _targetTolerance);
 	if (!initialized)
 	{
-		ROS_FATAL("CarrotControl::initalizeParameters() - failed to initialize hover thrust");
+		ROS_FATAL("CarrotControl::initalizeParameters() - failed to initialize parameters");
 		throw std::runtime_error("CarrotControl parameters not properly initialized.");
 	}
 }
@@ -241,7 +248,6 @@ void carrot_control::CarrotControl::setReconfigureParameters(
 {
     ROS_WARN("CarrotControl::setReconfigureParameters");
 
-    // TODO: Rename x / y config parameters to k_p_xy
 	config.k_p_xy = _posYPID->get_kp();
 	config.k_i_xy = _posYPID->get_ki();
 	config.k_d_xy = _posYPID->get_kd();
@@ -267,9 +273,15 @@ void carrot_control::CarrotControl::setReconfigureParameters(
 	config.lim_high_vz = _velZPID->get_lim_high();
 
 	config.hover = _hoverThrust;
+	config.carrot_tol = _targetTolerance;
 }
 
 carrot_control::CarrotControl* carrot_control::CarrotControl::getCarrotPointer()
 {
 	return this;
+}
+
+double carrot_control::CarrotControl::getTolerance()
+{
+	return _targetTolerance;
 }

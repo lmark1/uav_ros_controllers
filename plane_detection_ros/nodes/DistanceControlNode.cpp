@@ -15,6 +15,7 @@
 #include <mavros_msgs/AttitudeTarget.h>
 #include <std_msgs/Int32.h>
 #include <mav_msgs/RollPitchYawrateThrust.h>
+#include <std_srvs/Empty.h>
 
 /**
  * Initializes distance control node.
@@ -139,6 +140,17 @@ int main(int argc, char **argv) {
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
 	ROS_INFO("DistanceControlNode: Setting rate to %.2f", rate);
+	
+	double timeElapsed = 0;
+	bool holdPosition = false;
+	double holdTime = 5;
+	nh.getParam("/control/hold_time", holdTime);
+
+	// Initialize override service here
+	ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>(
+		"magnet/override_ON");
+	std_srvs::Empty emptyMessage;
+	bool serviceCalled = false;
 
 	// Start the main loop
 	while (ros::ok())
@@ -151,16 +163,58 @@ int main(int argc, char **argv) {
 		// Do regular "Manual" Inspection when sequence is not set
 		if (distanceControl->inInspectionState() && 
 			distanceControl->getSequence() == dist_control::Sequence::NONE)
+		{
+			holdPosition = false;
+			serviceCalled = false;
+			timeElapsed = 0;
 			distanceControl->calculateInspectionSetpoint(dt);
+		}
 
 		// Do "Sequence" Inpsection when sequence is set
 		else if (distanceControl->inInspectionState() &&
-			distanceControl->getSequence() != dist_control::Sequence::NONE)
-			distanceControl->calculateSequenceSetpoint(dt);
+			distanceControl->getSequence() != dist_control::Sequence::NONE)	
+		{
+			
+			// If target is reached atleast once, hold position
+			if (!holdPosition && distanceControl->seqTargetReached())
+				holdPosition = true;
+
+			// If hold position is activated, hold position for fixed time
+			if (holdPosition && timeElapsed < holdTime)
+			{
+				timeElapsed += dt;
+				distanceControl->updateCarrotZ();
+				distanceControl->doDistanceControl(dt);
+				
+				// Call the override service
+				if (!serviceCalled)
+				{
+					ROS_INFO("main() - Calling overide service");
+					serviceCalled = true;
+					client.call(emptyMessage);
+				}
+			}
+
+			// When done holding position, go to new sequence target.
+			else
+			{
+				holdPosition = false;
+				serviceCalled = false;
+				timeElapsed = 0;
+				distanceControl->calculateSequenceSetpoint(dt);
+			}
+				
+		}			
 
 		// If not in inspection state go to attitude control
 		else
+		{
+			holdPosition = false;
+			serviceCalled = false;
+			timeElapsed = 0;
 			distanceControl->calculateManualSetpoint(dt);
+		}
+			
 
 		// Publish simulation setpoint
 		if (simMode)

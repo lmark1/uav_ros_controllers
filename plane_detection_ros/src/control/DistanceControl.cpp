@@ -8,8 +8,6 @@
 #define DIST_PID_PARAMS "/control/distance"
 #define DISTVEL_PID_PARAMS "/control/distance_vel"
 #define DIST_SP_DEADZONE 0.001
-#define CARROT_TOL 0.1 // TODO: Make this a parameter
-#define SEQUENCE_STEP 0.5 // TODO: Make this a parameter
 
 dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode (mode),
@@ -24,6 +22,7 @@ dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_distSp (-1),
 	_inspectionRequestFailed (false),
 	_planeYaw (0),
+	_sequenceStep (0.5),
 	carrot_control::CarrotControl()
 {
 	// Info messages about node start.
@@ -81,12 +80,12 @@ void dist_control::DistanceControl::detectSequenceChange()
 	// Determine current sequence
 	if (inInspectionState() && leftSeqEnbled())
 	{	
-		ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
+		// ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
 		_currSeq = Sequence::LEFT;
 	}
 	else if (inInspectionState() && rightSeqEnabled())
 	{
-		ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
+		// ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
 		_currSeq = Sequence::RIGHT;
 	}
 	else 
@@ -186,7 +185,6 @@ void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 {
 	updateCarrot();	
-	calculateAttThrustSp(dt);
 	doDistanceControl(dt);
 }
 
@@ -196,26 +194,24 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 	updateCarrotZ();
 
 	// Calculate distance to next setpoint
-	double distance = sqrt(
-			distanceToYCarrot() + 
-			distanceToZCarrot() +
-			pow(_distSp -  _distanceMeasured, 2));
+	double distance = distanceToCarrot();
 
-	if (distance < CARROT_TOL && _currSeq == Sequence::LEFT)
-		updateCarrotY(- SEQUENCE_STEP);
+	if (distance < getTolerance() && _currSeq == Sequence::LEFT)
+		updateCarrotY(- _sequenceStep);
 
-	else if (distance < CARROT_TOL && _currSeq == Sequence::RIGHT)
-		updateCarrotY(SEQUENCE_STEP);
+	else if (distance < getTolerance() && _currSeq == Sequence::RIGHT)
+		updateCarrotY(_sequenceStep);
 
 	else 
-		ROS_WARN("\nDistance to next setpoint: %.2f\nTolerance: %.2f", distance, CARROT_TOL);
+		ROS_WARN("\nDistance to next setpoint: %.2f\nTolerance: %.2f", distance, getTolerance());
 
-	calculateAttThrustSp(dt);
 	doDistanceControl(dt);
 }
 
 void dist_control::DistanceControl::doDistanceControl(double dt)
 {
+	calculateAttThrustSp(dt);
+
 	// update distance setpoint
 	_distSp -= nonlinear_filters::deadzone(
 		getXOffsetManual(), - DIST_SP_DEADZONE, DIST_SP_DEADZONE);
@@ -313,6 +309,14 @@ void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
 		throw std::runtime_error("DistanceControl parameters are not properly set.");
 	}
+
+	initialized = nh.getParam("/control/sequence_step", _sequenceStep);
+	ROS_INFO("New sequence step set: %.2f", _sequenceStep);
+	if (!initialized)
+	{
+		ROS_FATAL("DistanceControl::initializeParameters() - sequence step not properly set.");
+		throw std::runtime_error("DistanceControl parameters are not properly set.");
+	}
 }
 
 void dist_control::DistanceControl::parametersCallback(
@@ -367,4 +371,18 @@ bool dist_control::DistanceControl::leftSeqEnbled()
 bool dist_control::DistanceControl::rightSeqEnabled()
 {
 	return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
+}
+
+double dist_control::DistanceControl::distanceToCarrot()
+{
+	return sqrt(
+		distanceToYCarrot() + 
+		distanceToZCarrot() +
+		pow(_distSp -  _distanceMeasured, 2));
+}
+
+bool dist_control::DistanceControl::seqTargetReached()
+{
+	return _currSeq != Sequence::NONE &&
+		distanceToCarrot() < getTolerance();
 }

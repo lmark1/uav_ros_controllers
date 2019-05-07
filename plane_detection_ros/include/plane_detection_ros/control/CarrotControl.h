@@ -131,7 +131,7 @@ namespace carrot_control
 		/**
 		 * Return distance to carrot.
 		 */
-		double distanceToCarrot();
+		virtual double distanceToCarrot();
 
 		/**
 		 * Return distance to carrot along x axis.
@@ -147,6 +147,11 @@ namespace carrot_control
 		 * Return distance to carrot along z axis.
 		 */
 		double distanceToZCarrot();
+
+		/**
+		 * Return current carrot tolerance.
+		 */
+		double getTolerance();
 
 		/**
 		 * Return pointer to the CarrotControl object.
@@ -181,6 +186,9 @@ namespace carrot_control
 
 		/** Value from 0 to 1, hover thrust */
 		double _hoverThrust;
+
+		/** Distance tolerance from the target carrot. */
+		double _targetTolerance;
 	};	
 
 }
