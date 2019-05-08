@@ -6,6 +6,7 @@ detection:
    lim_z: 2
    min_x: 0.5
    threshold: 0.1
+   min_points: 100
    
 kalman:
    noise_mv: 12

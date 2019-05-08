@@ -74,6 +74,14 @@ public:
 	void doPlaneDetection();
 
 	/**
+	 * Calculate the mean squared distance points in the plane point cloud to the 
+	 * inferred plane.
+	 * 
+	 * @return plane error value
+	 */
+	double planeError(const pcl3d_t& planeCloud, const coef_t& planeCoef);
+
+	/**
 	 * Callback function used for setting various parameters.
 	 */
 	virtual void parametersCallback(
@@ -115,6 +123,9 @@ private:
 
 	/** Maximum values for box filter used in PointCloud filtering */
 	std::array<float, 3> _boxFilterMax;
+
+	/** Minimum number of points to be considered a plane. */
+	int _minPoints;
 
 };
 
