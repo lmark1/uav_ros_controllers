@@ -53,8 +53,19 @@ namespace dist_control
 
 	enum Sequence
 	{
+		/**
+		 * Left sequence flight activated.
+		 */
 		LEFT,
+
+		/**
+		 * Right sequence flight activated.
+		 */
 		RIGHT,
+
+		/**
+		 * No sequence flight activated.
+		 */
 		NONE
 	};
 
