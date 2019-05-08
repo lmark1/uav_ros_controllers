@@ -80,17 +80,17 @@ void dist_control::DistanceControl::detectSequenceChange()
 	// Determine current sequence
 	if (inInspectionState() && leftSeqEnbled())
 	{	
-		// ROS_DEBUG("DistanceControl::detectSequenceChange - Left sequence activated.");
+		// ROS_INFO("DistanceControl::detectSequenceChange - Left sequence activated.");
 		_currSeq = Sequence::LEFT;
 	}
 	else if (inInspectionState() && rightSeqEnabled())
 	{
-		// ROS_DEBUG("DistanceControl::detectSequenceChange - Right sequence activated.");
+		// ROS_INFO("DistanceControl::detectSequenceChange - Right sequence activated.");
 		_currSeq = Sequence::RIGHT;
 	}
 	else 
 	{
-		//ROS_DEBUG("DistanceControl::detectSequenceChange - sequence deactivated");
+		// ROS_INFO("DistanceControl::detectSequenceChange - sequence deactivated");
 		_currSeq = Sequence::NONE;
 	}
 }
@@ -358,19 +358,19 @@ void dist_control::DistanceControl::setReconfigureParameters(
 
 bool dist_control::DistanceControl::inspectionEnabled()
 {
-	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1
+	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 0
 		|| leftSeqEnbled()
 		|| rightSeqEnabled();
 }
 
 bool dist_control::DistanceControl::leftSeqEnbled()
 {
-	return getJoyButtons()[_inspectIndices->LEFT_SEQUENCE] == 1;
+	return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] > 0.5;
 }
 
 bool dist_control::DistanceControl::rightSeqEnabled()
 {
-	return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
+	return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] < -0.5;
 }
 
 double dist_control::DistanceControl::distanceToCarrot()

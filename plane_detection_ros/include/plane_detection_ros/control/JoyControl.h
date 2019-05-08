@@ -82,6 +82,8 @@ namespace joy_control
 		 */
 		const std::vector<int32_t> getJoyButtons();
 
+		const std::vector<float> getJoyAxes();
+		
 		/**
 		 * Do all the parameter initialization here.
 		 */

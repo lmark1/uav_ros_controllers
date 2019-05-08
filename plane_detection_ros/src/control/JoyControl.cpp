@@ -122,3 +122,8 @@ const std::vector<int32_t> joy_control::JoyControl::getJoyButtons()
 {
 	return _joyMsg.buttons;
 }
+
+const std::vector<float> joy_control::JoyControl::getJoyAxes()
+{
+	return _joyMsg.axes;
+}

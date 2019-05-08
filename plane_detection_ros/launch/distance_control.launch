@@ -10,7 +10,7 @@
     
     <rosparam 
 	command="load"
-        file="$(find plane_detection_ros)/config/control/joy_real.config.yaml" />
+        file="$(find plane_detection_ros)/config/control/joy.config.yaml" />
 
     <!-- Start plane detection ROS -->
     <node
