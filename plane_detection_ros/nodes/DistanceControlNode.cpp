@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 	bool holdPosition = false;
 	double holdTime = 5;
 	nh.getParam("/control/hold_time", holdTime);
-	ROS_INFO("DistanceControlNode: Setting hold time to %d", holdTime);
+	ROS_INFO("DistanceControlNode: Setting hold time to %.2f", holdTime);
 	
 	// Initialize override service here
 	ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>(

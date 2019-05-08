@@ -83,6 +83,11 @@ namespace joy_control
 		const std::vector<int32_t> getJoyButtons();
 
 		/**
+		 * Return vector of float values from Joy message.
+		 */
+		const std::vector<float> getJoyAxes();
+		
+		/**
 		 * Do all the parameter initialization here.
 		 */
 		virtual void initializeParameters(ros::NodeHandle& nh);
