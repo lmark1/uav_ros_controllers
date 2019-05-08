@@ -13,9 +13,9 @@
 #define TOL_PARAM "/control/carrot_tol"
 
 // Define deadzone constants
-#define X_DEADZONE 0.001
-#define Y_DEADZONE 0.001
-#define Z_DEADZONE 0.001
+#define X_DEADZONE 0.01
+#define Y_DEADZONE 0.01
+#define Z_DEADZONE 0.01
 
 carrot_control::CarrotControl::CarrotControl() :
     _posXPID {new PID ("Position - x")},

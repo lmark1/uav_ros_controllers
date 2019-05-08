@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 				{
 					ROS_INFO("main() - Calling overide service");
 					serviceCalled = true;
-					client.call(emptyMessage);
+					// client.call(emptyMessage);
 				}
 			}
 
