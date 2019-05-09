@@ -3,6 +3,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Int32.h>
+#include <std_msgs/Bool.h>
 #include <array>
 
 #define DIST_PID_PARAMS "/control/distance"
@@ -22,7 +23,7 @@ dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_distSp (-1),
 	_inspectionRequestFailed (false),
 	_planeYaw (0),
-	_sequenceStep (0.5),
+	_sequenceStep (0),
 	carrot_control::CarrotControl()
 {
 	// Info messages about node start.
@@ -198,10 +199,13 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 	updateCarrotX();
 	updateCarrotZ();
 
-	if (_currSeq == Sequence::LEFT || _currSeq == Sequence::RIGHT)
+	if (_currSeq == Sequence::LEFT)
 		updateCarrotY(_sequenceStep);
+	else if (_currSeq == Sequence::RIGHT)
+		updateCarrotY(- _sequenceStep);
 
 	doDistanceControl(dt);
+	_sequenceStep = 0; // Reset sequence step
 }
 
 void dist_control::DistanceControl::doDistanceControl(double dt)
@@ -231,6 +235,16 @@ void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
 {
 	std_msgs::Float64 newMessage;
 	newMessage.data = _distSp;
+	pub.publish(newMessage);
+}
+
+void dist_control::DistanceControl::publishSequenceState(ros::Publisher& pub)
+{	
+	std_msgs::Bool newMessage;
+	if (_currSeq == Sequence::NONE)
+		newMessage.data = false;
+	else 
+		newMessage.data = true;
 	pub.publish(newMessage);
 }
 
@@ -354,22 +368,30 @@ void dist_control::DistanceControl::setReconfigureParameters(
 
 bool dist_control::DistanceControl::inspectionEnabled()
 {
-	// Real - return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 0
-	return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1
-		|| leftSeqEnbled()
-		|| rightSeqEnabled();
+	if (_mode == DistanceControlMode::SIMULATION)
+		return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1
+			|| leftSeqEnbled()
+			|| rightSeqEnabled();
+	else
+		return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 0
+			|| leftSeqEnbled()
+			|| rightSeqEnabled();
 }
 
 bool dist_control::DistanceControl::leftSeqEnbled()
 {
-	return getJoyButtons()[_inspectIndices->LEFT_SEQUENCE] == 1;
-	// Real - return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] > 0.5;
+	if (_mode == DistanceControlMode::SIMULATION)
+		return getJoyButtons()[_inspectIndices->LEFT_SEQUENCE] == 1;
+	else
+		return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] > 0.5;
 }
 
 bool dist_control::DistanceControl::rightSeqEnabled()
 {
-	return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
-	// Real - return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] < -0.5;
+	if (_mode == DistanceControlMode::SIMULATION)
+		return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
+	else
+		return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] < -0.5;
 }
 
 double dist_control::DistanceControl::distanceToCarrot()

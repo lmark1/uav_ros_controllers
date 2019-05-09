@@ -170,6 +170,11 @@ class DistanceControl : public carrot_control::CarrotControl {
 		void publishDistVelSp(ros::Publisher& pub);
 
 		/**
+		 * Publish true if in sequence state, otherwise false.
+		 */
+		void publishSequenceState(ros::Publisher& pub);
+		
+		/**
 		 * Publish distance to carrot.
 		 */
 		void publishDistanceToCarrot(ros::Publisher& pub);

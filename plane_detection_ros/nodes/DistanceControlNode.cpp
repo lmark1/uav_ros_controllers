@@ -15,7 +15,7 @@
 #include <mavros_msgs/AttitudeTarget.h>
 #include <std_msgs/Int32.h>
 #include <mav_msgs/RollPitchYawrateThrust.h>
-#include <std_srvs/Empty.h>
+#include <std_msgs/Bool.h>
 
 /**
  * Initializes distance control node.
@@ -56,6 +56,7 @@ int main(int argc, char **argv)
 	ros::Subscriber distVelSub = nh.subscribe("/distance_velocity", 1,
 		&dist_control::DistanceControl::distanceVelCb,
 		distanceControl.get());
+	
 	// Plane normal CB
 	ros::Subscriber planeSub = nh.subscribe("/plane_normal", 1,
 		&dist_control::DistanceControl::normalCb,
@@ -100,6 +101,10 @@ int main(int argc, char **argv)
 		"/carrot_vel_sp", 1);
 	ros::Publisher velMvPub = nh.advertise<geometry_msgs::Vector3>(
 		"/carrot_vel_mv", 1);
+	ros::Publisher carrotDistPub = nh.advertise<std_msgs::Float64>(
+		"/carrot_dist", 1);
+	ros::Publisher seqEnablePub = nh.advertise<std_msgs::Bool>(
+		"/sequence/enabled", 1);
 
 	// Initialize distance reconfigure server
 	// TODO: Move these blocks to appropriate classes
@@ -146,15 +151,7 @@ int main(int argc, char **argv)
 	double holdTime = 5;
 	nh.getParam("/control/hold_time", holdTime);
 	ROS_INFO("DistanceControlNode: Setting hold time to %.2f", holdTime);
-	
-	// Initialize override service here
-	ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>(
-		"magnet/override_ON");
-	std_srvs::Empty emptyMessage;
-	bool serviceCalled = false;
 
-	// TODO: Make DistanceControl have callback activations for InspectionMode 
-	// TODO: Move InpsectionIndices to SequenceControl
 	// Publish offset constantly, when standing still offset iz 0, when moving offset is constant, 
 	// not in sequence offset is from joy
 	// Move all the deadzones to JoyControl
@@ -170,57 +167,16 @@ int main(int argc, char **argv)
 		// Do regular "Manual" Inspection when sequence is not set
 		if (distanceControl->inInspectionState() && 
 			distanceControl->getSequence() == dist_control::Sequence::NONE)
-		{
-			holdPosition = false;
-			serviceCalled = false;
-			timeElapsed = 0;
 			distanceControl->calculateInspectionSetpoint(dt);
-		}
 
 		// Do "Sequence" Inpsection when sequence is set
 		else if (distanceControl->inInspectionState() &&
 			distanceControl->getSequence() != dist_control::Sequence::NONE)	
-		{
-			
-			// If target is reached atleast once, hold position
-			if (!holdPosition && distanceControl->seqTargetReached())
-				holdPosition = true;
-
-			// If hold position is activated, hold position for fixed time
-			if (holdPosition && timeElapsed < holdTime)
-			{
-				timeElapsed += dt;
-				distanceControl->updateCarrotZ();
-				distanceControl->doDistanceControl(dt);
-				
-				// Call the override service
-				if (!serviceCalled)
-				{
-					ROS_INFO("main() - Calling overide service");
-					serviceCalled = true;
-					client.call(emptyMessage);
-				}
-			}
-
-			// When done holding position, go to new sequence target.
-			else
-			{
-				holdPosition = false;
-				serviceCalled = false;
-				timeElapsed = 0;
-				distanceControl->calculateSequenceSetpoint(dt);
-			}
-				
-		}			
+			distanceControl->calculateSequenceSetpoint(dt);			
 
 		// If not in inspection state go to attitude control
 		else
-		{
-			holdPosition = false;
-			serviceCalled = false;
-			timeElapsed = 0;
 			distanceControl->calculateManualSetpoint(dt);
-		}
 			
 
 		// Publish simulation setpoint
@@ -231,6 +187,12 @@ int main(int argc, char **argv)
 		else
 			distanceControl->publishAttSp(spPubReal);
 
+		// Publish distance to carrot
+		distanceControl->publishDistanceToCarrot(carrotDistPub);
+
+		// Publish sequence state
+		distanceControl->publishSequenceState(seqEnablePub);
+		
 		// Publish distance and angle setpoints
 		distanceControl->publishDistSp(distRefPub);
 		distanceControl->publishDistVelSp(distVelRefPub);
