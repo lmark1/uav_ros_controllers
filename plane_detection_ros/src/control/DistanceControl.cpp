@@ -46,6 +46,11 @@ void dist_control::DistanceControl::distanceVelCb(const std_msgs::Float64ConstPt
 	_distanceVelocityMeasured = message->data;
 }
 
+void dist_control::DistanceControl::seqStepCb(const std_msgs::Float64ConstPtr& message)
+{
+	_sequenceStep = message->data;
+}
+
 void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
 {
 	_planeYaw = calculateYaw(
@@ -193,17 +198,8 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 	updateCarrotX();
 	updateCarrotZ();
 
-	// Calculate distance to next setpoint
-	double distance = distanceToCarrot();
-
-	if (distance < getTolerance() && _currSeq == Sequence::LEFT)
-		updateCarrotY(- _sequenceStep);
-
-	else if (distance < getTolerance() && _currSeq == Sequence::RIGHT)
+	if (_currSeq == Sequence::LEFT || _currSeq == Sequence::RIGHT)
 		updateCarrotY(_sequenceStep);
-
-	else 
-		ROS_WARN("\nDistance to next setpoint: %.2f\nTolerance: %.2f", distance, getTolerance());
 
 	doDistanceControl(dt);
 }
@@ -379,13 +375,17 @@ bool dist_control::DistanceControl::rightSeqEnabled()
 double dist_control::DistanceControl::distanceToCarrot()
 {
 	return sqrt(
-		distanceToYCarrot() + 
-		distanceToZCarrot() +
+		carrotDistSquaredY() + 
+		carrotDistSquaredZ() +
 		pow(_distSp -  _distanceMeasured, 2));
 }
 
-bool dist_control::DistanceControl::seqTargetReached()
+void dist_control::DistanceControl::publishDistanceToCarrot(ros::Publisher& pub)
 {
-	return _currSeq != Sequence::NONE &&
-		distanceToCarrot() < getTolerance();
+	std_msgs::Float64 newMessage;
+	if (_currSeq == Sequence::NONE)
+		newMessage.data = -1;
+	else 
+		newMessage.data = distanceToCarrot();
+	pub.publish(newMessage);
 }

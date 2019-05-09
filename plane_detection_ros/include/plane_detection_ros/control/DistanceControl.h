@@ -101,6 +101,12 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 */
 		void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
 
+
+		/**
+		 * Sequence step callback. Step is applied when in sequence mode.
+		 */
+		void seqStepCb(const std_msgs::Float64ConstPtr& message);
+
 		/**
 		 * Change the state back to manual if received distance is invalid.
 		 * Change the state to inspection mode if appropriate joystick command is
@@ -162,6 +168,11 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 * Publish distance velocity setpoint as a Float64 ROS message.
 		 */
 		void publishDistVelSp(ros::Publisher& pub);
+
+		/**
+		 * Publish distance to carrot.
+		 */
+		void publishDistanceToCarrot(ros::Publisher& pub);
 
 		/**
 		 * Return true if in inspection state, otherwise false.
@@ -281,7 +292,7 @@ class DistanceControl : public carrot_control::CarrotControl {
 		/** Yaw of the plane normal with respect to UAV base frame. */
 		double _planeYaw;
 
-		/** Sequence step. */
+		/** Current sequence step. */
 		double _sequenceStep;
 	};
 
