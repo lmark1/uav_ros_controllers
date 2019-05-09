@@ -1,0 +1,4 @@
+sequence:
+  rate: 50
+  hold_time: 1
+  step: 0.25

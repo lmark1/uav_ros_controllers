@@ -28,8 +28,8 @@
  *		- /real/vel		- Velocity topic - realistic
  *		- /sim/odometry	- Odometry topic - simulation
  */
-int main(int argc, char **argv) {
-
+int main(int argc, char **argv) 
+{
 	// Setup the node
 	ros::init(argc, argv, "distance_control");
 	ros::NodeHandle nh;
@@ -152,6 +152,12 @@ int main(int argc, char **argv) {
 		"magnet/override_ON");
 	std_srvs::Empty emptyMessage;
 	bool serviceCalled = false;
+
+	// TODO: Make DistanceControl have callback activations for InspectionMode 
+	// TODO: Move InpsectionIndices to SequenceControl
+	// Publish offset constantly, when standing still offset iz 0, when moving offset is constant, 
+	// not in sequence offset is from joy
+	// Move all the deadzones to JoyControl
 
 	// Start the main loop
 	while (ros::ok())
