@@ -25,7 +25,6 @@ carrot_control::CarrotControl::CarrotControl() :
     _velYPID {new PID ("Velocity - y")},
     _velZPID {new PID ("Velocity - z")}, 
 	_hoverThrust (0),
-	_targetTolerance (0.1),
     control_base::ControlBase(), 
 	joy_control::JoyControl()
 {
@@ -93,17 +92,17 @@ double carrot_control::CarrotControl::distanceToCarrot()
 		pow((getCurrPosition()[2] - _carrotPos[2]), 2));
 }
 
-double carrot_control::CarrotControl::distanceToXCarrot()
+double carrot_control::CarrotControl::carrotDistSquaredX()
 {
 	return pow((getCurrPosition()[0] - _carrotPos[0]), 2);
 }
 
-double carrot_control::CarrotControl::distanceToYCarrot()
+double carrot_control::CarrotControl::carrotDistSquaredY()
 {
 	return pow((getCurrPosition()[1] - _carrotPos[1]), 2);
 }
 
-double carrot_control::CarrotControl::distanceToZCarrot()
+double carrot_control::CarrotControl::carrotDistSquaredZ()
 {
 	return pow((getCurrPosition()[2] - _carrotPos[2]), 2);
 }
@@ -216,7 +215,6 @@ void carrot_control::CarrotControl::parametersCallback(
 	_velZPID->set_lim_low(configMsg.lim_low_vz);
 
 	_hoverThrust = configMsg.hover;
-	_targetTolerance = configMsg.carrot_tol;
 }
 
 void carrot_control::CarrotControl::initializeParameters(ros::NodeHandle& nh)
@@ -232,10 +230,8 @@ void carrot_control::CarrotControl::initializeParameters(ros::NodeHandle& nh)
 	_velZPID->initializeParameters(nh, PID_VZ_PARAM);
 
 	bool initialized = 
-		nh.getParam(HOVER_PARAM, _hoverThrust) &&
-		nh.getParam(TOL_PARAM, _targetTolerance);
+		nh.getParam(HOVER_PARAM, _hoverThrust);
 	ROS_INFO("New hover thrust: %.2f", _hoverThrust);
-	ROS_INFO("New target tolerance: %.2f", _targetTolerance);
 	if (!initialized)
 	{
 		ROS_FATAL("CarrotControl::initalizeParameters() - failed to initialize parameters");
@@ -273,15 +269,9 @@ void carrot_control::CarrotControl::setReconfigureParameters(
 	config.lim_high_vz = _velZPID->get_lim_high();
 
 	config.hover = _hoverThrust;
-	config.carrot_tol = _targetTolerance;
 }
 
 carrot_control::CarrotControl* carrot_control::CarrotControl::getCarrotPointer()
 {
 	return this;
-}
-
-double carrot_control::CarrotControl::getTolerance()
-{
-	return _targetTolerance;
 }
