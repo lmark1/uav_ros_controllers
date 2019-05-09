@@ -3,19 +3,13 @@
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float64.h>
 
-#define DETECTION_STATE_PARAM "/joy/detection_state"
-#define RIGHT_SEQ_PARAM "/joy/left_seq"
-#define LEFT_SEQ_PARAM "/joy/right_seq"
 #define SEQ_STEP_PARAM "/sequence/step"
 #define TRIGGER_THRESHOLD 0.5
 
 SequenceControl::SequenceControl(bool simMode):
-    _inspectIndices {new joy_struct::InspectionIndices},
-	_sequenceStep (0.5),
-	_simMode (simMode),
-	_inspectionEnabled (false),
-	_rightSequenceEnabled (false),
-	_leftSequenceEnabled (false)
+	_sequenceStep (0),	
+	_distToCarrot (-1),
+	_inSequence (false)
 {
 }
 
@@ -23,70 +17,52 @@ SequenceControl::~SequenceControl()
 {
 }
 
-void SequenceControl::joyCb(const sensor_msgs::JoyConstPtr& message)
+
+void SequenceControl::carrotDistCb(const std_msgs::Float64ConstPtr& message)
 {
-	if (_simMode)
-	{
-		_inspectionEnabled = message->buttons[_inspectIndices->INSPECTION_MODE] == 1;
-		_leftSequenceEnabled = message->buttons[_inspectIndices->LEFT_SEQUENCE] == 1;
-		_rightSequenceEnabled = message->buttons[_inspectIndices->RIGHT_SEQUENCE] == 1;
-	}
-	else
-	{
-		_inspectionEnabled = message->buttons[_inspectIndices->INSPECTION_MODE] == 0;
-		_leftSequenceEnabled = message->axes[_inspectIndices->RIGHT_SEQUENCE] > TRIGGER_THRESHOLD;
-		_rightSequenceEnabled = message->axes[_inspectIndices->RIGHT_SEQUENCE] < TRIGGER_THRESHOLD;
-	}
+	_distToCarrot = message->data;
+}
+
+void SequenceControl::sequenceCb(const std_msgs::BoolConstPtr& message)
+{
+	_inSequence = message->data;
 }
 
 void SequenceControl::publishSequenceOffset(ros::Publisher& pub)
 {
 	std_msgs::Float64 newMessage;
-
-	newMessage.data = 0;
-	if (_leftSequenceEnabled)
+	if (_inSequence)
 		newMessage.data = _sequenceStep;
-	else if (_rightSequenceEnabled)
-		newMessage.data = - _sequenceStep;
-	
+	else
+		newMessage.data = 0;
 	pub.publish(newMessage);
 }
 
-void SequenceControl::publishInpsectionMode(ros::Publisher& pub)
+void publishSequenceOffset(ros::Publisher& pub, double offset)
 {
-	std_msgs::Bool newMessage;
-	newMessage.data = _inspectionEnabled;
+	std_msgs::Float64 newMessage;
+	newMessage.data = offset;
 	pub.publish(newMessage);
 }
 
-void SequenceControl::publishLeftSequence(ros::Publisher& pub)
+bool SequenceControl::sequenceActive()
 {
-	std_msgs::Bool newMessage;
-	newMessage.data = _leftSequenceEnabled;
-	pub.publish(newMessage);
+	return _inSequence;
 }
 
-void SequenceControl::publishRightSequence(ros::Publisher& pub)
+double SequenceControl::getSequenceStep()
 {
-	std_msgs::Bool newMessage;
-	newMessage.data = _rightSequenceEnabled;
-	pub.publish(newMessage);
+	return _sequenceStep;
+}
+
+double SequenceControl::getDistanceToCarrot()
+{
+	return _distToCarrot;
 }
 
 void SequenceControl::initializeParameters(ros::NodeHandle& nh)
 {
-	bool initialized = 
-		nh.getParam(DETECTION_STATE_PARAM, _inspectIndices->INSPECTION_MODE) &&
-		nh.getParam(LEFT_SEQ_PARAM, _inspectIndices->LEFT_SEQUENCE) &&
-		nh.getParam(RIGHT_SEQ_PARAM, _inspectIndices->RIGHT_SEQUENCE);
-	ROS_INFO_STREAM(*_inspectIndices);
-	if (!initialized)
-	{
-		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
-		throw std::runtime_error("DistanceControl parameters are not properly set.");
-	}
-
-	initialized = nh.getParam(SEQ_STEP_PARAM, _sequenceStep);
+	bool initialized = nh.getParam(SEQ_STEP_PARAM, _sequenceStep);
 	ROS_INFO("New sequence step set: %.2f", _sequenceStep);
 	if (!initialized)
 	{

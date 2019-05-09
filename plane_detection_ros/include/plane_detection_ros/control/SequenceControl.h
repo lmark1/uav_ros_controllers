@@ -14,9 +14,14 @@ public:
     ~SequenceControl();
 
     /**
-     * Joystick callback function.
+     * Sequence callback function. True if in sequence mode otherwise false.
      */
-    void joyCb(const sensor_msgs::JoyConstPtr& message);
+    void sequenceCb(const std_msgs::BoolConstPtr& message);
+
+    /**
+     * Distance to carrot callback function.
+     */
+    void carrotDistCb(const std_msgs::Float64ConstPtr& message);
 
     /**
      * Initialize class parameters.
@@ -26,47 +31,36 @@ public:
     /**
      * Publish sequence offset.
      */
-    void publishSequenceOffset(ros::Publisher& nh);
+    void publishSequenceOffset(ros::Publisher& pub);
 
     /**
-     * Publish true if inspection mode is enabled, otherwise publish false.
-     * 
-     * @param pub - Given boolean publisher
+     * Publish give sequence offset.
      */
-    void publishInpsectionMode(ros::Publisher& pub);
+    void publishSequenceOffset(ros::Publisher& pub, double offset);
 
     /**
-     * Publish true if left sequence is enabled, otherwise publish false.
-     * 
-     * @param pub - Given boolean publisher
+     * Reutrns true if sequence is active, otherwise false.
      */
-    void publishLeftSequence(ros::Publisher& pub);
+    bool sequenceActive();
 
     /**
-     * Publish true if right sequence is enabled, otherwise publish false.
-     * 
-     * @param pub - Given boolean publisher
+     * Return sequence step;
      */
-    void publishRightSequence(ros::Publisher& pub);
+    double getSequenceStep();
+
+    /**
+     * Returns current distance to carrot.
+     */
+    double getDistanceToCarrot();
     
 private:
-    
-    /** Structure containing inpsection indices. */
-    std::unique_ptr<joy_struct::InspectionIndices> _inspectIndices;
-    
+
     /** Sequence step. */
     double _sequenceStep;
+    
+    /** True if in sequence mode, otherwise false. */
+    bool _inSequence;
 
-    /** True if working in simulation mode, otherwise false. */
-    bool _simMode;
-
-    /** True if left sequence mode is enabled, otherwise false. */
-    bool _leftSequenceEnabled;
-
-    /** True if right sequence mode is enabled, otherwise false. */
-    bool _rightSequenceEnabled;
-
-    /** True if inspection mode is enabled, otherwise false. */
-    bool _inspectionEnabled;
-
+    /** Current distance to carrot, if -1, sequence mode is inactive. */
+    double _distToCarrot;
 };

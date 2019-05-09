@@ -2,6 +2,7 @@
 #include <plane_detection_ros/control/SequenceControl.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float64.h>
+#include <std_srvs/Empty.h>
 
 int main(int argc, char **argv) 
 {
@@ -22,20 +23,14 @@ int main(int argc, char **argv)
     seqControl->initializeParameters(nh);
     
 	// Joy callback
-	ros::Subscriber joySub = nh.subscribe("/joy", 1,
-		&SequenceControl::joyCb,
+	ros::Subscriber joySub = nh.subscribe("/sequence/enabled", 1,
+		&SequenceControl::sequenceCb,
 		seqControl.get());
 
-    // Define publishers
-    ros::Publisher inspectionPub = nh.advertise<std_msgs::Bool>(
-        "/inspection/enabled", 1);
-    ros::Publisher leftPub = nh.advertise<std_msgs::Bool>(
-        "/sequence/left", 1);
-    ros::Publisher rightPub = nh.advertise<std_msgs::Bool>(
-        "/sequence/right", 1);
     ros::Publisher stepPub = nh.advertise<std_msgs::Float64>(
         "/sequence/step", 1);
 
+    // TODO: Make sure same rate is used for distance control and sequence control
     // Setup loop rate
 	double rate = 25;
 	nh.getParam("/sequence/rate", rate);
@@ -44,20 +39,62 @@ int main(int argc, char **argv)
 	ROS_INFO("SequenceControlNode: Setting rate to %.2f", rate);
 
     double timeElapsed = 0;
+    double distTravelled = 0;
 	bool holdPosition = false;
 	double holdTime = 5;
+    double maxStep = 1;
 	nh.getParam("/sequence/hold_time", holdTime);
 	ROS_INFO("SequenceControlNode: Setting hold time to %.2f", holdTime);
 
+    // Initialize override service here
+	ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>(
+		"magnet/override_ON");
+	std_srvs::Empty emptyMessage;
+	
     while (ros::ok())
     {
         ros::spinOnce();
+        if (!holdPosition)
+            seqControl->publishSequenceOffset(stepPub);
+        else
+            seqControl->publishSequenceOffset(stepPub, 0);
+        
+        // Check if sequence is active
+        if (!seqControl->sequenceActive())
+        {
+            distTravelled = 0;
+            timeElapsed = 0;
+            holdPosition = false;
+            loopRate.sleep();
+            continue;
+        }
 
-        seqControl->publishSequenceOffset(stepPub);
-        seqControl->publishInpsectionMode(inspectionPub);
-        seqControl->publishLeftSequence(leftPub);
-        seqControl->publishRightSequence(rightPub);
+        // Update travelled distance
+        if (distTravelled < maxStep)
+        {
+            distTravelled += seqControl->getSequenceStep();
+            loopRate.sleep();
+            continue;
+        }
 
+        // Hold position after this point
+        holdPosition = true;
+
+        // MaxStep distance is travelled, sleep now!
+        if (timeElapsed < holdTime)
+        {
+            timeElapsed += dt;
+            loopRate.sleep();
+            continue;
+        }
+
+        // Finished waiting - call service !
+        client.call(emptyMessage);
+
+        // Reset and continue
+        timeElapsed = 0;
+        distTravelled = 0;
+        holdPosition = false;
         loopRate.sleep();
     }
 }
