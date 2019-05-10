@@ -201,9 +201,9 @@ void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 	updateCarrotZ();
 
 	if (_currSeq == Sequence::LEFT)
-		updateCarrotY(_sequenceStep);
-	else if (_currSeq == Sequence::RIGHT)
 		updateCarrotY(- _sequenceStep);
+	else if (_currSeq == Sequence::RIGHT)
+		updateCarrotY(_sequenceStep);
 
 	doDistanceControl(dt);
 	_sequenceStep = 0; // Reset sequence step
@@ -242,7 +242,7 @@ void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
 void dist_control::DistanceControl::publishSequenceState(ros::Publisher& pub)
 {	
 	std_msgs::Bool newMessage;
-	if (_currSeq == Sequence::NONE && !inInspectionState())
+	if (_currSeq == Sequence::NONE || !inInspectionState())
 		newMessage.data = false;
 	else 
 		newMessage.data = true;

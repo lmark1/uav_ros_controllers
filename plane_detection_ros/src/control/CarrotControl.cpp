@@ -3,10 +3,10 @@
 #include <uav_ros_control/NonlinearFilters.h>
 
 // Define all parameter paths here
-#define PID_X_PARAM "/control/pos_y"
+#define PID_X_PARAM "/control/pos_x"
 #define PID_Y_PARAM "/control/pos_y"
 #define PID_Z_PARAM "/control/pos_z"
-#define PID_VX_PARAM "/control/pos_y"
+#define PID_VX_PARAM "/control/vel_x"
 #define PID_VY_PARAM "/control/vel_y"
 #define PID_VZ_PARAM "/control/vel_z"
 #define HOVER_PARAM "/control/hover"
