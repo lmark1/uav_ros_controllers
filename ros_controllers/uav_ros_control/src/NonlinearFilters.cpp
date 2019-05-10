@@ -7,6 +7,7 @@
 
 #include <uav_ros_control/NonlinearFilters.h>
 #include <iostream>
+#include <math.h>
 
 double nonlinear_filters::saturation(
 		double value,
@@ -42,6 +43,18 @@ double nonlinear_filters::filterPT1(
 	double b = K * Ts / (T + Ts);
 
 	return (a * previousValue + b * currentValue);
+}
+
+
+double wrapMax(double x, double max)
+{
+    /* integer math: `(max + x % max) % max` */
+    return fmod(max + fmod(x, max), max);
+}
+
+double nonlinear_filters::wrapMinMax(double x, double min, double max)
+{
+    return min + wrapMax(x - min, max - min);
 }
 
 

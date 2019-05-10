@@ -51,6 +51,11 @@ namespace nonlinear_filters
 			double T,
 			double Ts,
 			double K);
+
+	/**
+	 *  wrap x -> [min,max) 
+	 */
+	double wrapMinMax(double x, double min, double max);
 }
 
 #endif /* NONLINEAR_FILTERS_H */
