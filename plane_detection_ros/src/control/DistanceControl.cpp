@@ -8,7 +8,8 @@
 
 #define DIST_PID_PARAMS "/control/distance"
 #define DISTVEL_PID_PARAMS "/control/distance_vel"
-#define DIST_SP_DEADZONE 0.001
+#define DIST_SP_DEADZONE 0.01
+#define ANGLE_DEADZONE 0.05 
 
 dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
 	_mode (mode),
@@ -182,9 +183,9 @@ void dist_control::DistanceControl::publishDistVelSp(ros::Publisher& pub)
 void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 {	
 	setAttitudeSp(
-		-getRollSpManual(),				//roll
-		getPitchSpManual(),				//pitch
-		-getYawSpManual());				//yaw
+		nonlinear_filters::deadzone(-getRollSpManual(), -ANGLE_DEADZONE, ANGLE_DEADZONE),				//roll
+		nonlinear_filters::deadzone(getPitchSpManual(),	-ANGLE_DEADZONE, ANGLE_DEADZONE),			//pitch
+		nonlinear_filters::deadzone(-getYawSpManual(), -ANGLE_DEADZONE, ANGLE_DEADZONE) );				//yaw
 	setThrustSp(getThrustSpUnscaled());	//thrust
 }
 
