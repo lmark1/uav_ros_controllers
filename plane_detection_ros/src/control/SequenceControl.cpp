@@ -3,7 +3,7 @@
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float64.h>
 
-#define SEQ_STEP_PARAM "/sequence/step"
+#define SEQ_STEP_PARAM "/sequence/ramp_step"
 #define TRIGGER_THRESHOLD 0.5
 
 SequenceControl::SequenceControl(bool simMode):

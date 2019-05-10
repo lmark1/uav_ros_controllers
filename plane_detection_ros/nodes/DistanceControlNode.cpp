@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 
 	// Check if sim mode or real
 	bool simMode = false;
-	nh.getParam("/control/sim_mode", simMode);
+	bool initialized = nh.getParam("/control/sim_mode", simMode);
 
 	// Initialize distance control object
 	std::shared_ptr<dist_control::DistanceControl> distanceControl
@@ -79,6 +79,11 @@ int main(int argc, char **argv)
 	ros::Subscriber posSub = nh.subscribe("/real/odometry", 1,
 		&control_base::ControlBase::odomCbReal,
 		distanceControl->getBasePointer());
+
+	// Sequence step callback
+	ros::Subscriber seqStepSub = nh.subscribe("/sequence/step", 1,
+		&dist_control::DistanceControl::seqStepCb,
+		distanceControl.get());
 
 	// Define publishers
 	ros::Publisher statePub = nh.advertise<std_msgs::Int32>(
@@ -141,10 +146,15 @@ int main(int argc, char **argv)
 
 	// Setup loop rate
 	double rate = 25;
-	nh.getParam("/control/rate", rate);
+	initialized = initialized && nh.getParam("/sequence/rate", rate);
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
 	ROS_INFO("DistanceControlNode: Setting rate to %.2f", rate);
+	if (!initialized)
+	{
+		ROS_FATAL("Failed to initialized DistanceControlNode parameters.");
+		return 1;
+	}
 	// TODO: Move all the deadzones to JoyControl
 	
 	// Start the main loop

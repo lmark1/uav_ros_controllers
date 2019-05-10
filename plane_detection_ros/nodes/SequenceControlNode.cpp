@@ -7,7 +7,7 @@
 int main(int argc, char **argv) 
 {
    	// Setup the node
-	ros::init(argc, argv, "distance_control");
+	ros::init(argc, argv, "sequence_control");
 	ros::NodeHandle nh;
 	// Change logging level
 	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
         
     // Check if sim mode or real
 	bool simMode = false;
-	nh.getParam("/control/sim_mode", simMode);
+	bool initialized = nh.getParam("/control/sim_mode", simMode);
 
     std::shared_ptr<SequenceControl> seqControl
         {new SequenceControl(simMode)};
@@ -43,14 +43,22 @@ int main(int argc, char **argv)
 	bool holdPosition = false;
 	double holdTime = 5;
     double maxStep = 1;
-	nh.getParam("/sequence/hold_time", holdTime);
+	initialized = initialized && nh.getParam("/sequence/hold_time", holdTime);
+    initialized = initialized && nh.getParam("/sequence/seq_step", maxStep);
 	ROS_INFO("SequenceControlNode: Setting hold time to %.2f", holdTime);
+    ROS_INFO("SequenceControlNode: Setting max step to %.2f", maxStep);
 
     // Initialize override service here
 	ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>(
 		"magnet/override_ON");
 	std_srvs::Empty emptyMessage;
-	
+    
+    if (!initialized)
+    {
+        ROS_FATAL("SequenceControlNode: failed to initialized parameters.");
+        return 1;
+    }
+
     while (ros::ok())
     {
         ros::spinOnce();
@@ -72,6 +80,7 @@ int main(int argc, char **argv)
         // Update travelled distance
         if (distTravelled < maxStep)
         {
+            ROS_INFO("SequenceNode - distance travelled: %.2f", distTravelled);
             distTravelled += seqControl->getSequenceStep();
             loopRate.sleep();
             continue;
@@ -83,13 +92,16 @@ int main(int argc, char **argv)
         // MaxStep distance is travelled, sleep now!
         if (timeElapsed < holdTime)
         {
+            ROS_INFO("SequenceNode - time elapsed: %.2f", timeElapsed);
             timeElapsed += dt;
             loopRate.sleep();
             continue;
         }
 
+        ROS_WARN("SequenceNode - Calling override service");
         // Finished waiting - call service !
         client.call(emptyMessage);
+        ROS_WARN("SequenceNode - Override called.");
 
         // Reset and continue
         timeElapsed = 0;
