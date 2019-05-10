@@ -52,6 +52,12 @@ add_library(distance_control
 target_link_libraries(distance_control ${catkin_LIBRARIES})
 add_dependencies(distance_control ${PROJECT_NAME}_gencfg)
 
+add_executable(sequence_node 
+    nodes/SequenceControlNode.cpp
+    src/control/SequenceControl.cpp)   
+target_link_libraries(sequence_node
+    ${catkin_LIBRARIES})   
+
 add_executable(plane_detection_node nodes/PlaneDetectionNode.cpp)
 target_link_libraries(plane_detection_node 
     ${catkin_LIBRARIES} plane_detection)    

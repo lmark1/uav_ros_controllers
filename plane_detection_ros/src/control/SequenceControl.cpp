@@ -38,7 +38,7 @@ void SequenceControl::publishSequenceOffset(ros::Publisher& pub)
 	pub.publish(newMessage);
 }
 
-void publishSequenceOffset(ros::Publisher& pub, double offset)
+void SequenceControl::publishSequenceOffset(ros::Publisher& pub, double offset)
 {
 	std_msgs::Float64 newMessage;
 	newMessage.data = offset;

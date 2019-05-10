@@ -319,14 +319,6 @@ void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
 		throw std::runtime_error("DistanceControl parameters are not properly set.");
 	}
-
-	initialized = nh.getParam("/control/sequence_step", _sequenceStep);
-	ROS_INFO("New sequence step set: %.2f", _sequenceStep);
-	if (!initialized)
-	{
-		ROS_FATAL("DistanceControl::initializeParameters() - sequence step not properly set.");
-		throw std::runtime_error("DistanceControl parameters are not properly set.");
-	}
 }
 
 void dist_control::DistanceControl::parametersCallback(

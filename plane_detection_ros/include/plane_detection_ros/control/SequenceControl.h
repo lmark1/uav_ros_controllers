@@ -1,6 +1,8 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
 #include <plane_detection_ros/control/JoyStructure.h>
+#include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
 
 class SequenceControl
 {
@@ -16,7 +18,7 @@ public:
     /**
      * Sequence callback function. True if in sequence mode otherwise false.
      */
-    void sequenceCb(const std_msgs::BoolConstPtr& message);
+    void sequenceCb(const std_msgs::BoolConstPtr&);
 
     /**
      * Distance to carrot callback function.

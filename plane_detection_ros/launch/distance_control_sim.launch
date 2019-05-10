@@ -7,10 +7,13 @@
     <rosparam 
         command="load" 
         file="$(find plane_detection_ros)/config/control/position_control_sim.params.yaml" />
-
     <rosparam
         command="load"
         file="$(find plane_detection_ros)/config/control/joy_sim.config.yaml" />
+    <rosparam   
+        command="load"
+        file="$(find plane_detection_ros)/config/control/sequence.params.yaml" />
+        
 
     <!-- Start plane detection ROS -->
     <node

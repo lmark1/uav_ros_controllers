@@ -145,17 +145,8 @@ int main(int argc, char **argv)
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
 	ROS_INFO("DistanceControlNode: Setting rate to %.2f", rate);
+	// TODO: Move all the deadzones to JoyControl
 	
-	double timeElapsed = 0;
-	bool holdPosition = false;
-	double holdTime = 5;
-	nh.getParam("/control/hold_time", holdTime);
-	ROS_INFO("DistanceControlNode: Setting hold time to %.2f", holdTime);
-
-	// Publish offset constantly, when standing still offset iz 0, when moving offset is constant, 
-	// not in sequence offset is from joy
-	// Move all the deadzones to JoyControl
-
 	// Start the main loop
 	while (ros::ok())
 	{
