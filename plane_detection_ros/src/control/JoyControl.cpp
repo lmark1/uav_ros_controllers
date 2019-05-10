@@ -100,11 +100,11 @@ void joy_control::JoyControl::initializeParameters(ros::NodeHandle& nh)
 	}
 
 	// Load all position scales
+	_positionScales->ANGULAR_Z = 0;
 	initialized = 
 		nh.getParam("/joy/scale_position/x", 		_positionScales->LINEAR_X) &&
 		nh.getParam("/joy/scale_position/y", 		_positionScales->LINEAR_Y) &&
-		nh.getParam("/joy/scale_position/z", 		_positionScales->LINEAR_Z) &&
-		nh.getParam("/joy/scale_position/yaw", 		_positionScales->ANGULAR_Z);	
+		nh.getParam("/joy/scale_position/z", 		_positionScales->LINEAR_Z);	
 	ROS_INFO_STREAM("Position " << *_positionScales);
 	if (!initialized)
 	{

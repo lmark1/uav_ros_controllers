@@ -17,7 +17,6 @@ joy:
     x: 0.025
     y: 0.025
     z: 0.05
-    yaw: 25
 
   detection_state: 5
   left_seq: 2
