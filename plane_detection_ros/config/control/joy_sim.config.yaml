@@ -14,9 +14,9 @@ joy:
     yaw: 25
   
   scale_position:
-    x: 0.05
-    y: 0.05
-    z: 0.1
+    x: 0.025
+    y: 0.025
+    z: 0.05
     yaw: 25
 
   detection_state: 5

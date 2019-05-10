@@ -32,4 +32,9 @@
         <remap from="/sim/rpy_thrust"   to="/bebop/att_override"/>
     </node>
 
+    <node
+        pkg="plane_detection_ros"
+        type="sequence_node"
+        name="sequence_node"
+        output="screen" />
 </launch>

@@ -241,7 +241,7 @@ void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
 void dist_control::DistanceControl::publishSequenceState(ros::Publisher& pub)
 {	
 	std_msgs::Bool newMessage;
-	if (_currSeq == Sequence::NONE)
+	if (_currSeq == Sequence::NONE && !inInspectionState())
 		newMessage.data = false;
 	else 
 		newMessage.data = true;
