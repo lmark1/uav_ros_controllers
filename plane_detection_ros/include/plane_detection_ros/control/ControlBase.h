@@ -72,11 +72,6 @@ namespace control_base
 		double calculateYaw(double qx, double qy, double qz, double qw);
 
 		/**
-		 *  wrap x -> [min,max) 
-		 */
-		double wrapMinMax(double x, double min, double max);
-
-		/**
 		 * Publish UAV attitude setpoint message of type mav_msgs::RollPitchYawRateThrust
 		 * 
 		 * @param pub 			- attitude setpoint publisher

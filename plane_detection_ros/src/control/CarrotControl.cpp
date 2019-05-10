@@ -42,12 +42,9 @@ void carrot_control::CarrotControl::setCarrotPosition(double x, double y, double
 
 void carrot_control::CarrotControl::updateCarrot()
 {
-	updateCarrotX(nonlinear_filters::deadzone(
-		getXOffsetManual(), -X_DEADZONE, X_DEADZONE));
-	updateCarrotY(nonlinear_filters::deadzone(
-		getYOffsetManual(), -Y_DEADZONE, Y_DEADZONE));
-	updateCarrotZ(nonlinear_filters::deadzone(
-		getZOffsetManual(), -Z_DEADZONE, Z_DEADZONE));
+	updateCarrotX(getXOffsetManual());
+	updateCarrotY(getYOffsetManual());
+	updateCarrotZ(getZOffsetManual());
 }
 
 void carrot_control::CarrotControl::updateCarrotX(double xOff)
@@ -57,20 +54,17 @@ void carrot_control::CarrotControl::updateCarrotX(double xOff)
 
 void carrot_control::CarrotControl::updateCarrotX()
 {
-	updateCarrotX(nonlinear_filters::deadzone(
-		getXOffsetManual(), -X_DEADZONE, X_DEADZONE));
+	updateCarrotX(getXOffsetManual());
 }
 
 void carrot_control::CarrotControl::updateCarrotY()
 {
-	updateCarrotY(nonlinear_filters::deadzone(
-		getYOffsetManual(), -Y_DEADZONE, Y_DEADZONE));
+	updateCarrotY(getYOffsetManual());
 }
 
 void carrot_control::CarrotControl::updateCarrotZ()
 {
-	updateCarrotZ(nonlinear_filters::deadzone(
-		getZOffsetManual(), -Z_DEADZONE, Z_DEADZONE));
+	updateCarrotZ(getZOffsetManual());
 }
 
 void carrot_control::CarrotControl::updateCarrotY(double yOff)

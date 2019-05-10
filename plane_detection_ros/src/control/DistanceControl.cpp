@@ -66,7 +66,7 @@ void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedCon
 	if (xComponent < 0)
 		_planeYaw += M_PI;
 
-	_planeYaw = wrapMinMax(_planeYaw, -M_PI, M_PI);
+	_planeYaw = nonlinear_filters::wrapMinMax(_planeYaw, -M_PI, M_PI);
 }
 
 void dist_control::DistanceControl::detectSequenceChange()
@@ -183,9 +183,9 @@ void dist_control::DistanceControl::publishDistVelSp(ros::Publisher& pub)
 void dist_control::DistanceControl::calculateManualSetpoint(double dt)
 {	
 	setAttitudeSp(
-		nonlinear_filters::deadzone(-getRollSpManual(), -ANGLE_DEADZONE, ANGLE_DEADZONE),				//roll
-		nonlinear_filters::deadzone(getPitchSpManual(),	-ANGLE_DEADZONE, ANGLE_DEADZONE),			//pitch
-		nonlinear_filters::deadzone(-getYawSpManual(), -ANGLE_DEADZONE, ANGLE_DEADZONE) );				//yaw
+		-getRollSpManual(), 	//roll
+		getPitchSpManual(),		//pitch
+		-getYawSpManual());  	//yaw
 	setThrustSp(getThrustSpUnscaled());	//thrust
 }
 

@@ -17,11 +17,6 @@
 #include <array>
 #include <math.h>
 
-/**
- *  wrap x -> [0,max) 
- */
-double wrapMax(double x, double max);
-
 control_base::ControlBase::ControlBase()
 {
 }
@@ -170,11 +165,6 @@ void control_base::ControlBase::publishAttitudeReal(ros::Publisher& pub)
 	pub.publish(newMessage);
 }
 
-double control_base::ControlBase::wrapMinMax(double x, double min, double max)
-{
-    return min + wrapMax(x - min, max - min);
-}
-
 void control_base::ControlBase::setThrustSp(const double thrust)
 {
 	_attThrustSp[3] = thrust;
@@ -214,12 +204,6 @@ void control_base::ControlBase::publishEulerSp(ros::Publisher& pub)
 	newMessage.y = _attThrustSp[1];
 	newMessage.z = _attThrustSp[2];
 	pub.publish(newMessage);
-}
-
-double wrapMax(double x, double max)
-{
-    /* integer math: `(max + x % max) % max` */
-    return fmod(max + fmod(x, max), max);
 }
 
 control_base::ControlBase* control_base::ControlBase::getBasePointer()
