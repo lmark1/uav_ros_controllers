@@ -3,7 +3,6 @@ control:
   rate: 50
   sim_mode: false
   hover: 0.47
-  carrot_tol: 0.15
 
   pitch:  
     kp: 1.0

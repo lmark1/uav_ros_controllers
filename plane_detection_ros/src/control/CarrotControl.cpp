@@ -10,7 +10,6 @@
 #define PID_VY_PARAM "/control/vel_y"
 #define PID_VZ_PARAM "/control/vel_z"
 #define HOVER_PARAM "/control/hover"
-#define TOL_PARAM "/control/carrot_tol"
 
 // Define deadzone constants
 #define X_DEADZONE 0.01
