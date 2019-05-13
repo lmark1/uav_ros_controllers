@@ -4,9 +4,7 @@
 joy_control::JoyControl::JoyControl() :
 	_controlIndices (new joy_struct::ControlIndices),
 	_attitudeScales (new joy_struct::ScaleWeights),
-	_positionScales (new joy_struct::ScaleWeights),
-	_attDeadzone	(new joy_struct::ScaleWeights),
-	_posDeadzone	(new joy_struct::ScaleWeights)
+	_positionScales (new joy_struct::ScaleWeights)
 {
 	// Initialize JoyMsg
 	_joyMsg.axes = std::vector<float> (10, 0.0);
@@ -24,26 +22,17 @@ void joy_control::JoyControl::joyCb(const sensor_msgs::JoyConstPtr& message)
 
 double joy_control::JoyControl::getRollSpManual()
 {
-	return nonlinear_filters::deadzone(
-		_joyMsg.axes[_controlIndices->AXIS_LINEAR_Y],
-		- _attDeadzone->LINEAR_Y,
-		_attDeadzone->LINEAR_Y) * _attitudeScales->LINEAR_Y ;
+	return 	_joyMsg.axes[_controlIndices->AXIS_LINEAR_Y] * _attitudeScales->LINEAR_Y ;
 }
 
 double joy_control::JoyControl::getPitchSpManual()
 {
-	return nonlinear_filters::deadzone(
-		_joyMsg.axes[_controlIndices->AXIS_LINEAR_X],
-		- _attDeadzone->LINEAR_X,
-		_attDeadzone->LINEAR_X) * _attitudeScales->LINEAR_X ;
+	return _joyMsg.axes[_controlIndices->AXIS_LINEAR_X] * _attitudeScales->LINEAR_X ;
 }
 
 double joy_control::JoyControl::getYawSpManual()
 {
-	return nonlinear_filters::deadzone(
-		_joyMsg.axes[_controlIndices->AXIS_ANGULAR_YAW],
-		- _attDeadzone->ANGULAR_Z,
-		_attDeadzone->ANGULAR_Z) * _attitudeScales->ANGULAR_Z ;
+	return _joyMsg.axes[_controlIndices->AXIS_ANGULAR_YAW] * _attitudeScales->ANGULAR_Z ;
 }
 
 double joy_control::JoyControl::getThrustSpManual()
@@ -58,26 +47,17 @@ double joy_control::JoyControl::getThrustSpUnscaled()
 
 double joy_control::JoyControl::getYOffsetManual()
 {
-	return nonlinear_filters::deadzone(
-		_joyMsg.axes[_controlIndices->AXIS_LINEAR_Y],
-		- _posDeadzone->LINEAR_Y,
-		_posDeadzone->LINEAR_Y)  * _positionScales->LINEAR_Y;
+	return _joyMsg.axes[_controlIndices->AXIS_LINEAR_Y] * _positionScales->LINEAR_Y;
 }
 
 double joy_control::JoyControl::getXOffsetManual()
 {
-	return nonlinear_filters::deadzone(
-		_joyMsg.axes[_controlIndices->AXIS_LINEAR_X],
-		- _posDeadzone->LINEAR_X,
-		_posDeadzone->LINEAR_X)  * _positionScales->LINEAR_X;
+	return _joyMsg.axes[_controlIndices->AXIS_LINEAR_X]  * _positionScales->LINEAR_X;
 }
 
 double joy_control::JoyControl::getZOffsetManual()
 {
-	return nonlinear_filters::deadzone(
-		_joyMsg.axes[_controlIndices->AXIS_LINEAR_Z],
-		- _posDeadzone->LINEAR_Z,
-		_posDeadzone->LINEAR_Z)  * _positionScales->LINEAR_Z;
+	return _joyMsg.axes[_controlIndices->AXIS_LINEAR_Z] * _positionScales->LINEAR_Z;
 }
 
 double joy_control::JoyControl::getYawScale()
@@ -131,30 +111,6 @@ void joy_control::JoyControl::initializeParameters(ros::NodeHandle& nh)
 	{
 		ROS_FATAL("JoyControl::initializeParameters() - Position weight parameters are not properly set.");
 		throw std::runtime_error("Position weight parameters are not properly set.");
-	}
-
-	_attDeadzone->LINEAR_Z = 0;
-	initialized = 
-		nh.getParam("/joy/deadzone_attitude/x", 	_attDeadzone->LINEAR_X) &&
-		nh.getParam("/joy/deadzone_attitude/y", 	_attDeadzone->LINEAR_Y) &&
-		nh.getParam("/joy/deadzone_attitude/yaw", 	_attDeadzone->ANGULAR_Z);
-	ROS_INFO_STREAM("Attitude deadzone " << *_attDeadzone);
-	if (!initialized)
-	{
-		ROS_FATAL("JoyControl::initializeParameters() - Attitude deadzone parameters are not properely set.");
-		throw std::runtime_error("Attitude deadzone parameters are not properly set.");
-	}
-
-	_posDeadzone->ANGULAR_Z = 0;
-	initialized = 
-		nh.getParam("/joy/deadzone_position/x", _posDeadzone->LINEAR_X) &&
-		nh.getParam("/joy/deadzone_position/y", _posDeadzone->LINEAR_Y) &&
-		nh.getParam("/joy/deadzone_position/z", _posDeadzone->LINEAR_Z);
-	ROS_INFO_STREAM("Position deadzone " << *_posDeadzone);
-	if (!initialized)
-	{
-		ROS_FATAL("JoyControl::initializedParameters() - Position deadzone parameters are not properly set.");
-		throw std::runtime_error("Position deadzone parameters are not properly set.");
 	}
 }
 

@@ -4,6 +4,9 @@
 #include <iostream>
 #include <string>
 
+/**
+ * Namespace defining Joy message indices structures/
+ */
 namespace joy_struct
 {
 

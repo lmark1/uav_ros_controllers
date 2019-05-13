@@ -105,12 +105,6 @@ namespace joy_control
 
 		/** Scale weights - Joy structure */
 		std::unique_ptr<joy_struct::ScaleWeights> _positionScales;
-
-		/** Attitude deadzone values. */
-		std::unique_ptr<joy_struct::ScaleWeights> _attDeadzone;
-
-		/** Position deadzone values. */
-		std::unique_ptr<joy_struct::ScaleWeights> _posDeadzone;
 	};
 
 }

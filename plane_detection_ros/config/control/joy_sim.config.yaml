@@ -13,21 +13,11 @@ joy:
     z: 75
     yaw: 25
   
-  deadzone_attitude:
-    x: 0.05
-    y: 0.05
-    yaw: 0.05
-
   scale_position:
     x: 0.025
     y: 0.025
     z: 0.05
 
-  deadzone_position:
-    x: 0.01
-    y: 0.01
-    z: 0.01
-    
   detection_state: 5
   left_seq: 2
   right_seq: 0

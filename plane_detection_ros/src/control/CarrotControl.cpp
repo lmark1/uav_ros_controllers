@@ -11,11 +11,6 @@
 #define PID_VZ_PARAM "/control/vel_z"
 #define HOVER_PARAM "/control/hover"
 
-// Define deadzone constants
-#define X_DEADZONE 0.01
-#define Y_DEADZONE 0.01
-#define Z_DEADZONE 0.01
-
 carrot_control::CarrotControl::CarrotControl() :
     _posXPID {new PID ("Position - x")},
     _posYPID {new PID ("Position - y")}, 

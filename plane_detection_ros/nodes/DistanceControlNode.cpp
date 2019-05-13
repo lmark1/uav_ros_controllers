@@ -155,7 +155,6 @@ int main(int argc, char **argv)
 		ROS_FATAL("Failed to initialized DistanceControlNode parameters.");
 		return 1;
 	}
-	// TODO: Move all the deadzones to JoyControl
 	
 	// Start the main loop
 	while (ros::ok())
