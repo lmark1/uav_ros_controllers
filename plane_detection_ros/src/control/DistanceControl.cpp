@@ -10,27 +10,56 @@
 #define DISTVEL_PID_PARAMS "/control/distance_vel"
 #define DIST_SP_DEADZONE 0.01
 
-dist_control::DistanceControl::DistanceControl(DistanceControlMode mode) :
-	_mode (mode),
-	_currState (DistanceControlState::MANUAL),
-	_currSeq (Sequence::NONE),
-	_inspectIndices {new joy_struct::InspectionIndices},
-	_distancePID {new PID("Distance")},
-	_distanceVelPID {new PID("Distance vel")},
-	_distanceMeasured (-1),
-	_distanceVelocityMeasured (0),
-	_distVelSp (0),
-	_distSp (-1),
-	_inspectionRequestFailed (false),
-	_planeYaw (0),
-	_sequenceStep (0),
-	carrot_control::CarrotControl()
+dist_control::DistanceControl::DistanceControl(
+	DistanceControlMode mode, ros::NodeHandle& nh) :
+	_inspectIndices 			{new joy_struct::InspectionIndices},
+	_distancePID 				{new PID("Distance")},
+	_distanceVelPID 			{new PID("Distance vel")},
+	_distanceMeasured 			(-1),
+	_distanceVelocityMeasured 	(0),
+	_distVelSp 					(0),
+	_distSp 					(-1),
+	_inspectionRequestFailed 	(false),
+	_planeYaw 					(0),
+	_sequenceStep 				(0),
+	_mode 						(mode),
+	_currState 					(DistanceControlState::MANUAL),
+	_currSeq 					(Sequence::NONE),
+	carrot_control::CarrotControl(nh)
 {
 	// Info messages about node start.
 	if (_mode == DistanceControlMode::SIMULATION)
-		ROS_INFO("DistanceControl: Starting node in simulation mode.");
+		ROS_INFO("DistanceControl::DistanceControl() - Starting node in simulation mode.");
 	else
-		ROS_INFO("DistanceControl: Starting node in real mode.");
+		ROS_INFO("DistanceControl::DistanceControl() - Starting node in real mode.");	
+
+	// Initialize Class parameters
+	initializeParameters(nh);
+
+	// Setup all subscribers
+	_subDistance = nh.subscribe("/plane/distance", 1, 
+		&dist_control::DistanceControl::distanceCb, this);
+	_subDistanceVelocity = nh.subscribe("/plane/distance_vel", 1,
+		&dist_control::DistanceControl::distanceVelCb, this);
+	_subPlaneNormal = nh.subscribe("/plane/normal", 1,
+		&dist_control::DistanceControl::normalCb, this);
+	_subSequenceStep = nh.subscribe("/sequence/step", 1,
+		&dist_control::DistanceControl::seqStepCb, this);
+
+	// Setup all publishers
+	_pubControlState = nh.advertise<std_msgs::Int32>("/control_state", 1);
+	_pubDistanceSp = nh.advertise<std_msgs::Float64>("/plane/distance_sp", 1);
+	_pubDistanceVelocitySp = nh.advertise<std_msgs::Float64>("/plane/distance_vel_sp", 1); 
+	_pubCarrotDistance = nh.advertise<std_msgs::Float64>("/carrot/distance", 1);
+	_pubSequenceEnabled = nh.advertise<std_msgs::Bool>("/sequence/enabled", 1);
+
+	// Setup dynamic reconfigure server
+	plane_detection_ros::DistanceControlParametersConfig distConfig;
+	setDistReconfigureParams(distConfig);
+	_distConfigServer.updateConfig(distConfig);
+	_distParamCallback =  boost::bind(
+		&dist_control::DistanceControl::distParamCb, this, _1, _2);
+	_distConfigServer.setCallback(_distParamCallback);
 }
 
 dist_control::DistanceControl::~DistanceControl() {
@@ -52,7 +81,8 @@ void dist_control::DistanceControl::seqStepCb(const std_msgs::Float64ConstPtr& m
 	_sequenceStep = message->data;
 }
 
-void dist_control::DistanceControl::normalCb(const geometry_msgs::PoseStampedConstPtr& message)
+void dist_control::DistanceControl::normalCb(
+	const geometry_msgs::PoseStampedConstPtr& message)
 {
 	_planeYaw = calculateYaw(
 		message->pose.orientation.x,
@@ -164,19 +194,19 @@ void dist_control::DistanceControl::deactivateInspection()
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
-void dist_control::DistanceControl::publishState(ros::Publisher& pub)
+void dist_control::DistanceControl::publishState()
 {
 	// Publish 0 for manual state and 1 for inspection state
 	std_msgs::Int32 newMessage;
 	newMessage.data = inInspectionState() ? 1 : 0;
-	pub.publish(newMessage);
+	_pubControlState.publish(newMessage);
 }
 
-void dist_control::DistanceControl::publishDistVelSp(ros::Publisher& pub)
+void dist_control::DistanceControl::publishDistVelSp()
 {
 	std_msgs::Float64 newMessage;
 	newMessage.data = _distVelSp;
-	pub.publish(newMessage);
+	_pubDistanceVelocitySp.publish(newMessage);
 }
 
 void dist_control::DistanceControl::calculateManualSetpoint(double dt)
@@ -231,43 +261,43 @@ void dist_control::DistanceControl::doDistanceControl(double dt)
 	overrideYaw(yaw);
 }
 
-void dist_control::DistanceControl::publishDistSp(ros::Publisher& pub)
+void dist_control::DistanceControl::publishDistSp()
 {
 	std_msgs::Float64 newMessage;
 	newMessage.data = _distSp;
-	pub.publish(newMessage);
+	_pubDistanceSp.publish(newMessage);
 }
 
-void dist_control::DistanceControl::publishSequenceState(ros::Publisher& pub)
+void dist_control::DistanceControl::publishSequenceState()
 {	
 	std_msgs::Bool newMessage;
 	if (_currSeq == Sequence::NONE || !inInspectionState())
 		newMessage.data = false;
 	else 
 		newMessage.data = true;
-	pub.publish(newMessage);
+	_pubSequenceEnabled.publish(newMessage);
 }
 
-void dist_control::DistanceControl::publishAttSp(ros::Publisher& pub)
+void dist_control::DistanceControl::publishAttSp()
 {	
 	// REAL - setpoint while in inspection mode
 	if (_mode == DistanceControlMode::REAL && inInspectionState())
 	{
-		publishAttitudeReal(pub, getAttThrustSp(), 0, MASK_IGNORE_RPY_RATE);
+		publishAttitudeReal(getAttThrustSp(), 0, MASK_IGNORE_RPY_RATE);
 		return;
 	}
 
 	// REAL - setpoint while not in inspction mode
 	if (_mode == DistanceControlMode::REAL && !inInspectionState())
 	{		
-		publishAttitudeReal(pub);
+		publishAttitudeReal();
 		return;
 	}
 
 	// SIM - setpoint while in simulation mode
 	if (_mode == DistanceControlMode::SIMULATION)
 	{
-		publishAttitudeSim(pub, getThrustScale());
+		publishAttitudeSim(getThrustScale());
 		return;
 	}
 }
@@ -303,7 +333,6 @@ bool dist_control::DistanceControl::manualRequested()
 
 void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 {	
-	CarrotControl::initializeParameters(nh);
 	ROS_WARN("DistanceControl::initializeParameters()");
 
 	_distancePID->initializeParameters(nh, DIST_PID_PARAMS);
@@ -321,7 +350,7 @@ void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 	}
 }
 
-void dist_control::DistanceControl::parametersCallback(
+void dist_control::DistanceControl::distParamCb(
 	plane_detection_ros::DistanceControlParametersConfig& configMsg,
 	uint32_t level)
 {
@@ -340,7 +369,7 @@ void dist_control::DistanceControl::parametersCallback(
 	_distanceVelPID->set_lim_low(configMsg.lim_low_vdist);
 }
 
-void dist_control::DistanceControl::setReconfigureParameters(
+void dist_control::DistanceControl::setDistReconfigureParams(
 	plane_detection_ros::DistanceControlParametersConfig& config)
 {
 	ROS_WARN("DistanceControl::setReconfigureParameters");
@@ -394,12 +423,82 @@ double dist_control::DistanceControl::distanceToCarrot()
 		pow(_distSp -  _distanceMeasured, 2));
 }
 
-void dist_control::DistanceControl::publishDistanceToCarrot(ros::Publisher& pub)
+void dist_control::DistanceControl::publishDistanceToCarrot()
 {
 	std_msgs::Float64 newMessage;
 	if (_currSeq == Sequence::NONE)
 		newMessage.data = -1;
 	else 
 		newMessage.data = distanceToCarrot();
-	pub.publish(newMessage);
+	_pubCarrotDistance.publish(newMessage);
+}
+
+void dist_control::runDefault(
+	dist_control::DistanceControl& dc, ros::NodeHandle& nh, bool simMode)
+{
+	// Setup loop rate
+	double rate = 25;
+	bool initialized = initialized && nh.getParam("/sequence/rate", rate);
+	ros::Rate loopRate(rate);
+	double dt = 1.0 / rate;
+	ROS_INFO("dist_control::runDeafult() - Setting rate to %.2f", rate);
+	if (!initialized)
+	{
+		ROS_FATAL("Failed to initialized loop parameters.");
+		throw std::runtime_error("Failed to initialize loop parametrs");
+	}
+	
+	// Start the main loop
+	while (ros::ok())
+	{
+		ros::spinOnce();
+
+		dc.detectStateChange();
+		dc.detectSequenceChange();
+		dc.publishState();
+		
+		// Do regular "Manual" Inspection when sequence is not set
+		if (dc.inInspectionState() && 
+			dc.getSequence() == dist_control::Sequence::NONE)
+			dc.calculateInspectionSetpoint(dt);
+
+		// Do "Sequence" Inpsection when sequence is set
+		else if (dc.inInspectionState() &&
+			dc.getSequence() != dist_control::Sequence::NONE)	
+			dc.calculateSequenceSetpoint(dt);			
+
+		// If not in inspection state go to attitude control
+		else
+			dc.calculateManualSetpoint(dt);
+			
+
+		// Publish simulation setpoint
+		if (simMode)
+			dc.publishAttSp();
+
+		// Publish real setpoint
+		else
+			dc.publishAttSp();
+
+
+		// TODO: Make a virtual publish all method
+		// Publish distance to carrot
+		dc.publishDistanceToCarrot();
+
+		// Publish sequence state
+		dc.publishSequenceState();
+		
+		// Publish distance and angle setpoints
+		dc.publishDistSp();
+		dc.publishDistVelSp();
+
+		// Publish carrot setpoints
+		dc.publishEulerSp();
+		dc.publishPosSp();
+		dc.publishVelSp();
+		dc.publishPosMv();
+		dc.publishVelMv();
+		
+		loopRate.sleep();
+	}
 }

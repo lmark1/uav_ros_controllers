@@ -8,9 +8,21 @@
 
 namespace carrot_control 
 {
+	/** Name of dynamic reconfigure node. */
+	#define CARROT_DYN_RECONF "position_config"
+
+	/**
+	 * Run default Carrot Control algorithm.
+	 * 
+	 * @param cc - Reference to CarrotControl object
+	 * @param nh - Given NodeHandle
+	 */
+	void carrot_control::runDefault(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 
 	/**
 	 * "Carrot-on-a-Stick" control implementation.
+	 * It uses cascade od PID controllers to calculate roll / pitch / yaw / thrust,
+	 * commands from desired position setpoint.
 	 * 
 	 * Inherits ControlBase and JoyControl as base classes
 	 */
@@ -20,28 +32,32 @@ namespace carrot_control
 	{
 	public:
 
-		CarrotControl();
+		/**
+ 		 * Default constructor. Used for reading ROS parameters and initalizing 
+		 * private variables.
+		 */
+		CarrotControl(ros::NodeHandle& nh);
 		virtual ~CarrotControl();
 
 		/**
 		 * Publish carrot position setpoint as a Vector3 ROS message.
 		 */
-		void publishPosSp(ros::Publisher& pub);
+		void publishPosSp();
 
 		/**
 		 * Publish carrot velocity setpoint as a Vector3 ROS message.
 		 */ 
-		void publishVelSp(ros::Publisher& pub);
+		void publishVelSp();
 
 		/**
 		 * Publish local position mesured value as a Vector3 ROS message.
 		 */
-		void publishPosMv(ros::Publisher& pub);
+		void publishPosMv();
 
 		/**
 		 * Publish measured local velocity value as a Vector3 ROS message.
 		 */
-		void publishVelMv(ros::Publisher& pub);
+		void publishVelMv();
 
 		/**
 		 * Set carrot position to given position values.
@@ -70,24 +86,6 @@ namespace carrot_control
 		void calculateAttThrustSp(double dt);
 
 		/**
-		 * Do all the parameter initialization here.
-		 */
-		virtual void initializeParameters(ros::NodeHandle& nh) override;
-
-		/**
-		 * Callback function used for setting various parameters.
-		 */
-		void parametersCallback(
-				plane_detection_ros::PositionControlParametersConfig& configMsg,
-				uint32_t level);
-
-		/**
-		 * Set reconfigure parameters in the given config object.
-		 */
-		void setReconfigureParameters(
-			plane_detection_ros::PositionControlParametersConfig& config);
-
-		/**
 		 * Update carrot position setpoint, with default joystick offset values.
 		 */
 		void updateCarrot();
@@ -100,7 +98,8 @@ namespace carrot_control
 		void updateCarrotX(double x);
 
 		/**
-		 * Update x component of carrot position setpoint with default joystick offset value.
+		 * Update x component of carrot position setpoint with default joystick offset 
+		 * value.
 		 */
 		void updateCarrotX();
 
@@ -112,7 +111,8 @@ namespace carrot_control
 		void updateCarrotY(double y);
 
 		/**
-		 * Update y component of carrot position setpoint with default joystick offset value.
+		 * Update y component of carrot position setpoint with default joystick offset 
+		 * value.
 		 */
 		void updateCarrotY();
 
@@ -124,7 +124,8 @@ namespace carrot_control
 		void updateCarrotZ(double z);
 
 		/**
-		 * Update z component of carrot position setpoint with default joystick offset value.
+		 * Update z component of carrot position setpoint with default joystick offset 
+		 * value.
 		 */
 		void updateCarrotZ();
 
@@ -149,11 +150,25 @@ namespace carrot_control
 		double carrotDistSquaredZ();
 
 		/**
-		 * Return pointer to the CarrotControl object.
+		 * Callback function used for setting various parameters.
 		 */
-		CarrotControl* getCarrotPointer();
-
+		void positionParamsCb(
+				plane_detection_ros::PositionControlParametersConfig& configMsg,
+				uint32_t level);
+				
 	private:
+
+		/**
+		 * Set reconfigure parameters in the given config object.
+		 */
+		void setPositionReconfigureParams(
+			plane_detection_ros::PositionControlParametersConfig& config);
+
+		/**
+		 * Do all the parameter initialization here.
+		 */
+		void initializeParameters(ros::NodeHandle& nh);
+	
 
 		/** PID controller for position along the y-axis.*/
 		std::unique_ptr<PID> _posYPID;
@@ -181,6 +196,21 @@ namespace carrot_control
 
 		/** Value from 0 to 1, hover thrust */
 		double _hoverThrust;
+
+		/** Define all Publishers. **/
+		ros::Publisher _pubCarrotPositionSp;
+		ros::Publisher _pubPositionMv;
+		ros::Publisher _pubCarrotVelocitySp;
+		ros::Publisher _pubVelocityMv;
+
+		/** Define Dynamic Reconfigure parameters **/
+		boost::recursive_mutex _posConfigMutex;
+		dynamic_reconfigure::
+			Server<plane_detection_ros::PositionControlParametersConfig>
+			_posConfigServer {_posConfigMutex, ros::NodeHandle(CARROT_DYN_RECONF)};
+		dynamic_reconfigure::
+			Server<plane_detection_ros::PositionControlParametersConfig>::CallbackType
+			_posParamCallback;
 	};	
 
 }

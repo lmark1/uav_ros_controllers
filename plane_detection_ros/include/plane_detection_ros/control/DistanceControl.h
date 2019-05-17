@@ -20,6 +20,19 @@
 
 namespace dist_control 
 {
+	/** Name of dynamic reconfigure node. */
+	#define DIST_DYN_RECONF "distance_config"
+	
+	/**
+	 * Run default Carrot Control algorithm.
+	 * TODO: This does not work - fix
+	 * 
+	 * @param cc - Reference to CarrotControl object
+	 * @param nh - Given NodeHandle
+	 * @param simMode - true if simulation mode is enabled, otherwise false
+	 */
+	void dist_control::runDefault(
+		dist_control::DistanceControl& cc, ros::NodeHandle& nh, bool simMode);
 
 	/**
 	 * Define control modes used in DistanceControl algorithm.
@@ -74,38 +87,14 @@ class DistanceControl : public carrot_control::CarrotControl {
 	public:
 
 		/**
-		 * Defualt DistanceControl constructor. 
+ 		 * Default constructor. Used for reading ROS parameters and initalizing 
+		 * private variables.
 		 * 
-		 * @param mode 	Defines control mode
-		 * @param kp	Distance controller proportional gain
-		 * @param ki	Distance controller integrator gain
-		 * @param kd	Distance controller derivator gain
-		 * @param lim_low	Lower saturation limit for for the PID integrator
-		 * @param lim_high 	Higher saturation limit for the PID integrator
-		 */	
-		DistanceControl(DistanceControlMode mode);
+		 * @param mode - current distance control mode
+		 * @param nh - given ROS node handle
+		 */
+		DistanceControl(DistanceControlMode mode, ros::NodeHandle& nh);
 		virtual ~DistanceControl();
-
-		/**	
-		 * Distance callback function.
-		 */
-		void distanceCb(const std_msgs::Float64ConstPtr& message);
-
-		/**
-		 * Distance velocity callback function.
-		 */
-		void distanceVelCb(const std_msgs::Float64ConstPtr& message);
-
-		/**
-		 * Plane normal callback function.
-		 */
-		void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
-
-
-		/**
-		 * Sequence step callback. Step is applied when in sequence mode.
-		 */
-		void seqStepCb(const std_msgs::Float64ConstPtr& message);
 
 		/**
 		 * Change the state back to manual if received distance is invalid.
@@ -147,37 +136,35 @@ class DistanceControl : public carrot_control::CarrotControl {
 
 		/**
 		 * Publish current control state.
-		 *
-		 * @param pub - Given Int32 publisher
 		 */
-		void publishState(ros::Publisher& pub);
+		void publishState();
 
 		/**
 		 * Publish attitude setpoint on the given topic.
 		 * If in simulation mode, publisher is expected to be Vector3.
 		 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
 		 */
-		void publishAttSp(ros::Publisher& pub);
+		void publishAttSp();
 
 		/**
 		 * Publish distance setpoint as a std_msgs::Float64 message.
 		 */
-		void publishDistSp(ros::Publisher& pub);
+		void publishDistSp();
 		
 		/**
 		 * Publish distance velocity setpoint as a Float64 ROS message.
 		 */
-		void publishDistVelSp(ros::Publisher& pub);
+		void publishDistVelSp();
 
 		/**
 		 * Publish true if in sequence state, otherwise false.
 		 */
-		void publishSequenceState(ros::Publisher& pub);
+		void publishSequenceState();
 		
 		/**
 		 * Publish distance to carrot.
 		 */
-		void publishDistanceToCarrot(ros::Publisher& pub);
+		void publishDistanceToCarrot();
 
 		/**
 		 * Return true if in inspection state, otherwise false.
@@ -188,24 +175,6 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 * Return the currently active sequence.
 		 */
 		Sequence getSequence();
-
-		/**
-		 * Initialize parameters.
-		 */
-		virtual void initializeParameters(ros::NodeHandle& nh) override;
-
-		/**
-		 * Callback function used for setting various parameters.
-		 */
-		void parametersCallback(
-				plane_detection_ros::DistanceControlParametersConfig& configMsg,
-				uint32_t level);
-
-		/**
-		 * Set reconfigure parameters in the given config object.
-		 */
-		void setReconfigureParameters(
-			plane_detection_ros::DistanceControlParametersConfig& config);
 
 		/**
 		 * Calculate distance from carrot, taking account of distance from
@@ -224,8 +193,46 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 */
 		void doDistanceControl(double dt);
 
+		/**
+		 * Callback function used for setting various parameters.
+		 */
+		void distParamCb(
+				plane_detection_ros::DistanceControlParametersConfig& configMsg,
+				uint32_t level);
+
+		/**	
+		 * Distance callback function.
+		 */
+		void distanceCb(const std_msgs::Float64ConstPtr& message);
+
+		/**
+		 * Distance velocity callback function.
+		 */
+		void distanceVelCb(const std_msgs::Float64ConstPtr& message);
+
+		/**
+		 * Plane normal callback function.
+		 */
+		void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
+
+		/**
+		 * Sequence step callback. Step is applied when in sequence mode.
+		 */
+		void seqStepCb(const std_msgs::Float64ConstPtr& message);
+
 	private:
-		
+
+		/**
+		 * Set reconfigure parameters in the given config object.
+		 */
+		void setDistReconfigureParams(
+			plane_detection_ros::DistanceControlParametersConfig& config);	
+	
+		/**
+		 * Initialize parameters.
+		 */
+		void initializeParameters(ros::NodeHandle& nh);
+
 		/**
 		 * From the current Joy message determine if left sequence is enabled.
 		 */
@@ -299,6 +306,28 @@ class DistanceControl : public carrot_control::CarrotControl {
 
 		/** Current sequence step. */
 		double _sequenceStep;
+
+		/** Define all ROS subscribers. **/
+		ros::Subscriber _subDistance;
+		ros::Subscriber _subDistanceVelocity;
+		ros::Subscriber _subPlaneNormal;
+		ros::Subscriber _subSequenceStep;
+
+		/** Define all ROS publishers. **/
+		ros::Publisher _pubControlState;
+		ros::Publisher _pubDistanceSp;
+		ros::Publisher _pubDistanceVelocitySp;
+		ros::Publisher _pubCarrotDistance;
+		ros::Publisher _pubSequenceEnabled;
+
+		/** Define Dynamic Reconfigure parameters **/
+		boost::recursive_mutex _distConfigMutex;
+		dynamic_reconfigure::
+			Server<plane_detection_ros::DistanceControlParametersConfig>
+			_distConfigServer {_distConfigMutex, ros::NodeHandle(DIST_DYN_RECONF)};
+		dynamic_reconfigure::
+			Server<plane_detection_ros::DistanceControlParametersConfig>::CallbackType
+			_distParamCallback;
 	};
 
 }

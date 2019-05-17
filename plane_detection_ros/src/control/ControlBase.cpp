@@ -17,8 +17,20 @@
 #include <array>
 #include <math.h>
 
-control_base::ControlBase::ControlBase()
+control_base::ControlBase::ControlBase(ros::NodeHandle& nh)
 {
+	// Initialize all subscribers
+	_subImuReal = nh.subscribe("/real/imu", 1,
+		&control_base::ControlBase::imuCbReal, this);
+	_subOdomReal = nh.subscribe("/real/odom", 1,
+		&control_base::ControlBase::odomCbReal, this);
+	_subOdomSim = nh.subscribe("/sim/odom", 1, 
+		&control_base::ControlBase::odomCbSim, this);
+
+	// Initialized all publishers
+	_pubSpReal = nh.advertise<mavros_msgs::AttitudeTarget>("/real/attitude_sp", 1);
+	_pubSpSim = nh.advertise<mav_msgs::RollPitchYawrateThrust>("/sim/attitude_sp", 1);
+	_pubEulerSp = nh.advertise<geometry_msgs::Vector3>("/euler_sp", 1);
 }
 
 control_base::ControlBase::~ControlBase()
@@ -106,7 +118,7 @@ double control_base::ControlBase::calculateYaw(double qx, double qy, double qz, 
 }
 
 void control_base::ControlBase::publishAttitudeSim(
-	ros::Publisher& pub, const std::array<double, 4>& attThrustSp, double yawRateSp)
+	const std::array<double, 4>& attThrustSp, double yawRateSp)
 {
 	mav_msgs::RollPitchYawrateThrust newMessage;
 	newMessage.roll = attThrustSp[0];
@@ -116,24 +128,22 @@ void control_base::ControlBase::publishAttitudeSim(
 	newMessage.thrust.x = 0;
 	newMessage.thrust.y = 0;
 	newMessage.thrust.z = attThrustSp[3];
-	pub.publish(newMessage);
+	_pubSpSim.publish(newMessage);
 }
 
-void control_base::ControlBase::publishAttitudeSim(ros::Publisher& pub, double thrustScale)
+void control_base::ControlBase::publishAttitudeSim(double thrustScale)
 {	
-	mav_msgs::RollPitchYawrateThrust newMessage;
-	newMessage.roll = _attThrustSp[0];
-	newMessage.pitch = _attThrustSp[1];
-	newMessage.yaw_rate = _attThrustSp[2];
-	newMessage.thrust = geometry_msgs::Vector3();
-	newMessage.thrust.x = 0;
-	newMessage.thrust.y = 0;
-	newMessage.thrust.z = _attThrustSp[3] * thrustScale;
-	pub.publish(newMessage);
+	// Delegate to the general method
+	publishAttitudeSim( 
+		std::array<double, 4> 
+		{
+			_attThrustSp[0], _attThrustSp[1], 0, _attThrustSp[3] * thrustScale	
+		},
+		_attThrustSp[2]);
 }
 
 void control_base::ControlBase::publishAttitudeReal(
-	ros::Publisher& pub, const std::array<double, 4>& attThrustSp, double yawRateSp, int typeMask)
+	const std::array<double, 4>& attThrustSp, double yawRateSp, int typeMask)
 {
 	tf2::Quaternion q;
 	q.setEulerZYX(attThrustSp[2], attThrustSp[1], attThrustSp[0]);
@@ -146,23 +156,19 @@ void control_base::ControlBase::publishAttitudeReal(
 	newMessage.orientation.z = q.getZ();
 	newMessage.orientation.w = q.getW();
 	newMessage.thrust = attThrustSp[3];
-	pub.publish(newMessage);
+	_pubSpReal.publish(newMessage);
 }
 
-void control_base::ControlBase::publishAttitudeReal(ros::Publisher& pub)
+void control_base::ControlBase::publishAttitudeReal()
 {
-	tf2::Quaternion q;
-	q.setEulerZYX(0, _attThrustSp[1], _attThrustSp[0]);
-
-	mavros_msgs::AttitudeTarget newMessage;
-	newMessage.type_mask = MASK_IGNORE_RP_RATE;
-	newMessage.body_rate.z = _attThrustSp[2];
-	newMessage.orientation.x = q.getX();
-	newMessage.orientation.y = q.getY();
-	newMessage.orientation.z = q.getZ();
-	newMessage.orientation.w = q.getW();
-	newMessage.thrust = _attThrustSp[3];
-	pub.publish(newMessage);
+	// Delegate to the general method
+	publishAttitudeReal(
+		std::array<double, 4> 
+		{
+			_attThrustSp[0], _attThrustSp[1], 0, _attThrustSp[3]
+		}, 
+		_attThrustSp[2], 
+		MASK_IGNORE_RP_RATE);
 }
 
 void control_base::ControlBase::setThrustSp(const double thrust)
@@ -170,7 +176,8 @@ void control_base::ControlBase::setThrustSp(const double thrust)
 	_attThrustSp[3] = thrust;
 }
 
-void control_base::ControlBase::setAttitudeSp(const double roll, const double pitch, const double yaw)
+void control_base::ControlBase::setAttitudeSp(
+	const double roll, const double pitch, const double yaw)
 {
 	_attThrustSp[0] = roll;
 	_attThrustSp[1] = pitch;
@@ -197,17 +204,11 @@ const std::array<double, 4>& control_base::ControlBase::getAttThrustSp()
 	return _attThrustSp;
 }
 
-void control_base::ControlBase::publishEulerSp(ros::Publisher& pub)
+void control_base::ControlBase::publishEulerSp()
 {
 	geometry_msgs::Vector3 newMessage;
 	newMessage.x = _attThrustSp[0];
 	newMessage.y = _attThrustSp[1];
 	newMessage.z = _attThrustSp[2];
-	pub.publish(newMessage);
+	_pubEulerSp.publish(newMessage);
 }
-
-control_base::ControlBase* control_base::ControlBase::getBasePointer()
-{
-	return this;
-}
-

@@ -20,36 +20,33 @@
 
 namespace control_base
 {
+
+	/** Type mask used when publishing AttitudeTarget ROS messages. It will ignore
+	 * body roll, pitch and rate values. */
 	#define MASK_IGNORE_RPY_RATE 7
+	/** Type mask used when publishing AttitudeTarget ROS messages. It will ignore
+	 * body roll and pitch rate values. */
 	#define MASK_IGNORE_RP_RATE 3
 
 	/**
-	 * This class is used for defining Control subscribers and publishers.
+	 * This class is used for defining UAV odometry and imu publishers for
+	 * simulation and / or realistic mode. It will also define attitude
+	 * setpoint publishers for realistic and simulation mode. It provides methods
+	 * for setting and publishing desired attitude setpoints.
+	 * 
+	 * This class is meant to be used as a base class for some other control strategy.
 	 */
 	class ControlBase {
 	public:
 
 		/**
-		 * Default constructor. Used for reading ROS parameters and initalizing private variables.
+		 * Default constructor. Used for reading ROS parameters and initalizing 
+		 * private variables.
+		 * 
+		 * @param nh - ROS node handle, used for initializing subscribers and publishers
 		 */
-		ControlBase();
+		ControlBase(ros::NodeHandle& nh);
 		virtual ~ControlBase();
-
-		/**
-		 * IMU callback function for realistic control mode. 
-		 * Calculates UAV yaw.
-		 */
-		void imuCbReal(const sensor_msgs::ImuConstPtr& message);
-
-		/**
-		 * Odometry callback function for simulation control mode.
-		 */
-		void odomCbSim(const nav_msgs::OdometryConstPtr& message);
-
-		/**
-		 * Odometry callback function for real control mode.
-		 */
-		void odomCbReal(const nav_msgs::OdometryConstPtr& message);
 
 		/**
 		 * Return the current UAV yaw angle.
@@ -72,41 +69,39 @@ namespace control_base
 		double calculateYaw(double qx, double qy, double qz, double qw);
 
 		/**
+		 * Publish currently set UAV attitude setpoint message of type 
+		 * mav_msgs::RollPitchYawRateThrust. This method will put yaw angle in currently 
+		 * set attitude setpoint to yaw rate in the message.
+		 * 
+		 * @param thrustScale	- scaling factor for thrust
+		 */
+		void publishAttitudeSim(double thrustScale);
+
+		/**
+		 * Publish UAV attitude setpoint message of type mavros_msgs::AttitudeTarget.
+		 * This method will put yaw angle in currently set attitude setpoint to yaw 
+		 * rate in the message. Type mask will not ignore the yaw rate.
+		 */
+		void publishAttitudeReal();
+
+		/**
 		 * Publish UAV attitude setpoint message of type mav_msgs::RollPitchYawRateThrust
 		 * 
-		 * @param pub 			- attitude setpoint publisher
 		 * @param attThrustSp 	- attitude, thrust setpoint array
 		 * @param yawRateSp  	- yaw rate setpoint
 		 */
-		void publishAttitudeSim(ros::Publisher& pub, const std::array<double, 4>& attThrustSp, double yawRateSp);
-
-		/**
-		 * Publish currently set UAV attitude setpoint message of type mav_msgs::RollPitchYawRateThrust.
-		 * This method will put yaw angle in currently set attitude setpoint to yaw rate in the message.
-		 * 
-		 * @param pub			- attitude setpoint publisher
-		 * @param thrustScale	- scaling factor for thrust
-		 */
-		void publishAttitudeSim(ros::Publisher& pub, double thrustScale);
+		void publishAttitudeSim(const std::array<double, 4>& attThrustSp,
+			double yawRateSp);
 
 		/**
 		 * Publish UAV attitude setpoint message of type mavros_msgs::AttitudeTarget
 		 * 
-		 * @param pub 			- attitude setpoint publisher
 		 * @param attThrustSp 	- attitude, thrust setpoint array
 		 * @param yawRateSp  	- yaw rate setpoint
 		 * @param typeMask 		- Byte mask used in mavros_msgs::AttitudeTarget message
 		 */
-		void publishAttitudeReal(ros::Publisher& pub, const std::array<double, 4>& attThrustSp, double yawRateSp, int typeMask);
-
-		/**
-		 * Publish UAV attitude setpoint message of type mavros_msgs::AttitudeTarget.
-		 * This method will put yaw angle in currently set attitude setpoint to yaw rate in the message.
-		 * Type mask will not ignore the yaw rate.
-		 * 
-		 * @param pub	- attitude setpoint publisher
-		 */
-		void publishAttitudeReal(ros::Publisher& pub);
+		void publishAttitudeReal(const std::array<double, 4>& attThrustSp, 
+			double yawRateSp, int typeMask);
 
 		/**
 		 * Set roll, pitch, yaw attitude setpoint.
@@ -141,7 +136,7 @@ namespace control_base
 		/**
 		 * Publish setpoint euler angles as a Vector3 ROS message.
 		 */
-		void publishEulerSp(ros::Publisher& pub);
+		void publishEulerSp();
 
 		/**
 		 * Set thrust setpoint.
@@ -155,17 +150,29 @@ namespace control_base
 		 */
 		const std::array<double, 4>& getAttThrustSp();
 
-		/**
-		 * Return pointer to the control base class.
-		 */
-		ControlBase* getBasePointer();
-
 	private:
 
 		/**
+		 * IMU callback function for realistic control mode. 
+		 * Calculates UAV yaw.
+		 */
+		void imuCbReal(const sensor_msgs::ImuConstPtr& message);
+
+		/**
+		 * Odometry callback function for simulation control mode.
+		 */
+		void odomCbSim(const nav_msgs::OdometryConstPtr& message);
+
+		/**
+		 * Odometry callback function for real control mode.
+		 */
+		void odomCbReal(const nav_msgs::OdometryConstPtr& message);
+		
+		/**
 		 * Update local position.
 		 */
-		void rotateVector(const double x, const double y, const double z, std::array<double, 3>& vector);
+		void rotateVector(const double x, const double y, const double z, 
+			std::array<double, 3>& vector);
 
 		/** Current local position vector. */
 		std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};
@@ -178,6 +185,16 @@ namespace control_base
 
 		/** Current UAV yaw angle. */
 		double _uavYaw = 0;
+
+		/** Declare all subscribers **/
+		ros::Subscriber _subImuReal;
+		ros::Subscriber _subOdomSim;
+		ros::Subscriber _subOdomReal;
+
+		/** Declare all publishers. **/
+		ros::Publisher _pubSpSim;
+		ros::Publisher _pubSpReal;
+		ros::Publisher _pubEulerSp;
 	};
 
 }

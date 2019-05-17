@@ -1,14 +1,20 @@
 #include <plane_detection_ros/control/JoyControl.h>
 #include <uav_ros_control/NonlinearFilters.h>
 
-joy_control::JoyControl::JoyControl() :
+joy_control::JoyControl::JoyControl(ros::NodeHandle& nh) :
 	_controlIndices (new joy_struct::ControlIndices),
 	_attitudeScales (new joy_struct::ScaleWeights),
 	_positionScales (new joy_struct::ScaleWeights)
 {
 	// Initialize JoyMsg
 	_joyMsg.axes = std::vector<float> (10, 0.0);
-	_joyMsg.buttons = std::vector<int> (10, 0);
+	_joyMsg.buttons = std::vector<int> (10, 0);	
+
+	// Initialize class parameters
+	joy_control::JoyControl::initializeParameters(nh);
+
+	// Initialize Joy subscriber
+	_subJoy = nh.subscribe("/joy", 1, &joy_control::JoyControl::joyCb, this);
 }
 
 joy_control::JoyControl::~JoyControl()
@@ -33,11 +39,6 @@ double joy_control::JoyControl::getPitchSpManual()
 double joy_control::JoyControl::getYawSpManual()
 {
 	return _joyMsg.axes[_controlIndices->AXIS_ANGULAR_YAW] * _attitudeScales->ANGULAR_Z ;
-}
-
-double joy_control::JoyControl::getThrustSpManual()
-{
-	return ( (_joyMsg.axes[_controlIndices->AXIS_LINEAR_Z] + 1) / 2.0 ) * _attitudeScales->LINEAR_Z;
 }
 
 double joy_control::JoyControl::getThrustSpUnscaled()
@@ -83,7 +84,8 @@ void joy_control::JoyControl::initializeParameters(ros::NodeHandle& nh)
 	ROS_INFO_STREAM(*_controlIndices);
 	if (!initialized)
 	{
-		ROS_FATAL("JoyControl::initializeParameters()- ControlIndices parameters are not properly set.");
+		ROS_FATAL("JoyControl::initializeParameters() - \ 
+			ControlIndices parameters are not properly set.");
 		throw std::runtime_error("ControlIndices parameters not properly set.");
 	}
 
@@ -96,7 +98,8 @@ void joy_control::JoyControl::initializeParameters(ros::NodeHandle& nh)
 	ROS_INFO_STREAM("Attitude " << *_attitudeScales);
 	if (!initialized)
 	{
-		ROS_FATAL("JoyControl::initializeParameters() - Attitude weight parameters are not properly set.");
+		ROS_FATAL("JoyControl::initializeParameters() - \
+			Attitude weight parameters are not properly set.");
 		throw std::runtime_error("Attitude weight parameters are not properly set.");
 	}
 
@@ -109,14 +112,10 @@ void joy_control::JoyControl::initializeParameters(ros::NodeHandle& nh)
 	ROS_INFO_STREAM("Position " << *_positionScales);
 	if (!initialized)
 	{
-		ROS_FATAL("JoyControl::initializeParameters() - Position weight parameters are not properly set.");
+		ROS_FATAL("JoyControl::initializeParameters() - \
+			Position weight parameters are not properly set.");
 		throw std::runtime_error("Position weight parameters are not properly set.");
 	}
-}
-
-joy_control::JoyControl* joy_control::JoyControl::getJoyPointer()
-{
-	return this;
 }
 
 const std::vector<int32_t> joy_control::JoyControl::getJoyButtons()
