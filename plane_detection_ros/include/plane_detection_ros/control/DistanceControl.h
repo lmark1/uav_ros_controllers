@@ -22,17 +22,6 @@ namespace dist_control
 {
 	/** Name of dynamic reconfigure node. */
 	#define DIST_DYN_RECONF "distance_config"
-	
-	/**
-	 * Run default Carrot Control algorithm.
-	 * TODO: This does not work - fix
-	 * 
-	 * @param cc - Reference to CarrotControl object
-	 * @param nh - Given NodeHandle
-	 * @param simMode - true if simulation mode is enabled, otherwise false
-	 */
-	void dist_control::runDefault(
-		dist_control::DistanceControl& cc, ros::NodeHandle& nh, bool simMode);
 
 	/**
 	 * Define control modes used in DistanceControl algorithm.
@@ -329,6 +318,18 @@ class DistanceControl : public carrot_control::CarrotControl {
 			Server<plane_detection_ros::DistanceControlParametersConfig>::CallbackType
 			_distParamCallback;
 	};
+
+
+	/**
+	 * Run default Carrot Control algorithm.
+	 * TODO: This does not work - fix
+	 * 
+	 * @param cc - Reference to CarrotControl object
+	 * @param nh - Given NodeHandle
+	 * @param simMode - true if simulation mode is enabled, otherwise false
+	 */
+	void runDefault(
+		dist_control::DistanceControl& cc, ros::NodeHandle& nh, bool simMode);
 
 }
 

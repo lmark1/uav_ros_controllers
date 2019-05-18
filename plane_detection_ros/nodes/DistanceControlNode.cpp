@@ -1,33 +1,5 @@
-/*
- * DistanceControlNode.cpp
- *
- *  Created on: Apr 11, 2019
- *      Author: lmark
- */
-
 #include <plane_detection_ros/control/DistanceControl.h>
-#include <plane_detection_ros/DistanceControlParametersConfig.h>
 
-// ROS Includes
-#include <ros/ros.h>
-#include <dynamic_reconfigure/server.h>
-#include <geometry_msgs/Vector3.h>
-#include <mavros_msgs/AttitudeTarget.h>
-#include <std_msgs/Int32.h>
-#include <mav_msgs/RollPitchYawrateThrust.h>
-#include <std_msgs/Bool.h>
-
-/**
- * Initializes distance control node.
- *
- * Default topics for remapping:
- * 		- /distance		- Distance from the UAV to the plane surface
- * 		- /joy			- Joystick topic used for enabling inspection mode
- *		- /real/imu		- IMU topic - realistic
- *		- /real/pos		- Local position topic - realistic
- *		- /real/vel		- Velocity topic - realistic
- *		- /sim/odometry	- Odometry topic - simulation
- */
 int main(int argc, char **argv) 
 {
 	// Setup the node

@@ -12,14 +12,6 @@ namespace carrot_control
 	#define CARROT_DYN_RECONF "position_config"
 
 	/**
-	 * Run default Carrot Control algorithm.
-	 * 
-	 * @param cc - Reference to CarrotControl object
-	 * @param nh - Given NodeHandle
-	 */
-	void carrot_control::runDefault(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
-
-	/**
 	 * "Carrot-on-a-Stick" control implementation.
 	 * It uses cascade od PID controllers to calculate roll / pitch / yaw / thrust,
 	 * commands from desired position setpoint.
@@ -212,6 +204,14 @@ namespace carrot_control
 			Server<plane_detection_ros::PositionControlParametersConfig>::CallbackType
 			_posParamCallback;
 	};	
+
+	/**
+	 * Run default Carrot Control algorithm.
+	 * 
+	 * @param cc - Reference to CarrotControl object
+	 * @param nh - Given NodeHandle
+	 */
+	void runDefault(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 
 }
 
