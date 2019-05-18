@@ -438,7 +438,7 @@ void dist_control::runDefault(
 {
 	// Setup loop rate
 	double rate = 25;
-	bool initialized = initialized && nh.getParam("/sequence/rate", rate);
+	bool initialized = nh.getParam("/sequence/rate", rate);
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
 	ROS_INFO("dist_control::runDeafult() - Setting rate to %.2f", rate);
