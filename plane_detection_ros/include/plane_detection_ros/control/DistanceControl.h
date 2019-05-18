@@ -124,36 +124,11 @@ class DistanceControl : public carrot_control::CarrotControl {
 		void calculateSequenceSetpoint(double dt);
 
 		/**
-		 * Publish current control state.
-		 */
-		void publishState();
-
-		/**
 		 * Publish attitude setpoint on the given topic.
 		 * If in simulation mode, publisher is expected to be Vector3.
 		 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
 		 */
 		void publishAttSp();
-
-		/**
-		 * Publish distance setpoint as a std_msgs::Float64 message.
-		 */
-		void publishDistSp();
-		
-		/**
-		 * Publish distance velocity setpoint as a Float64 ROS message.
-		 */
-		void publishDistVelSp();
-
-		/**
-		 * Publish true if in sequence state, otherwise false.
-		 */
-		void publishSequenceState();
-		
-		/**
-		 * Publish distance to carrot.
-		 */
-		void publishDistanceToCarrot();
 
 		/**
 		 * Return true if in inspection state, otherwise false.
@@ -209,7 +184,38 @@ class DistanceControl : public carrot_control::CarrotControl {
 		 */
 		void seqStepCb(const std_msgs::Float64ConstPtr& message);
 
+		/**
+		 * Publish various distance control algorithm information.
+		 */
+		void publishDistanceInfo();
+
 	private:
+
+		/**
+		 * Publish current control state.
+		 */
+		void publishState();
+
+		/**
+		 * Publish distance setpoint as a std_msgs::Float64 message.
+		 */
+		void publishDistSp();
+		
+		/**
+		 * Publish distance velocity setpoint as a Float64 ROS message.
+		 */
+		void publishDistVelSp();
+
+		/**
+		 * Publish true if in sequence state, otherwise false.
+		 */
+		void publishSequenceState();
+		
+		/**
+		 * Publish distance to carrot.
+		 */
+		void publishDistanceToCarrot();
+
 
 		/**
 		 * Set reconfigure parameters in the given config object.

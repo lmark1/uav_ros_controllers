@@ -433,6 +433,15 @@ void dist_control::DistanceControl::publishDistanceToCarrot()
 	_pubCarrotDistance.publish(newMessage);
 }
 
+void dist_control::DistanceControl::publishDistanceInfo()
+{
+	publishState();
+	publishDistanceToCarrot();
+	publishDistSp();
+	publishDistVelSp();
+	publishSequenceState();
+}
+
 void dist_control::runDefault(
 	dist_control::DistanceControl& dc, ros::NodeHandle& nh, bool simMode)
 {
@@ -455,7 +464,6 @@ void dist_control::runDefault(
 
 		dc.detectStateChange();
 		dc.detectSequenceChange();
-		dc.publishState();
 		
 		// Do regular "Manual" Inspection when sequence is not set
 		if (dc.inInspectionState() && 
@@ -480,25 +488,10 @@ void dist_control::runDefault(
 		else
 			dc.publishAttSp();
 
-
-		// TODO: Make a virtual publish all method
-		// Publish distance to carrot
-		dc.publishDistanceToCarrot();
-
-		// Publish sequence state
-		dc.publishSequenceState();
-		
-		// Publish distance and angle setpoints
-		dc.publishDistSp();
-		dc.publishDistVelSp();
-
-		// Publish carrot setpoints
+		dc.publishDistanceInfo();
 		dc.publishEulerSp();
-		dc.publishPosSp();
-		dc.publishVelSp();
-		dc.publishPosMv();
-		dc.publishVelMv();
-		
+		dc.publishCarrotInfo();
+
 		loopRate.sleep();
 	}
 }

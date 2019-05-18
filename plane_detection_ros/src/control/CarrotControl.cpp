@@ -291,6 +291,14 @@ void initilizedLoopParameters(ros::NodeHandle& nh, double& rate, bool& simMode)
 
 }
 
+void carrot_control::CarrotControl::publishCarrotInfo()
+{
+	publishPosSp();
+	publishVelSp();
+	publishPosMv();
+	publishVelMv();
+}
+
 void carrot_control::runDefault(carrot_control::CarrotControl& cc, ros::NodeHandle& nh)
 {
 	double rate = 25;
@@ -315,11 +323,8 @@ void carrot_control::runDefault(carrot_control::CarrotControl& cc, ros::NodeHand
 
 		// Publish carrot setpoints
 		cc.publishEulerSp();
-		cc.publishPosSp();
-		cc.publishVelSp();
-		cc.publishPosMv();
-		cc.publishVelMv();
-
+		cc.publishCarrotInfo();
+		
 		loopRate.sleep();
 	}
 }

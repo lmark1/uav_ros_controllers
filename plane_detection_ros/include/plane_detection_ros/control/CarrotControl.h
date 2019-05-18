@@ -32,26 +32,6 @@ namespace carrot_control
 		virtual ~CarrotControl();
 
 		/**
-		 * Publish carrot position setpoint as a Vector3 ROS message.
-		 */
-		void publishPosSp();
-
-		/**
-		 * Publish carrot velocity setpoint as a Vector3 ROS message.
-		 */ 
-		void publishVelSp();
-
-		/**
-		 * Publish local position mesured value as a Vector3 ROS message.
-		 */
-		void publishPosMv();
-
-		/**
-		 * Publish measured local velocity value as a Vector3 ROS message.
-		 */
-		void publishVelMv();
-
-		/**
 		 * Set carrot position to given position values.
 		 * 
 		 * @param x - new carrot x value
@@ -148,7 +128,32 @@ namespace carrot_control
 				plane_detection_ros::PositionControlParametersConfig& configMsg,
 				uint32_t level);
 				
+		/**
+		 * Publish various carrot control algorithm information.
+		 */
+		void publishCarrotInfo();
+
 	private:
+
+		/**
+		 * Publish carrot position setpoint as a Vector3 ROS message.
+		 */
+		void publishPosSp();
+
+		/**
+		 * Publish carrot velocity setpoint as a Vector3 ROS message.
+		 */ 
+		void publishVelSp();
+
+		/**
+		 * Publish local position mesured value as a Vector3 ROS message.
+		 */
+		void publishPosMv();
+
+		/**
+		 * Publish measured local velocity value as a Vector3 ROS message.
+		 */
+		void publishVelMv();
 
 		/**
 		 * Set reconfigure parameters in the given config object.
