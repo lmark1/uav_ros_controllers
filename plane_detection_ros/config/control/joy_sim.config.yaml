@@ -8,10 +8,10 @@ joy:
     yaw: 0
 
   scale_attitude:
-    x: 0.1
-    y: 0.1
+    x: 0.5
+    y: 0.5
     z: 75
-    yaw: 25
+    yaw: 75
   
   scale_position:
     x: 0.025
