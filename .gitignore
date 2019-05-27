@@ -5,3 +5,10 @@ bebop_gazebo/launch/task*
 .settings
 *.pyc
 .vscode
+*.bin
+*.parm
+*.tlog
+*.raw
+*.DAT
+*.BIN
+*.TXT
