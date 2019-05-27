@@ -291,6 +291,9 @@ void dist_control::DistanceControl::publishAttSp()
 	if (_mode == DistanceControlMode::REAL && !inInspectionState())
 	{		
 		publishAttitudeReal();
+
+		// Add this sim publisher here temporarily
+		publishAttitudeSim(getThrustScale());
 		return;
 	}
 
@@ -479,15 +482,10 @@ void dist_control::runDefault(
 		else
 			dc.calculateManualSetpoint(dt);
 			
+		// Publish attitude setpoint
+		dc.publishAttSp();
 
-		// Publish simulation setpoint
-		if (simMode)
-			dc.publishAttSp();
-
-		// Publish real setpoint
-		else
-			dc.publishAttSp();
-
+		// Publish other information
 		dc.publishDistanceInfo();
 		dc.publishEulerSp();
 		dc.publishCarrotInfo();
