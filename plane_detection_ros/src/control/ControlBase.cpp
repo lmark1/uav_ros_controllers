@@ -121,6 +121,7 @@ void control_base::ControlBase::publishAttitudeSim(
 	const std::array<double, 4>& attThrustSp, double yawRateSp)
 {
 	mav_msgs::RollPitchYawrateThrust newMessage;
+	newMessage.header.stamp = ros::Time::now();
 	newMessage.roll = attThrustSp[0];
 	newMessage.pitch = attThrustSp[1];
 	newMessage.yaw_rate = yawRateSp;
@@ -149,6 +150,7 @@ void control_base::ControlBase::publishAttitudeReal(
 	q.setEulerZYX(attThrustSp[2], attThrustSp[1], attThrustSp[0]);
 
 	mavros_msgs::AttitudeTarget newMessage;
+	newMessage.header.stamp = ros::Time::now();
 	newMessage.type_mask = typeMask;
 	newMessage.body_rate.z = yawRateSp;
 	newMessage.orientation.x = q.getX();
