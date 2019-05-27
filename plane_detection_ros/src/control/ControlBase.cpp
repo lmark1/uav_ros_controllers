@@ -69,22 +69,13 @@ void control_base::ControlBase::odomCbSim(const nav_msgs::OdometryConstPtr& mess
 
 void control_base::ControlBase::odomCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	// Rotate real position from global to local coordinate system
-	rotateVector(
-		message->pose.pose.position.x,
-		message->pose.pose.position.y,
-		message->pose.pose.position.z,
-		_currentPosition);
+	_currentPosition[0] = message->pose.pose.position.x;
+	_currentPosition[1] = message->pose.pose.position.y;
+	_currentPosition[2] = message->pose.pose.position.z;
 
-	/**
-	 * For some reason velocity z-component from Kopterworx UAV odometry
-	 * sensor is signed incorrectly.
-	 */
-	rotateVector(
-		message->twist.twist.linear.x,
-		message->twist.twist.linear.y,
-		- message->twist.twist.linear.z, 
-		_currentVelocity);
+	_currentVelocity[0] = message->twist.twist.linear.x;
+	_currentVelocity[1] = message->twist.twist.linear.y;
+	_currentVelocity[2] = - message->twist.twist.linear.z;
 }
 
 void control_base::ControlBase::rotateVector(

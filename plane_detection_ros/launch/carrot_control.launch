@@ -7,23 +7,36 @@
     
     <rosparam 
 	command="load"
-        file="$(find plane_detection_ros)/config/control/joy_real.config.yaml" />
+        file="$(find plane_detection_ros)/config/control/joy_sim.config.yaml" />
 
     <!-- Start plane detection ROS -->
     <node
         pkg="plane_detection_ros"
-        type="distance_control_node"
-        name="distance_control_node"
+        type="carrot_control_node"
+        name="carrot_control_node"
         output="screen">
         
         <!-- Do all the subscriber remaps -->
-        <remap from="joy"               to="/px4/joy"           />
+        <remap from="joy"               to="/joy"           />
         <remap from="/real/imu"         to="/mavros/imu/data"   />
-        <remap from="/real/odometry"    to="/mavros/global_position/local" />
+        <remap from="/real/odom"        to="/mavros/global_position/local" />
         
         <!-- Do all the publisher remaps -->
         <remap from="control_state"     to="control_state"      />
         <remap from="/real/attitude_sp" to="/mavros/setpoint_raw/attitude"/>
     </node>
+
+    <arg name="joy_dev" default="/dev/input/js0" />
+    <node pkg="joy" type="joy_node" name="joy_node">
+        <param name="dev" value="$(arg joy_dev)" />
+        <param name="deadzone" value="0.3" />
+        <param name="autorepeat_rate" value="20" />
+    </node>
+
+    <!-- Adjust rates -->
+    <node name="mavsys_raws" pkg="mavros" type="mavsys" args="rate --raw-sensors 10"/>
+    <node name="mavsys_rc" pkg="mavros" type="mavsys" args="rate --rc-channels 10" />
+    <node name="mavsys_imu" pkg="mavros" type="mavsys" args="rate --extra1 50" />
+    <node name="mavsys_pos" pkg="mavros" type="mavsys" args="rate --position 25" />
 
 </launch>
