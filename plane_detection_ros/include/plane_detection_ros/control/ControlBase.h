@@ -139,6 +139,11 @@ namespace control_base
 		void publishEulerSp();
 
 		/**
+		 * Return true if global control flag is enabled, otherwise false.
+		 */
+		bool getGlobalFlag();
+
+		/**
 		 * Set thrust setpoint.
 		 * 
 		 * @param thrust - New thrust setpoint
@@ -185,6 +190,9 @@ namespace control_base
 
 		/** Current UAV yaw angle. */
 		double _uavYaw = 0;
+
+		/** True if controller in global mode, otherwise false */
+		bool _global;
 
 		/** Declare all subscribers **/
 		ros::Subscriber _subImuReal;

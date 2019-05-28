@@ -173,11 +173,20 @@ void carrot_control::CarrotControl::calculateAttThrustSp(double dt)
 	double thrust = 
 		_velZPID->compute(_carrotVel[2], getCurrVelocity()[2], dt) + _hoverThrust;
 
-
-	setAttitudeSp( 
-		cos(getUAVYaw()) * roll + sin(getUAVYaw()) * pitch, 
-		cos(getUAVYaw()) * pitch - sin(getUAVYaw()) * roll, 
-		yaw);
+	if (getGlobalFlag())
+	{
+		// If global control is enabled, decouple roll and pitch w.r.t. yaw
+		setAttitudeSp( 
+			cos(getUAVYaw()) * roll + sin(getUAVYaw()) * pitch, 
+			cos(getUAVYaw()) * pitch - sin(getUAVYaw()) * roll, 
+			yaw);
+	}
+	else
+	{
+		// Local position control, directly publish roll, pitch, yaw
+		setAttitudeSp(roll, pitch, yaw);
+	}
+	
 	setThrustSp(thrust);
 }
 
@@ -292,7 +301,6 @@ void initilizedLoopParameters(ros::NodeHandle& nh, double& rate, bool& simMode)
 		ROS_FATAL("carrot_control::runDefault() - unable to load parameters.");
 		throw std::runtime_error("Failed to properly initialize parameters.");
 	}
-
 }
 
 void carrot_control::CarrotControl::publishCarrotInfo()

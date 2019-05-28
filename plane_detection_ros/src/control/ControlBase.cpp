@@ -31,6 +31,17 @@ control_base::ControlBase::ControlBase(ros::NodeHandle& nh)
 	_pubSpReal = nh.advertise<mavros_msgs::AttitudeTarget>("/real/attitude_sp", 1);
 	_pubSpSim = nh.advertise<mav_msgs::RollPitchYawrateThrust>("/sim/attitude_sp", 1);
 	_pubEulerSp = nh.advertise<geometry_msgs::Vector3>("/euler_sp", 1);
+
+	// Initialize global parameter
+	_global = true;
+	bool initialized = nh.getParam("/control/global", _global);
+	ROS_INFO_STREAM("ControlBase::ControlBase() - global mode: " 
+		<< std::boolalpha << _global << std::endl);
+	if (!initialized)
+	{
+		ROS_FATAL("ControlBase::ControlBase() - global mode flag not initialized.");
+		throw std::runtime_error("ControlBase parameters not set");
+	}
 }
 
 control_base::ControlBase::~ControlBase()
@@ -69,13 +80,35 @@ void control_base::ControlBase::odomCbSim(const nav_msgs::OdometryConstPtr& mess
 
 void control_base::ControlBase::odomCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	_currentPosition[0] = message->pose.pose.position.x;
-	_currentPosition[1] = message->pose.pose.position.y;
-	_currentPosition[2] = message->pose.pose.position.z;
+	if (_global)
+	{
+		_currentPosition[0] = message->pose.pose.position.x;
+		_currentPosition[1] = message->pose.pose.position.y;
+		_currentPosition[2] = message->pose.pose.position.z;
 
-	_currentVelocity[0] = message->twist.twist.linear.x;
-	_currentVelocity[1] = message->twist.twist.linear.y;
-	_currentVelocity[2] = - message->twist.twist.linear.z;
+		_currentVelocity[0] = message->twist.twist.linear.x;
+		_currentVelocity[1] = message->twist.twist.linear.y;
+		_currentVelocity[2] = - message->twist.twist.linear.z;
+	}
+	else
+	{
+		rotateVector(
+			message->pose.pose.position.x,
+			message->pose.pose.position.y,
+			message->pose.pose.position.z,
+			_currentPosition);
+
+		rotateVector(
+			message->twist.twist.linear.x,
+			message->twist.twist.linear.y,
+			- message->twist.twist.linear.z, 
+			_currentVelocity);
+	}
+}
+
+bool control_base::ControlBase::getGlobalFlag()
+{
+	return _global;
 }
 
 void control_base::ControlBase::rotateVector(
