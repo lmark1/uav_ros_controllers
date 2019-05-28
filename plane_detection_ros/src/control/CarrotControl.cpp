@@ -340,3 +340,31 @@ void carrot_control::runDefault(carrot_control::CarrotControl& cc, ros::NodeHand
 		loopRate.sleep();
 	}
 }
+
+void carrot_control::attitudeControl(carrot_control::CarrotControl& cc, ros::NodeHandle& nh)
+{
+	double rate = 25;
+	bool simMode = false;
+	initilizedLoopParameters(nh, rate, simMode);
+
+	ros::Rate loopRate(rate);
+	double dt = 1.0 / rate; 
+
+	while (ros::ok())
+	{
+		ros::spinOnce();
+		
+		// Get attitude setpoint from Joy message
+		cc.setAttitudeSp(
+			- cc.getRollSpManual(), 	//roll
+			cc.getPitchSpManual(),		//pitch
+			- cc.getYawSpManual());  	//yaw
+		cc.setThrustSp(cc.getThrustSpUnscaled());	//thrust
+
+		// Publish attitude setpoint message
+		cc.publishAttitudeReal();	
+		cc.publishAttitudeSim(cc.getThrustScale());
+
+		loopRate.sleep();
+	}
+}

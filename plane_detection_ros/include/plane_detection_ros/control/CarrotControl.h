@@ -165,7 +165,6 @@ namespace carrot_control
 		 * Do all the parameter initialization here.
 		 */
 		void initializeParameters(ros::NodeHandle& nh);
-	
 
 		/** PID controller for position along the y-axis.*/
 		std::unique_ptr<PID> _posYPID;
@@ -218,6 +217,14 @@ namespace carrot_control
 	 */
 	void runDefault(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 
+	/**
+	 * Bypass Carrot control and directly set attitude control targets from 
+	 * joystick messages.
+	 * 
+	 * @param cc - Reference to CarrotControl object
+	 * @param nh - Given NodeHandle
+	 */
+	void attitudeControl(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 }
 
 #endif /** CARROT_CONTROL_H */

@@ -69,3 +69,7 @@ target_link_libraries(distance_control_node
 add_executable(carrot_control_node nodes/CarrotControlNode.cpp)
 target_link_libraries(carrot_control_node
     ${catkin_LIBRARIES} distance_control)
+
+add_executable(attitude_control_node nodes/AttitudeControlNode.cpp)
+target_link_libraries(attitude_control_node
+    ${catkin_LIBRARIES} distance_control)      

@@ -291,9 +291,6 @@ void dist_control::DistanceControl::publishAttSp()
 	if (_mode == DistanceControlMode::REAL && !inInspectionState())
 	{		
 		publishAttitudeReal();
-
-		// Add this sim publisher here temporarily
-		publishAttitudeSim(getThrustScale());
 		return;
 	}
 
