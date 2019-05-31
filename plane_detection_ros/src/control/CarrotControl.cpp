@@ -368,3 +368,61 @@ void carrot_control::attitudeControl(carrot_control::CarrotControl& cc, ros::Nod
 		loopRate.sleep();
 	}
 }
+
+void carrot_control::runDefaultFutaba(carrot_control::CarrotControl& cc, ros::NodeHandle& nh)
+{
+	double rate = 25;
+	bool simMode = false;
+	initilizedLoopParameters(nh, rate, simMode);
+
+	ros::Rate loopRate(rate);
+	double dt = 1.0 / rate; 
+	bool carrot_enabled = false;
+
+	while (ros::ok())
+	{
+		ros::spinOnce();
+
+		if (!carrot_enabled && cc.getJoyButtons()[5] == 0)
+		{
+			ROS_INFO("Enabling carrot control! - setting position");
+			carrot_enabled = true;
+			cc.setCarrotPosition(
+				cc.getCurrPosition()[0],
+				cc.getCurrPosition()[1],
+				cc.getCurrPosition()[2]
+			);
+		}
+		else if (cc.getJoyButtons()[5] == 1)
+		{
+			ROS_INFO("Carrot disabled.");
+			carrot_enabled = false;
+		}
+
+		if (carrot_enabled)
+		{
+			cc.updateCarrot();
+			cc.calculateAttThrustSp(dt);
+			cc.publishAttitudeReal();
+		}
+		else
+		{
+			// Get attitude setpoint from Joy message
+			cc.setAttitudeSp(
+				- cc.getRollSpManual(), 	//roll
+				cc.getPitchSpManual(),		//pitch
+				- cc.getYawSpManual());  	//yaw
+			cc.setThrustSp(cc.getThrustSpUnscaled());	//thrust
+
+			// Publish attitude setpoint message
+			cc.publishAttitudeReal();	
+			cc.publishAttitudeSim(cc.getThrustScale());
+		}
+		
+		// Publish carrot setpoints
+		cc.publishEulerSp();
+		cc.publishCarrotInfo();
+
+		loopRate.sleep();
+	}
+}

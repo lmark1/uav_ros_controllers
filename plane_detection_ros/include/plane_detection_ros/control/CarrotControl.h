@@ -225,6 +225,8 @@ namespace carrot_control
 	 * @param nh - Given NodeHandle
 	 */
 	void attitudeControl(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
+
+	void runDefaultFutaba(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 }
 
 #endif /** CARROT_CONTROL_H */
