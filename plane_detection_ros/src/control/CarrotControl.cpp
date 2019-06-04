@@ -163,11 +163,11 @@ void carrot_control::CarrotControl::calculateAttThrustSp(double dt)
 	double thrust = 
 		_velZPID->compute(_carrotVel[2], getCurrVelocity()[2], dt) + _hoverThrust;
 
-		// If global control is enabled, decouple roll and pitch w.r.t. yaw
-		setAttitudeSp( 
-			cos(getUAVYaw()) * roll + sin(getUAVYaw()) * pitch, 
-			cos(getUAVYaw()) * pitch - sin(getUAVYaw()) * roll, 
-			yaw);
+	// Decouple roll and pitch w.r.t. yaw
+	setAttitudeSp( 
+		cos(getUAVYaw()) * roll + sin(getUAVYaw()) * pitch, 
+		cos(getUAVYaw()) * pitch - sin(getUAVYaw()) * roll, 
+		yaw);
 	
 	setThrustSp(thrust);
 }

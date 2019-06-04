@@ -31,17 +31,6 @@ control_base::ControlBase::ControlBase(ros::NodeHandle& nh)
 	_pubSpReal = nh.advertise<mavros_msgs::AttitudeTarget>("/real/attitude_sp", 1);
 	_pubSpSim = nh.advertise<mav_msgs::RollPitchYawrateThrust>("/sim/attitude_sp", 1);
 	_pubEulerSp = nh.advertise<geometry_msgs::Vector3>("/euler_sp", 1);
-
-	// Initialize global parameter
-	_global = true;
-	bool initialized = nh.getParam("/control/global", _global);
-	ROS_INFO_STREAM("ControlBase::ControlBase() - global mode: " 
-		<< std::boolalpha << _global << std::endl);
-	if (!initialized)
-	{
-		ROS_FATAL("ControlBase::ControlBase() - global mode flag not initialized.");
-		throw std::runtime_error("ControlBase parameters not set");
-	}
 }
 
 control_base::ControlBase::~ControlBase()
@@ -87,11 +76,6 @@ void control_base::ControlBase::odomCbReal(const nav_msgs::OdometryConstPtr& mes
 	_currentVelocity[0] = message->twist.twist.linear.x;
 	_currentVelocity[1] = message->twist.twist.linear.y;
 	_currentVelocity[2] = - message->twist.twist.linear.z;
-}
-
-bool control_base::ControlBase::getGlobalFlag()
-{
-	return _global;
 }
 
 void control_base::ControlBase::rotateVector(

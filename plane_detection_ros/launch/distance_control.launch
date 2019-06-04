@@ -25,7 +25,7 @@
         <remap from="distance"          to="distance_filtered"  />
         <remap from="joy"               to="/px4/joy"           />
         <remap from="/real/imu"         to="/mavros/imu/data"   />
-        <remap from="/real/odom"    to="/mavros/global_position/local" />
+        <remap from="/real/odom"        to="/mavros/global_position/local" />
         
         <!-- Do all the publisher remaps -->
         <remap from="control_state"     to="control_state"      />

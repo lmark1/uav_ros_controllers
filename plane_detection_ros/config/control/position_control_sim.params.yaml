@@ -3,7 +3,6 @@ control:
   rate: 20
   sim_mode: true
   hover: 0.3
-  global: false
 
   pos_x:
     kp: 2.0
