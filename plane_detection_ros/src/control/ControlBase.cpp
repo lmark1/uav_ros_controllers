@@ -80,30 +80,13 @@ void control_base::ControlBase::odomCbSim(const nav_msgs::OdometryConstPtr& mess
 
 void control_base::ControlBase::odomCbReal(const nav_msgs::OdometryConstPtr& message)
 {
-	if (_global)
-	{
-		_currentPosition[0] = message->pose.pose.position.x;
-		_currentPosition[1] = message->pose.pose.position.y;
-		_currentPosition[2] = message->pose.pose.position.z;
+	_currentPosition[0] = message->pose.pose.position.x;
+	_currentPosition[1] = message->pose.pose.position.y;
+	_currentPosition[2] = message->pose.pose.position.z;
 
-		_currentVelocity[0] = message->twist.twist.linear.x;
-		_currentVelocity[1] = message->twist.twist.linear.y;
-		_currentVelocity[2] = - message->twist.twist.linear.z;
-	}
-	else
-	{
-		rotateVector(
-			message->pose.pose.position.x,
-			message->pose.pose.position.y,
-			message->pose.pose.position.z,
-			_currentPosition);
-
-		rotateVector(
-			message->twist.twist.linear.x,
-			message->twist.twist.linear.y,
-			- message->twist.twist.linear.z, 
-			_currentVelocity);
-	}
+	_currentVelocity[0] = message->twist.twist.linear.x;
+	_currentVelocity[1] = message->twist.twist.linear.y;
+	_currentVelocity[2] = - message->twist.twist.linear.z;
 }
 
 bool control_base::ControlBase::getGlobalFlag()

@@ -226,13 +226,14 @@ void dist_control::DistanceControl::calculateInspectionSetpoint(double dt)
 
 void dist_control::DistanceControl::calculateSequenceSetpoint(double dt)
 {
-	updateCarrotX();
-	updateCarrotZ();
-
+	double yOffset = 0;
 	if (_currSeq == Sequence::LEFT)
-		updateCarrotY(- _sequenceStep);
+		yOffset = - _sequenceStep;
 	else if (_currSeq == Sequence::RIGHT)
-		updateCarrotY(_sequenceStep);
+		yOffset = _sequenceStep;
+
+	updateCarrotXY(getXOffsetManual(), yOffset);
+	updateCarrotZ();
 
 	doDistanceControl(dt);
 	_sequenceStep = 0; // Reset sequence step

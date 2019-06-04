@@ -53,24 +53,13 @@ void carrot_control::CarrotControl::setCarrotPosition(double x, double y, double
 
 void carrot_control::CarrotControl::updateCarrot()
 {
-	updateCarrotX();
-	updateCarrotY();
+	updateCarrotXY();
 	updateCarrotZ();
 }
 
-void carrot_control::CarrotControl::updateCarrotX(double xOff)
+void carrot_control::CarrotControl::updateCarrotXY()
 {
-	_carrotPos[0] += xOff;
-}
-
-void carrot_control::CarrotControl::updateCarrotX()
-{
-	updateCarrotX(getXOffsetManual());
-}
-
-void carrot_control::CarrotControl::updateCarrotY()
-{
-	updateCarrotY(getYOffsetManual());
+	updateCarrotXY(getXOffsetManual(), getYOffsetManual());
 }
 
 void carrot_control::CarrotControl::updateCarrotZ()
@@ -78,9 +67,10 @@ void carrot_control::CarrotControl::updateCarrotZ()
 	updateCarrotZ(getZOffsetManual());
 }
 
-void carrot_control::CarrotControl::updateCarrotY(double yOff)
+void carrot_control::CarrotControl::updateCarrotXY(double xOff, double yOff)
 {
-	_carrotPos[1] += yOff;
+	_carrotPos[0] += cos(-getUAVYaw()) * xOff + sin(-getUAVYaw()) * yOff;
+	_carrotPos[1] += cos(-getUAVYaw()) * yOff - sin(-getUAVYaw()) * xOff;
 }
 
 void carrot_control::CarrotControl::updateCarrotZ(double zOff)
@@ -173,19 +163,11 @@ void carrot_control::CarrotControl::calculateAttThrustSp(double dt)
 	double thrust = 
 		_velZPID->compute(_carrotVel[2], getCurrVelocity()[2], dt) + _hoverThrust;
 
-	if (getGlobalFlag())
-	{
 		// If global control is enabled, decouple roll and pitch w.r.t. yaw
 		setAttitudeSp( 
 			cos(getUAVYaw()) * roll + sin(getUAVYaw()) * pitch, 
 			cos(getUAVYaw()) * pitch - sin(getUAVYaw()) * roll, 
 			yaw);
-	}
-	else
-	{
-		// Local position control, directly publish roll, pitch, yaw
-		setAttitudeSp(roll, pitch, yaw);
-	}
 	
 	setThrustSp(thrust);
 }
