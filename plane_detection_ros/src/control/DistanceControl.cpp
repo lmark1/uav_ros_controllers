@@ -169,7 +169,7 @@ void dist_control::DistanceControl::detectStateChange()
 	// Check if user wants to go back to manual mode
 	if (manualRequested())
 	{
-		ROS_INFO("Manual mode entered.");
+		ROS_WARN("Manual mode entered.");
 		_inspectionRequestFailed = false;
 		deactivateInspection();
 	}
@@ -256,7 +256,7 @@ void dist_control::DistanceControl::doDistanceControl(double dt)
 	if (_mode == DistanceControlMode::SIMULATION)
 		yaw = _planeYaw * getYawScale();
 	else 
-		yaw = getUAVYaw() - _planeYaw;
+		yaw = getUAVYaw() + _planeYaw; 		// TODO: Minus ili plus
 
 	overridePitch(pitch);
 	overrideYaw(yaw);

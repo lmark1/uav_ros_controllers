@@ -72,15 +72,15 @@ int main(int argc, char **argv) {
 
 	// Define some publishers
 	ros::Publisher planePub = nh.advertise<sensor_msgs::PointCloud2>(
-			"/plane", 1);
+			"/detected_plane", 1);
 	ros::Publisher normalPub = nh.advertise<geometry_msgs::PoseStamped>(
-			"/plane_normal", 1);
+			"/plane/normal", 1);
 	ros::Publisher distPub = nh.advertise<std_msgs::Float64>(
-			"/distance", 1);
+			"/plane/distance", 1);
 	ros::Publisher distFiltPub = nh.advertise<std_msgs::Float64>(
-			"/distance_filtered", 1);
+			"/plane/distance_filtered", 1);
 	ros::Publisher distVelPub = nh.advertise<std_msgs::Float64>(
-			"/distance_velocity", 1);
+			"/plane/distance_vel", 1);
 
 	// Setup loop rate
 	double rate = 10;

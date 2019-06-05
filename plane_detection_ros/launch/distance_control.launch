@@ -22,7 +22,7 @@
         output="screen">
         
         <!-- Do all the subscriber remaps -->
-        <remap from="distance"          to="distance_filtered"  />
+        <remap from="/plane/distance"          to="/plane/distance_filtered"  />
         <remap from="joy"               to="/px4/joy"           />
         <remap from="/real/imu"         to="/mavros/imu/data"   />
         <remap from="/real/odom"        to="/mavros/global_position/local" />
