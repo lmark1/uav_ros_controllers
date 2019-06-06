@@ -256,7 +256,7 @@ void dist_control::DistanceControl::doDistanceControl(double dt)
 	if (_mode == DistanceControlMode::SIMULATION)
 		yaw = _planeYaw * getYawScale();
 	else 
-		yaw = getUAVYaw() + _planeYaw; 		// TODO: Minus ili plus
+		yaw = getUAVYaw() - _planeYaw; 		// TODO: Minus ili plus
 
 	overridePitch(pitch);
 	overrideYaw(yaw);

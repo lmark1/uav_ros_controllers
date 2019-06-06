@@ -16,5 +16,5 @@ int main(int argc, char **argv) {
 		{ new carrot_control::CarrotControl(nh) };
 
 	// Run default carrot control algorithm
-	carrot_control::runDefault(*carrotControl, nh);
+	carrot_control::runDefaultFutaba(*carrotControl, nh);
 }
