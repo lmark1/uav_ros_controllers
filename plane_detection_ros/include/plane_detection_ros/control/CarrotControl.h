@@ -5,6 +5,8 @@
 #include <plane_detection_ros/control/JoyControl.h>
 
 #include <plane_detection_ros/PositionControlParametersConfig.h>
+#include <geometry_msgs/Vector3.h>
+#include <std_srvs/Empty.h>
 
 namespace carrot_control 
 {
@@ -115,11 +117,17 @@ namespace carrot_control
 		void positionParamsCb(
 				plane_detection_ros::PositionControlParametersConfig& configMsg,
 				uint32_t level);
-				
+		
+		void positionRefCb(const geometry_msgs::Vector3ConstPtr& posMsg);
+
 		/**
 		 * Publish various carrot control algorithm information.
 		 */
 		void publishCarrotInfo();
+
+		/** Position hold service callback */
+		bool positionHoldCb(std_srvs::Empty::Request& request, 
+			std_srvs::Empty::Response& response);
 
 	private:
 
@@ -187,6 +195,12 @@ namespace carrot_control
 		ros::Publisher _pubCarrotVelocitySp;
 		ros::Publisher _pubVelocityMv;
 
+		/** Define all the subscribers */
+		ros::Subscriber _subPositionRef;
+
+		/** Define all the services */
+		ros::ServiceServer _servicePoisitionHold;
+
 		/** Define Dynamic Reconfigure parameters **/
 		boost::recursive_mutex _posConfigMutex;
 		dynamic_reconfigure::
@@ -195,6 +209,10 @@ namespace carrot_control
 		dynamic_reconfigure::
 			Server<plane_detection_ros::PositionControlParametersConfig>::CallbackType
 			_posParamCallback;
+
+		/** True if position hold mode is enabled, otherwise false */
+		bool positionHold;
+
 	};	
 
 	/**
@@ -214,6 +232,9 @@ namespace carrot_control
 	 */
 	void attitudeControl(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 
+	/**
+	 * Run default Carrot control algorithm with Futaba controller.
+	 */
 	void runDefaultFutaba(carrot_control::CarrotControl& cc, ros::NodeHandle& nh);
 }
 

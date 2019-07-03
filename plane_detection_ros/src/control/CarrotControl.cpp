@@ -20,7 +20,8 @@ carrot_control::CarrotControl::CarrotControl(ros::NodeHandle& nh) :
     _velZPID {new PID ("Velocity - z")}, 
 	_hoverThrust (0),
     control_base::ControlBase(nh), 
-	joy_control::JoyControl(nh)
+	joy_control::JoyControl(nh),
+	positionHold(false)
 {
 	// Define all publishers
 	_pubPositionMv = nh.advertise<geometry_msgs::Vector3>("/uav/position", 1);
@@ -38,10 +39,51 @@ carrot_control::CarrotControl::CarrotControl(ros::NodeHandle& nh) :
 	_posParamCallback = boost::bind(
 		&carrot_control::CarrotControl::positionParamsCb, this, _1, _2);
 	_posConfigServer.setCallback(_posParamCallback);
+
+	// Initialize position reference subscriber
+	_subPositionRef = nh.subscribe("/uav/pos_ref", 100, 
+		&carrot_control::CarrotControl::positionRefCb, this);
+
+	// Initialize position hold service
+	_servicePoisitionHold = nh.advertiseService(
+			"/uav/position_hold",
+			&carrot_control::CarrotControl::positionHoldCb,
+			this);
 }
 
 carrot_control::CarrotControl::~CarrotControl()
 {
+}
+
+bool carrot_control::CarrotControl::positionHoldCb(std_srvs::Empty::Request& request,
+	std_srvs::Empty::Response& response)
+{
+	if (!positionHold)
+	{
+		ROS_WARN("CarrotControl() - Position hold enabled");
+		setCarrotPosition(
+			getCurrPosition()[0],
+			getCurrPosition()[1],
+			getCurrPosition()[2]
+		);
+		positionHold = true;
+	}
+
+	return true;
+}
+
+void carrot_control::CarrotControl::positionRefCb(const geometry_msgs::Vector3ConstPtr& posMsg)
+{
+	if (positionHold)
+	{
+		ROS_INFO("Position reference recieved - [%.2f, %.2f, %.2f]", 
+			posMsg->x, posMsg->y, posMsg->z);
+		setCarrotPosition(posMsg->x, posMsg->y, posMsg->z);
+	}
+	else
+	{
+		ROS_FATAL("Position reference recieved, but position hold disabled.");
+	}
 }
 
 void carrot_control::CarrotControl::setCarrotPosition(double x, double y, double z)
@@ -53,8 +95,26 @@ void carrot_control::CarrotControl::setCarrotPosition(double x, double y, double
 
 void carrot_control::CarrotControl::updateCarrot()
 {
-	updateCarrotXY();
-	updateCarrotZ();
+	// Disable Position hold if carrot inputs exist
+	if (positionHold && (
+		abs(getXOffsetManual()) > 0 || abs(getYOffsetManual()) > 0 || 
+		abs(getZOffsetManual()) > 0))
+	{
+		ROS_WARN("Position hold disabled - resetting carrot position");
+		setCarrotPosition(
+			getCurrPosition()[0],
+			getCurrPosition()[1],
+			getCurrPosition()[2]
+		);
+		positionHold = false;
+	}
+
+	// Update carrot unless in position hold
+	if (!positionHold)
+	{
+		updateCarrotXY();
+		updateCarrotZ();
+	}
 }
 
 void carrot_control::CarrotControl::updateCarrotXY()
