@@ -1,6 +1,6 @@
 #include <plane_detection_ros/control/CarrotControl.h>
-#include <uav_ros_control/PID.h>
-#include <uav_ros_control/NonlinearFilters.h>
+#include <uav_ros_control/control/PID.h>
+#include <uav_ros_control/filters/NonlinearFilters.h>
 
 // Define all parameter paths here
 #define PID_X_PARAM "/control/pos_x"

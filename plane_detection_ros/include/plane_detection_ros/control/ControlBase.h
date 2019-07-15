@@ -7,7 +7,7 @@
 #include <sensor_msgs/Joy.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#include <uav_ros_control/PID.h>
+#include <uav_ros_control/control/PID.h>
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>

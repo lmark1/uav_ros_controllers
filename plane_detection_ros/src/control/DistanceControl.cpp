@@ -1,5 +1,5 @@
 #include <plane_detection_ros/control/DistanceControl.h>
-#include <uav_ros_control/NonlinearFilters.h>
+#include <uav_ros_control/filters/NonlinearFilters.h>
 
 #include <ros/ros.h>
 #include <std_msgs/Int32.h>

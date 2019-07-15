@@ -1,5 +1,5 @@
 #include <plane_detection_ros/control/JoyControl.h>
-#include <uav_ros_control/NonlinearFilters.h>
+#include <uav_ros_control/filters/NonlinearFilters.h>
 
 joy_control::JoyControl::JoyControl(ros::NodeHandle& nh) :
 	_controlIndices (new joy_struct::ControlIndices),

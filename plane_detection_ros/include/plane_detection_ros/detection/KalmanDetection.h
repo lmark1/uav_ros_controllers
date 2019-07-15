@@ -2,7 +2,7 @@
 #define KALMAN_DETECTION_H
 
 #include <plane_detection_ros/detection/PlaneDetection.h>
-#include <uav_ros_control/KalmanFilter.h>
+#include <uav_ros_control/filters/KalmanFilter.h>
 
 /**
  * This class is used for filtering measured distance to plane
