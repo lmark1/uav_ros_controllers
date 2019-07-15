@@ -1,4 +1,4 @@
-#include <uav_ros_control/KalmanFilter.h>
+#include <uav_ros_control/filters/KalmanFilter.h>
 
 KalmanFilter::KalmanFilter(void) {
     //Initialization of the covariances and
