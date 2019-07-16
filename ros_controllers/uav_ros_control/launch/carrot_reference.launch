@@ -1,0 +1,18 @@
+<launch>
+    
+    <!-- Load joy configuration file-->
+    <rosparam 
+	    command="load"
+        file="$(find uav_ros_control)/config/reference/joy.config.yaml" />
+
+    <!-- Start carrot reference node -->
+    <node
+        pkg="uav_ros_control"
+        type="carrot_reference_node"
+        name="carrot_reference_node"
+        output="screen">
+        
+    </node>
+
+
+</launch>

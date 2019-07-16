@@ -3,7 +3,13 @@ project(uav_ros_control)
 
 find_package(catkin REQUIRED COMPONENTS
 	cmake_modules
-	uav_ros_control_msgs)
+	roscpp
+	uav_ros_control_msgs
+	rospy
+    std_msgs
+    dynamic_reconfigure
+    sensor_msgs
+    mav_msgs)
 
 catkin_package(
 	INCLUDE_DIRS include
@@ -22,8 +28,17 @@ target_link_libraries(pid ${catkin_LIBRARIES})
 add_library(nfilt src/filters/NonlinearFilters.cpp)
 target_link_libraries(nfilt ${catkin_LIBRARIES})
 
+# Kalman filter library
 add_library(kalman src/filters/KalmanFilter.cpp)
 target_link_libraries(kalman ${catkin_LIBRARIES})
+
+# Carrot reference generation node
+add_executable(carrot_reference_node
+	src/reference/CarrotReference.cpp
+	src/reference/JoyControlInput.cpp
+	nodes/reference/CarrotReferenceNode.cpp)
+target_link_libraries(carrot_reference_node 
+	${catkin_LIBRARIES} nfilt)
 
 install(DIRECTORY include/${PROJECT_NAME}/
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
