@@ -8,9 +8,6 @@
 
 namespace uav_reference 
 {
-	/** Name of dynamic reconfigure node. */
-	#define CARROT_DYN_RECONF "position_config"
-
 	/**
 	 * "Carrot-on-a-Stick" reference publisher class. Reference is published
 	 * with respect to the global coordinate system.
@@ -45,6 +42,12 @@ namespace uav_reference
 		void updateCarrotStatus();
 
 	private:
+
+		/** 
+		 * Initialize class parameters.
+		 */
+		void initializeParameters();
+
 
 		/**
 		 * Update x and y component of carrot position setpoint with the given value.
@@ -106,6 +109,12 @@ namespace uav_reference
 
 		/** Subscriber to UAV odometry topic */
 		ros::Subscriber _subOdom;
+
+		/** True if carrot publishing is enabled otherwise false */
+		bool _carrotEnabled = false;
+
+		/** Index used for enabling carrot mode */
+		int _carrotEnabledIndex = -1;
 	};
 
 	/**

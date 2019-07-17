@@ -73,7 +73,7 @@ double uav_reference::JoyControlInput::getThrustScale()
 
 void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 {
-    ROS_WARN("JoyControl::initializeParameters()");
+    ROS_WARN("JoyControlInput::initializeParameters()");
 	
 	// Load all control inputs indices
 	bool initialized = 
@@ -84,7 +84,7 @@ void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 	ROS_INFO_STREAM(*_controlIndices);
 	if (!initialized)
 	{
-		ROS_FATAL("JoyControl::initializeParameters() - \ 
+		ROS_FATAL("JoyControlInput::initializeParameters() - \ 
 			ControlIndices parameters are not properly set.");
 		throw std::runtime_error("ControlIndices parameters not properly set.");
 	}
@@ -98,7 +98,7 @@ void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 	ROS_INFO_STREAM("Attitude " << *_attitudeScales);
 	if (!initialized)
 	{
-		ROS_FATAL("JoyControl::initializeParameters() - \
+		ROS_FATAL("JoyControlInput::initializeParameters() - \
 			Attitude weight parameters are not properly set.");
 		throw std::runtime_error("Attitude weight parameters are not properly set.");
 	}
@@ -112,7 +112,7 @@ void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 	ROS_INFO_STREAM("Position " << *_positionScales);
 	if (!initialized)
 	{
-		ROS_FATAL("JoyControl::initializeParameters() - \
+		ROS_FATAL("JoyControlInput::initializeParameters() - \
 			Position weight parameters are not properly set.");
 		throw std::runtime_error("Position weight parameters are not properly set.");
 	}

@@ -1,5 +1,5 @@
-#ifndef JOY_CONTROL_H
-#define JOY_CONTROL_H
+#ifndef JOY_CONTROL_INPUT_H
+#define JOY_CONTROL_INPUT_H
 
 // Own includes
 #include <uav_ros_control/reference/JoyStructure.h>
@@ -113,4 +113,4 @@ namespace uav_reference
 
 }
 
-#endif /** JOY_CONTROL_H */
+#endif /** JOY_CONTROL_INPUT_H */

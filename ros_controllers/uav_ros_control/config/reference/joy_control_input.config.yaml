@@ -11,7 +11,7 @@ joy:
     x: 0.55
     y: 0.55
     z: 75
-    yaw: 1
+    yaw: 0.1
   
   scale_position:
     x: 0.05
