@@ -2,18 +2,24 @@
 #include <uav_ros_control/reference/CarrotReference.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <math.h>
 
 uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 	uav_reference::JoyControlInput(nh)
 {
+	// Define Publishers
 	_pubCarrotPositionSp = 
-		nh.advertise<geometry_msgs::PoseStamped>("/carrot/position", 1);
+		nh.advertise<geometry_msgs::PoseStamped>("/carrot/pose", 1);
 	_pubCarrotYawSp = 
 		nh.advertise<std_msgs::Float64>("/carrot/yaw", 1);
+	_pubCarrotActivity =
+		nh.advertise<std_msgs::Bool>("/carrot/activity", 1);
 	_pubUAVYawSp = 
 		nh.advertise<std_msgs::Float64>("/uav/yaw", 1);
+
+	// Define Subscribers
 	_subOdom = 
 		nh.subscribe("/odometry", 1, &uav_reference::CarrotReference::odomCb, this);
 
@@ -29,6 +35,13 @@ void uav_reference::CarrotReference::updateCarrot()
 	updateCarrotXY();
 	updateCarrotZ();
 	updateCarrotYaw();
+}
+
+void uav_reference::CarrotReference::publishCarrotActivity()
+{
+	std_msgs::Bool newMsg;
+	newMsg.data = isJoyActive();
+	_pubCarrotActivity.publish(newMsg);
 }
 
 void uav_reference::CarrotReference::odomCb(const nav_msgs::OdometryConstPtr& msg)
@@ -51,7 +64,7 @@ void uav_reference::CarrotReference::updateCarrotYaw()
 {
 	// Update Carrot yaw angle and wrap to PI
 	_carrotYaw += - getYawSpManual();
-	_carrotYaw = nonlinear_filters::wrapMinMax(_carrotYaw, -M_PI, M_PI);
+	_carrotYaw = util::wrapMinMax(_carrotYaw, -M_PI, M_PI);
 }
 
 void uav_reference::CarrotReference::updateCarrotXY()
@@ -83,6 +96,7 @@ void uav_reference::CarrotReference::publishCarrotSetpoint()
 
 	// Publish PoseStamped carrot reference
 	geometry_msgs::PoseStamped msg;
+	msg.header.stamp = ros::Time::now();
 	msg.pose.position.x = _carrotPos[0];
 	msg.pose.position.y = _carrotPos[1];
 	msg.pose.position.z = _carrotPos[2];
@@ -132,7 +146,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 		_carrotPos[2] = _uavPos[2];
 		_carrotYaw = _uavYaw;
 		ROS_INFO("CarrotReference::updateCarrotStatus - current position and yaw set \
-			as carrot status");
+			as carrot reference.");
 
 		return;
 	}
@@ -159,6 +173,7 @@ void uav_reference::runDefault(
 		carrotRefObj.updateCarrotStatus();
 		carrotRefObj.updateCarrot();
 		carrotRefObj.publishCarrotSetpoint();
+		carrotRefObj.publishCarrotActivity();
 		loopRate.sleep();
 	}
 }

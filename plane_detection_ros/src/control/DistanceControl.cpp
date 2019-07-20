@@ -95,7 +95,7 @@ void dist_control::DistanceControl::normalCb(
 	if (xComponent < 0)
 		_planeYaw += M_PI;
 
-	_planeYaw = nonlinear_filters::wrapMinMax(_planeYaw, -M_PI, M_PI);
+	_planeYaw = util::wrapMinMax(_planeYaw, -M_PI, M_PI);
 }
 
 void dist_control::DistanceControl::detectSequenceChange()
