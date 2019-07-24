@@ -51,7 +51,7 @@ void uav_reference::CarrotReference::updateCarrotYaw()
 {
 	// Update Carrot yaw angle and wrap to PI
 	_carrotYaw += - getYawSpManual();
-	_carrotYaw = nonlinear_filters::wrapMinMax(_carrotYaw, -M_PI, M_PI);
+	_carrotYaw = util::wrapMinMax(_carrotYaw, -M_PI, M_PI);
 }
 
 void uav_reference::CarrotReference::updateCarrotXY()

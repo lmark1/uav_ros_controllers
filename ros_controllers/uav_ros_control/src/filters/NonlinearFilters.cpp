@@ -52,9 +52,16 @@ double wrapMax(double x, double max)
     return fmod(max + fmod(x, max), max);
 }
 
-double nonlinear_filters::wrapMinMax(double x, double min, double max)
+double util::wrapMinMax(double x, double min, double max)
 {
     return min + wrapMax(x - min, max - min);
+}
+
+double util::calculateYaw(double qx, double qy, double qz, double qw)
+{
+	return atan2(
+		2 * (qw * qz + qx * qy),
+		qw * qw + qx * qx - qy * qy - qz * qz);
 }
 
 
