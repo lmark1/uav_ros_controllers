@@ -1,5 +1,6 @@
 #include <uav_ros_control/reference/JoyControlInput.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
+#include <math.h>
 
 uav_reference::JoyControlInput::JoyControlInput(ros::NodeHandle& nh) :
 	_controlIndices (new joy_struct::ControlIndices),
@@ -69,6 +70,13 @@ double uav_reference::JoyControlInput::getYawScale()
 double uav_reference::JoyControlInput::getThrustScale()
 {
 	return _attitudeScales->LINEAR_Z;
+}
+
+bool uav_reference::JoyControlInput::isJoyActive()
+{
+	return abs(_joyMsg.axes[_controlIndices->AXIS_LINEAR_X]) > MIN_ACTIVE_VALUE ||
+		abs(_joyMsg.axes[_controlIndices->AXIS_LINEAR_Y]) > MIN_ACTIVE_VALUE ||
+		abs(_joyMsg.axes[_controlIndices->AXIS_LINEAR_Y]) > MIN_ACTIVE_VALUE;
 }
 
 void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)

@@ -10,6 +10,8 @@
 
 namespace uav_reference
 {
+	/** Minimum value for joy to be considered active. */
+	#define MIN_ACTIVE_VALUE 0.1
 
 	/**
 	 * This class is used for getting control inputs from ROS Joy messages.
@@ -82,6 +84,11 @@ namespace uav_reference
 		 * Return vector of float values from Joy message.
 		 */
 		const std::vector<float> getJoyAxes();
+
+		/**
+		 * Returns true if joy inputs are active, i.e. greater than zero.
+		 */
+		bool isJoyActive();
 
 	private:
 
