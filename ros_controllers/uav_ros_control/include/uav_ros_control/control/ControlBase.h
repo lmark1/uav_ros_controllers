@@ -46,14 +46,14 @@ namespace uav_controller
 		 * @param pitch - Pitch angle setpoint
 		 * @param yaw 	- Yaw angle setpoint
 		 */
-		void setAttitudeSp(const double roll, const double pitch, const double yaw);
+		void setAttitudeSp(double roll, double pitch, double yaw);
 
         /**
 		 * Set thrust setpoint.
 		 * 
 		 * @param thrust - New thrust setpoint
 		 */
-		void setThrustSp(const double thrust);
+		void setThrustSp(double thrust);
 
 		/**
 		 * Returns constant reference to the current position.
@@ -68,9 +68,10 @@ namespace uav_controller
 		/**
          * Publish attitude setpoiint.
          * 
-         * @ typeMask - AttitudeTarget bitmask
+         * @typeMask - AttitudeTarget bitmask
+		 * @yawRate - Alse set yawRate if bitmask enables it 
 		 */
-		void publishAttitudeTarget(int typeMask);
+		void publishAttitudeTarget(int typeMask, double yawRate = 0);
 
 		/**
 		 * Publish setpoint euler angles as a Vector3 ROS message.
@@ -83,11 +84,6 @@ namespace uav_controller
 		 * Odometry callback function.
 		 */
 		void odomCb(const nav_msgs::OdometryConstPtr&);
-
-		/**
-		 * Carrot reference callback function.
-		 */
-		void carrotCb(const geometry_msgs::PoseStampedConstPtr&);
 
 		/**
 		 * Trajectory point callback function.
@@ -104,15 +100,11 @@ namespace uav_controller
 		std::array<double, 4> _attThrustSp {0.0, 0.0, 0.0, 0.0};
 
 		/** Current carrot reference */
-		trajectory_msgs::MultiDOFJointTrajectoryPoint _currCarrotRef;
-
-		/** Current trajectory reference - works in position hold mode */
-		trajectory_msgs::MultiDOFJointTrajectoryPoint _currPoseRef;
+		trajectory_msgs::MultiDOFJointTrajectoryPoint _currentReference;
 
 		/** Declare all subscribers **/
 		ros::Subscriber _subOdom;
-        ros::Subscriber _subCarrotPose;
-        ros::Subscriber _subTrajPoint;
+        ros::Subscriber _subReference;
 
 		/** Declare all publishers. **/
 		ros::Publisher _pubEulerSetpoint;

@@ -11,17 +11,17 @@ uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 {
 	// Define Publishers
 	_pubCarrotPositionSp = 
-		nh.advertise<geometry_msgs::PoseStamped>("/carrot/pose", 1);
+		nh.advertise<geometry_msgs::PoseStamped>("carrot/pose", 1);
 	_pubCarrotYawSp = 
-		nh.advertise<std_msgs::Float64>("/carrot/yaw", 1);
+		nh.advertise<std_msgs::Float64>("carrot/yaw", 1);
 	_pubCarrotActivity =
-		nh.advertise<std_msgs::Bool>("/carrot/activity", 1);
+		nh.advertise<std_msgs::Bool>("carrot/activity", 1);
 	_pubUAVYawSp = 
-		nh.advertise<std_msgs::Float64>("/uav/yaw", 1);
+		nh.advertise<std_msgs::Float64>("uav/yaw", 1);
 
 	// Define Subscribers
 	_subOdom = 
-		nh.subscribe("/odometry", 1, &uav_reference::CarrotReference::odomCb, this);
+		nh.subscribe("odometry", 1, &uav_reference::CarrotReference::odomCb, this);
 
 	initializeParameters();
 }
@@ -127,7 +127,7 @@ void uav_reference::CarrotReference::initializeParameters()
 		_carrotEnabledIndex);
 	if (!initialized)
 	{
-		ROS_FATAL("CarrotReference::initializeParameters() - \ 
+		ROS_FATAL("CarrotReference::initializeParameters() -\
 			Carrot enable index not properly initialized.");
 		throw std::runtime_error("CarrotReference parameters not properly set.");
 	}
@@ -139,15 +139,13 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 	if (getJoyButtons()[_carrotEnabledIndex] == 1 && !_carrotEnabled)
 	{
 		_carrotEnabled = true;
-		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled");
+		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled.");
 
 		_carrotPos[0] = _uavPos[0];
 		_carrotPos[1] = _uavPos[1];
 		_carrotPos[2] = _uavPos[2];
 		_carrotYaw = _uavYaw;
-		ROS_INFO("CarrotReference::updateCarrotStatus - current position and yaw set \
-			as carrot reference.");
-
+		ROS_INFO("CarrotReference::updateCarrotStatus - current position and yaw set as carrot reference.");
 		return;
 	}
 
@@ -155,7 +153,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 	if (getJoyButtons()[_carrotEnabledIndex] == 0 && _carrotEnabled)
 	{
 		_carrotEnabled = false;
-		ROS_INFO("CarrotRefernce::updateCarrotStatus - carrot disabled");
+		ROS_INFO("CarrotRefernce::updateCarrotStatus - carrot disabled.\n");
 
 		return;
 	}

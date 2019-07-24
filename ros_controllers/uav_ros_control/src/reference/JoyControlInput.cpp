@@ -85,10 +85,10 @@ void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 	
 	// Load all control inputs indices
 	bool initialized = 
-		nh.getParam("/joy/axis_linear/x", 			_controlIndices->AXIS_LINEAR_X) &&
-		nh.getParam("/joy/axis_linear/y", 			_controlIndices->AXIS_LINEAR_Y) &&
-		nh.getParam("/joy/axis_linear/z", 			_controlIndices->AXIS_LINEAR_Z) &&
-		nh.getParam("/joy/axis_angular/yaw", 		_controlIndices->AXIS_ANGULAR_YAW);
+		nh.getParam("joy/axis_linear/x", 			_controlIndices->AXIS_LINEAR_X) &&
+		nh.getParam("joy/axis_linear/y", 			_controlIndices->AXIS_LINEAR_Y) &&
+		nh.getParam("joy/axis_linear/z", 			_controlIndices->AXIS_LINEAR_Z) &&
+		nh.getParam("joy/axis_angular/yaw", 		_controlIndices->AXIS_ANGULAR_YAW);
 	ROS_INFO_STREAM(*_controlIndices);
 	if (!initialized)
 	{
@@ -99,10 +99,10 @@ void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 
 	// Load all attitude scales
 	initialized = 
-		nh.getParam("/joy/scale_attitude/x", 		_attitudeScales->LINEAR_X) &&
-		nh.getParam("/joy/scale_attitude/y", 		_attitudeScales->LINEAR_Y) &&
-		nh.getParam("/joy/scale_attitude/z", 		_attitudeScales->LINEAR_Z) &&
-		nh.getParam("/joy/scale_attitude/yaw", 		_attitudeScales->ANGULAR_Z);
+		nh.getParam("joy/scale_attitude/x", 		_attitudeScales->LINEAR_X) &&
+		nh.getParam("joy/scale_attitude/y", 		_attitudeScales->LINEAR_Y) &&
+		nh.getParam("joy/scale_attitude/z", 		_attitudeScales->LINEAR_Z) &&
+		nh.getParam("joy/scale_attitude/yaw", 		_attitudeScales->ANGULAR_Z);
 	ROS_INFO_STREAM("Attitude " << *_attitudeScales);
 	if (!initialized)
 	{
@@ -114,9 +114,9 @@ void uav_reference::JoyControlInput::initializeParameters(ros::NodeHandle& nh)
 	// Load all position scales
 	_positionScales->ANGULAR_Z = 0;
 	initialized = 
-		nh.getParam("/joy/scale_position/x", 		_positionScales->LINEAR_X) &&
-		nh.getParam("/joy/scale_position/y", 		_positionScales->LINEAR_Y) &&
-		nh.getParam("/joy/scale_position/z", 		_positionScales->LINEAR_Z);	
+		nh.getParam("joy/scale_position/x", 		_positionScales->LINEAR_X) &&
+		nh.getParam("joy/scale_position/y", 		_positionScales->LINEAR_Y) &&
+		nh.getParam("joy/scale_position/z", 		_positionScales->LINEAR_Z);	
 	ROS_INFO_STREAM("Position " << *_positionScales);
 	if (!initialized)
 	{
