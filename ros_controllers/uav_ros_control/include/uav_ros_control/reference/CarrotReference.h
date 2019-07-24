@@ -35,6 +35,11 @@ namespace uav_reference
 		 */
 		void publishCarrotSetpoint();
 
+		/**
+		 * Publish true if carrot is active, otherwise false.
+		 */
+		void publishCarrotActivity();
+
 		/** 
 		 * Check if carrot mode is entered. This method will reset carrot position
 		 * when entering carrot reference mode for the first time.
@@ -98,23 +103,20 @@ namespace uav_reference
 		/** Current UAV yaw angle */
 		double _uavYaw = 0;
 
-		/** Carrot position publisher */
-		ros::Publisher _pubCarrotPositionSp;
-
-		/** Carrot yaw publisher */
-		ros::Publisher _pubCarrotYawSp;
-
-		/** UAV yaw publisher */
-		ros::Publisher _pubUAVYawSp;
-
-		/** Subscriber to UAV odometry topic */
-		ros::Subscriber _subOdom;
-
 		/** True if carrot publishing is enabled otherwise false */
 		bool _carrotEnabled = false;
 
 		/** Index used for enabling carrot mode */
 		int _carrotEnabledIndex = -1;
+
+		/** Define all Publishers */
+		ros::Publisher _pubCarrotPositionSp;
+		ros::Publisher _pubCarrotYawSp;
+		ros::Publisher _pubUAVYawSp;
+		ros::Publisher _pubCarrotActivity;
+
+		/** Define all Subscribers. */
+		ros::Subscriber _subOdom;
 	};
 
 	/**
