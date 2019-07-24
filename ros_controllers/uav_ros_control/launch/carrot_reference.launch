@@ -1,26 +1,30 @@
 <launch>
     
-    <!-- Load joy configuration file-->
-    <rosparam 
-	    command="load"
-        file="$(find uav_ros_control)/config/reference/joy_control_input.config.yaml" />
+    <arg name="namespace" default="red"/>
+    
+    <group ns="$(arg namespace)">
+        <!-- Load joy configuration file-->
+        <rosparam 
+            command="load"
+            file="$(find uav_ros_control)/config/reference/joy_control_input.config.yaml" />
 
-    <!-- Carrot-Mode reference generator node -->
-    <node
-        pkg="uav_ros_control"
-        type="carrot_reference_node"
-        name="carrot_reference_node"
-        output="screen">
+        <!-- Carrot-Mode reference generator node -->
+        <node
+            pkg="uav_ros_control"
+            type="carrot_reference_node"
+            name="carrot_reference_node"
+            output="screen">
 
-        <!-- Private parameters -->
-        <param name="carrot_index" value="5" />
+            <!-- Private parameters -->
+            <param name="carrot_index" value="5" />
 
-        <!-- Topic remapping -->
-        <remap from="/carrot/position"  to="/carrot/position" />
-        <remap from="/carrot/yaw"       to="/carrot/yaw" />
-        <remap from="/uav/yaw"          to="/uav/yaw" />
-        <remap from="/odometry"         to="/mavros/global_position/local" />
-        <remap from="/joy"              to="/joy" />
-    </node>
+            <!-- Topic remapping -->
+            <remap from="carrot/position"  to="carrot/position" />
+            <remap from="carrot/yaw"       to="carrot/yaw" />
+            <remap from="uav/yaw"          to="uav/yaw" />
+            <remap from="odometry"         to="/mavros/global_position/local" />
+            <remap from="joy"              to="/joy" />
+        </node>
+    </group>
 
 </launch>
