@@ -1,5 +1,4 @@
 <launch>
-    
     <arg name="namespace" default="red"/>
     
     <group ns="$(arg namespace)">
@@ -26,5 +25,4 @@
             <remap from="joy"              to="/joy" />
         </node>
     </group>
-
 </launch>
