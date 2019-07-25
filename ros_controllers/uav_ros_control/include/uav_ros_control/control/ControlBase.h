@@ -66,6 +66,11 @@ namespace uav_controller
 		const std::array<double, 3>& getCurrVelocity();
 
 		/**
+		 * Return current UAV yaw angle.
+		 */
+		double getCurrentYaw();
+
+		/**
          * Publish attitude setpoiint.
          * 
          * @typeMask - AttitudeTarget bitmask
@@ -75,8 +80,13 @@ namespace uav_controller
 
 		/**
 		 * Publish setpoint euler angles as a Vector3 ROS message.
-		 */
+		 */ 
 		void publishEulerSp();
+
+		/**
+		 * Get trajectory point reference.
+		 */
+		const trajectory_msgs::MultiDOFJointTrajectoryPoint& getCurrentReference(); 
 
 	private:
 
@@ -89,6 +99,9 @@ namespace uav_controller
 		 * Trajectory point callback function.
 		 */
 		void trajPointCb(const trajectory_msgs::MultiDOFJointTrajectoryPointConstPtr&);
+
+		/** Current UAV yaw */
+		double _currentYaw = 0;
 
 		/** Current local position vector. */
 		std::array<double, 3> _currentPosition {0.0, 0.0, 0.0};

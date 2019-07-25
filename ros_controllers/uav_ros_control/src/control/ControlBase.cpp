@@ -5,9 +5,13 @@
  *      Author: lmark
  */
 #include <uav_ros_control/control/ControlBase.h>
+#include <uav_ros_control/filters/NonlinearFilters.h>
+
 #include <mavros_msgs/AttitudeTarget.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Transform.h>
+#include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Twist.h>
 #include <tf2/LinearMath/Quaternion.h>
 
@@ -22,7 +26,7 @@ uav_controller::ControlBase::ControlBase(ros::NodeHandle& nh)
 	// Initialize all subscribers
 	_subOdom = nh.subscribe("odometry", 1,
 		&uav_controller::ControlBase::odomCb, this);
-	_subReference = nh.subscribe("uav/trajectory_pojnt", 1, 
+	_subReference = nh.subscribe("uav/trajectory_point", 1, 
 		&uav_controller::ControlBase::trajPointCb, this);
 
 	// Initialized all publishers
@@ -50,6 +54,12 @@ void uav_controller::ControlBase::odomCb(const nav_msgs::OdometryConstPtr& messa
 	_currentVelocity[0] = message->twist.twist.linear.x;
 	_currentVelocity[1] = message->twist.twist.linear.y;
 	_currentVelocity[2] = - message->twist.twist.linear.z;
+
+	_currentYaw = util::calculateYaw(
+		message->pose.pose.orientation.x,
+		message->pose.pose.orientation.y,
+		message->pose.pose.orientation.z,
+		message->pose.pose.orientation.w);
 }
 
 void uav_controller::ControlBase::trajPointCb(
@@ -103,10 +113,10 @@ const std::array<double, 3>& uav_controller::ControlBase::getCurrVelocity()
 	return _currentVelocity;
 }
 
-void uav_controller::ControlBase::publishAttitudeTarget(int typeMask, double yawRate = 0)
+void uav_controller::ControlBase::publishAttitudeTarget(int typeMask, double yawRate /* = 0 */)
 {
     tf2::Quaternion q;
-	q.setEulerZYX(_attThrustSp[2], _attThrustSp[1], _attThrustSp[0]);
+	q.setEuler(_attThrustSp[2], _attThrustSp[1], _attThrustSp[0]);
 
     mavros_msgs::AttitudeTarget newMessage;
 	newMessage.header.stamp = ros::Time::now();
@@ -140,4 +150,15 @@ void uav_controller::ControlBase::publishEulerSp()
 	newMessage.y = _attThrustSp[1];
 	newMessage.z = _attThrustSp[2];
 	_pubEulerSetpoint.publish(newMessage);
+}
+
+const trajectory_msgs::MultiDOFJointTrajectoryPoint& 
+	uav_controller::ControlBase::getCurrentReference()
+{
+	return _currentReference; 
+}
+
+double uav_controller::ControlBase::getCurrentYaw()
+{
+	return _currentYaw;
 }
