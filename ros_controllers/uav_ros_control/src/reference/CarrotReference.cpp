@@ -52,7 +52,7 @@ void uav_reference::CarrotReference::odomCb(const nav_msgs::OdometryConstPtr& ms
 	double qw = msg->pose.pose.orientation.w;
 
 	// Extract UAV yaw
-	_uavYaw = atan2(2 * (qw * qz + qx * qy), qw * qw + qx * qx - qy * qy - qz * qz);
+	_uavYaw = util::calculateYaw(qx, qy, qz, qw);
 
 	// Extract UAV position
 	_uavPos[0] = msg->pose.pose.position.x;
