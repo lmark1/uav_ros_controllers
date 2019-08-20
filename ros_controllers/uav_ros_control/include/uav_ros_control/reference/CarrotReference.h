@@ -5,6 +5,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/Empty.h>
+#include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 
 namespace uav_reference 
 {
@@ -34,11 +35,6 @@ namespace uav_reference
 		 * Publish carrot position setpoint as a Vector3 ROS message.
 		 */
 		void publishCarrotSetpoint();
-
-		/**
-		 * Publish true if carrot is active, otherwise false.
-		 */
-		void publishCarrotActivity();
 
 		/** 
 		 * Check if carrot mode is entered. This method will reset carrot position
@@ -87,12 +83,28 @@ namespace uav_reference
 		void updateCarrotYaw();
 
 		/**
+		 * Reset carrot trajectory point.
+		 */
+		void resetCarrot();
+
+		/** 
+		 * Position hold service callback.OS 
+		 */
+		bool posHoldServiceCb(std_srvs::Empty::Request& request, 
+			std_srvs::Empty::Response& response);
+
+		/**
+		 * Callback function for Position reference. Works only during position hold mode.
+		 */
+		void positionRefCb(const trajectory_msgs::MultiDOFJointTrajectoryPointConstPtr& posMsg);
+
+		/**
 		 * Odometry callback function. Used for extracting UAV yaw rotation.
 		 */
 		void odomCb(const nav_msgs::OdometryConstPtr&);
 
-		/** Carrot setpoint position array. */
-		std::array<double, 3> _carrotPos {0.0, 0.0, 0.0};
+		/** Carrot reference used for position hold. */
+		trajectory_msgs::MultiDOFJointTrajectoryPoint _carrotPoint;
 
 		/** UAV current position array. */
 		std::array<double, 3> _uavPos {0.0, 0.0, 0.0};
@@ -103,20 +115,26 @@ namespace uav_reference
 		/** Current UAV yaw angle */
 		double _uavYaw = 0;
 
-		/** True if carrot publishing is enabled otherwise false */
+		/** True if carrot mode is enabled otherwise false */
 		bool _carrotEnabled = false;
+
+		/** True if position hold mode is enabled, otherwise false */
+		bool _positionHold = false;
 
 		/** Index used for enabling carrot mode */
 		int _carrotEnabledIndex = -1;
 
 		/** Define all Publishers */
-		ros::Publisher _pubCarrotPositionSp;
+		ros::Publisher _pubCarrotTrajectorySp;
 		ros::Publisher _pubCarrotYawSp;
-		ros::Publisher _pubUAVYawSp;
-		ros::Publisher _pubCarrotActivity;
+		ros::Publisher _pubUAVYaw;
 
 		/** Define all Subscribers. */
 		ros::Subscriber _subOdom;
+		ros::Subscriber _subPosHoldRef;
+
+		/** Define all the services */
+		ros::ServiceServer _servicePoisitionHold;
 	};
 
 	/**

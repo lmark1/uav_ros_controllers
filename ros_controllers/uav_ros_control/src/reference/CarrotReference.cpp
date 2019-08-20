@@ -10,39 +10,110 @@ uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 	uav_reference::JoyControlInput(nh)
 {
 	// Define Publishers
-	_pubCarrotPositionSp = 
-		nh.advertise<geometry_msgs::PoseStamped>("carrot/pose", 1);
+	_pubCarrotTrajectorySp = 
+		nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("carrot/trajectory", 1);
 	_pubCarrotYawSp = 
 		nh.advertise<std_msgs::Float64>("carrot/yaw", 1);
-	_pubCarrotActivity =
-		nh.advertise<std_msgs::Bool>("carrot/activity", 1);
-	_pubUAVYawSp = 
+	_pubUAVYaw = 
 		nh.advertise<std_msgs::Float64>("uav/yaw", 1);
 
 	// Define Subscribers
 	_subOdom = 
 		nh.subscribe("odometry", 1, &uav_reference::CarrotReference::odomCb, this);
+	_subPosHoldRef = 
+		nh.subscribe("carrot/traj_point", 1, 
+		&uav_reference::CarrotReference::positionRefCb, this);
+
+	// Initialize position hold service
+	_servicePoisitionHold = nh.advertiseService(
+			"/uav/position_hold",
+			&uav_reference::CarrotReference::posHoldServiceCb,
+			this);
 
 	initializeParameters();
+
+	// Initialize references
+	_carrotPoint.transforms = std::vector<geometry_msgs::Transform>(1);
+	_carrotPoint.velocities = std::vector<geometry_msgs::Twist>(1);
+	_carrotPoint.accelerations = std::vector<geometry_msgs::Twist>(1);
 }
 
 uav_reference::CarrotReference::~CarrotReference()
 { 
 }
 
-void uav_reference::CarrotReference::updateCarrot()
+bool uav_reference::CarrotReference::posHoldServiceCb(std_srvs::Empty::Request& request, 
+			std_srvs::Empty::Response& response)
 {
-	updateCarrotXY();
-	updateCarrotZ();
-	updateCarrotYaw();
+	if (!_positionHold)
+	{
+		ROS_WARN("CarrotControl() - Position hold enabled");
+		resetCarrot();	
+	}
+
+	return true;
 }
 
-void uav_reference::CarrotReference::publishCarrotActivity()
+void uav_reference::CarrotReference::positionRefCb(
+	const trajectory_msgs::MultiDOFJointTrajectoryPointConstPtr& posMsg)
 {
-	std_msgs::Bool newMsg;
-	newMsg.data = isJoyActive();
-	_pubCarrotActivity.publish(newMsg);
+	if (_positionHold)
+	{
+		_carrotPoint = *posMsg;
+		_carrotYaw = util::calculateYaw(
+			posMsg->transforms[0].rotation.x,
+			posMsg->transforms[0].rotation.y,
+			posMsg->transforms[0].rotation.z, 
+			posMsg->transforms[0].rotation.w);
+		ROS_INFO("Trajectory reference received");
+	}
+	else
+	{
+		ROS_FATAL("Trajectory reference recieved, but position hold mode is disabled.");
+	}
 }
+
+void uav_reference::CarrotReference::updateCarrot()
+{
+
+	// Disable Position hold if carrot inputs exist
+	if (_positionHold && (
+		abs(getXOffsetManual()) > 0 || abs(getYOffsetManual()) > 0 || 
+		abs(getZOffsetManual()) > 0))
+	{
+		ROS_WARN("Position hold disabled - resetting carrot position");
+		resetCarrot();
+		_positionHold = false;
+	}
+
+	// Update carrot unless in position hold
+	if (!_positionHold)
+	{
+		updateCarrotXY();
+		updateCarrotZ();
+		updateCarrotYaw();
+	}
+}
+
+void uav_reference::CarrotReference::resetCarrot()
+{
+	_carrotPoint.transforms = std::vector<geometry_msgs::Transform>(1);
+	_carrotPoint.velocities = std::vector<geometry_msgs::Twist>(1);
+	_carrotPoint.accelerations = std::vector<geometry_msgs::Twist>(1);
+	_carrotPoint.transforms[0].translation.x = _uavPos[0];
+	_carrotPoint.transforms[0].translation.y = _uavPos[1];
+	_carrotPoint.transforms[0].translation.z = _uavPos[2];
+	
+	// Set carrot orientation
+	_carrotYaw = _uavYaw;
+	tf2::Quaternion q;
+	q.setEuler(_carrotYaw, 0, 0);
+	_carrotPoint.transforms[0].rotation.x = q.getX();
+	_carrotPoint.transforms[0].rotation.y = q.getY();
+	_carrotPoint.transforms[0].rotation.z = q.getZ();
+	_carrotPoint.transforms[0].rotation.w = q.getW();
+}
+
 
 void uav_reference::CarrotReference::odomCb(const nav_msgs::OdometryConstPtr& msg)
 {
@@ -65,6 +136,13 @@ void uav_reference::CarrotReference::updateCarrotYaw()
 	// Update Carrot yaw angle and wrap to PI
 	_carrotYaw += - getYawSpManual();
 	_carrotYaw = util::wrapMinMax(_carrotYaw, -M_PI, M_PI);
+
+	tf2::Quaternion q;
+	q.setEuler(_carrotYaw, 0, 0);
+	_carrotPoint.transforms[0].rotation.x = q.getX();
+	_carrotPoint.transforms[0].rotation.y = q.getY();
+	_carrotPoint.transforms[0].rotation.z = q.getZ();
+	_carrotPoint.transforms[0].rotation.w = q.getW();
 }
 
 void uav_reference::CarrotReference::updateCarrotXY()
@@ -80,13 +158,13 @@ void uav_reference::CarrotReference::updateCarrotZ()
 void uav_reference::CarrotReference::updateCarrotXY(double xOff, double yOff)
 {
 	// Adjust carrot position w.r.t. the global coordinate system
-	_carrotPos[0] += cos(-_uavYaw) * xOff + sin(-_uavYaw) * yOff;
-	_carrotPos[1] += cos(-_uavYaw) * yOff - sin(-_uavYaw) * xOff;
+	_carrotPoint.transforms[0].translation.x += cos(-_uavYaw) * xOff + sin(-_uavYaw) * yOff;
+	_carrotPoint.transforms[0].translation.y += cos(-_uavYaw) * yOff - sin(-_uavYaw) * xOff;
 }
 
 void uav_reference::CarrotReference::updateCarrotZ(double zOff)
 {
-	_carrotPos[2] += zOff;
+	_carrotPoint.transforms[0].translation.z += zOff;
 }
 
 void uav_reference::CarrotReference::publishCarrotSetpoint()
@@ -95,21 +173,12 @@ void uav_reference::CarrotReference::publishCarrotSetpoint()
 	q.setEuler(_carrotYaw, 0, 0);
 
 	// Publish PoseStamped carrot reference
-	geometry_msgs::PoseStamped msg;
-	msg.header.stamp = ros::Time::now();
-	msg.pose.position.x = _carrotPos[0];
-	msg.pose.position.y = _carrotPos[1];
-	msg.pose.position.z = _carrotPos[2];
-	msg.pose.orientation.x = q.getX();
-	msg.pose.orientation.y = q.getY();
-	msg.pose.orientation.z = q.getZ();
-	msg.pose.orientation.w = q.getW();
-	_pubCarrotPositionSp.publish(msg);
+	_pubCarrotTrajectorySp.publish(_carrotPoint);
 
 	// Publish UAV yaw message
 	std_msgs::Float64 uavYawMsg;
 	uavYawMsg.data = _uavYaw;
-	_pubUAVYawSp.publish(uavYawMsg);
+	_pubUAVYaw.publish(uavYawMsg);
 
 	// Publish referent yaw message
 	std_msgs::Float64 yawRefMsg;
@@ -140,11 +209,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 	{
 		_carrotEnabled = true;
 		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled.");
-
-		_carrotPos[0] = _uavPos[0];
-		_carrotPos[1] = _uavPos[1];
-		_carrotPos[2] = _uavPos[2];
-		_carrotYaw = _uavYaw;
+		resetCarrot();
 		ROS_INFO("CarrotReference::updateCarrotStatus - current position and yaw set as carrot reference.");
 		return;
 	}
@@ -153,8 +218,8 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 	if (getJoyButtons()[_carrotEnabledIndex] == 0 && _carrotEnabled)
 	{
 		_carrotEnabled = false;
+		_positionHold = false;
 		ROS_INFO("CarrotRefernce::updateCarrotStatus - carrot disabled.\n");
-
 		return;
 	}
 }
@@ -171,7 +236,6 @@ void uav_reference::runDefault(
 		carrotRefObj.updateCarrotStatus();
 		carrotRefObj.updateCarrot();
 		carrotRefObj.publishCarrotSetpoint();
-		carrotRefObj.publishCarrotActivity();
 		loopRate.sleep();
 	}
 }
