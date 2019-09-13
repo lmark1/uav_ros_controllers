@@ -29,6 +29,7 @@
 #ifndef KALMANFILTER_H
 #define KALMANFILTER_H
 
+#include <iostream>
 
 class KalmanFilter {
     public:
@@ -108,6 +109,8 @@ class KalmanFilter {
          * Returns velocity noise.
          */
         double getVelocityNoise();
+        
+        friend std::ostream& operator << (std::ostream&, const KalmanFilter&);
 
     private:
         double x_cov_[2][2], x_[2];

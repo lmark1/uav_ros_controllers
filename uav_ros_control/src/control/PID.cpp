@@ -1,7 +1,16 @@
-#include <uav_ros_control/PID.h>
+#include <uav_ros_control/control/PID.h>
 #include <limits>
+#include <iostream>
 
-PID::PID()
+// Parameter path constants
+#define KP "/kp"
+#define KD "/kd"
+#define KI "/ki"
+#define LIM_LOW "/lim_low"
+#define LIM_HIGH "/lim_high"
+
+PID::PID(std::string name):
+    _name (name)
 {
     /*
         Initializes PID gains (proportional - kp, integral - ki, derivative - kd) and control values to zero.
@@ -34,7 +43,12 @@ PID::PID()
     firstPass = true;
 }
 
-void PID::reset()
+PID::PID():
+    PID("default")
+{
+}
+
+void PID::resetPIDParams()
 {
     // Resets pid algorithm by setting all P,I,D parts to zero
     up = 0;
@@ -42,6 +56,14 @@ void PID::reset()
     ui_old = 0;
     ud = 0;
     u = 0;
+}
+
+void PID::resetIntegrator()
+{
+    firstPass = false;
+    ui_old = 0;
+    error_old = 0;
+    ROS_DEBUG("PID %s is reset.", _name.c_str());
 }
 
 void PID::set_kp(float invar)
@@ -169,7 +191,7 @@ float PID::compute(float ref_, float meas_, float dt_)
         ui_old = ui;                          // save ui for next step
 
         error_old = error;
-                            
+                
         /* End of added code
         ///////////////////////////////////////////////
         ///////////////////////////////////////////////
@@ -200,4 +222,29 @@ void PID::create_msg(uav_ros_control_msgs::PIDController &msg)
     msg.D = ud;
     msg.U = u;
     msg.header.stamp = ros::Time::now();
+}
+
+std::ostream& operator << (std::ostream& out, const PID& pid)
+{
+    out << pid._name << " PID parameters are:" << "\nk_p=" << pid.kp
+        << "\nk_i=" << pid.ki << "\nk_d=" << pid.kd 
+        << "\nlim_low=" << pid.lim_low << "\nlim_high=" << pid.lim_high
+        << std::endl;
+    return out;
+}
+
+void PID::initializeParameters(ros::NodeHandle& nh, std::string prefix)
+{
+    bool initialized =
+        nh.getParam(prefix + KP, kp) &&
+        nh.getParam(prefix + KI, ki) &&
+        nh.getParam(prefix + KD, kd) &&
+        nh.getParam(prefix + LIM_LOW, lim_low) &&
+        nh.getParam(prefix + LIM_HIGH, lim_high);
+    ROS_INFO_STREAM(*this);
+    if (!initialized)
+	{
+		ROS_FATAL("PID() - parameter initialization failed.");
+		throw std::runtime_error("PID parameters not properly set.");
+	}
 }

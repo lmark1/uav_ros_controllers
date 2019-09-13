@@ -1,0 +1,127 @@
+#ifndef CASCADE_PID_H
+#define CASCADE_PID_H
+
+#include <uav_ros_control/control/ControlBase.h>
+#include <uav_ros_control/control/PID.h>
+#include <dynamic_reconfigure/server.h>
+#include <uav_ros_control/PositionControlParametersConfig.h>
+
+#include <geometry_msgs/Vector3.h>
+#include <std_msgs/Float64.h>
+#include <std_srvs/Empty.h>
+
+namespace uav_controller 
+{
+	/** Name of dynamic reconfigure node. */
+	#define CASCADE_DYN_RECONF "cascade_config"
+
+	/**
+	 * PID cascade controller.
+	 */
+	class CascadePID : 
+		public ControlBase
+	{
+	public:
+
+		/**
+ 		 * Default constructor. Used for reading ROS parameters and initalizing 
+		 * private variables.
+		 */
+		CascadePID(ros::NodeHandle& nh);
+		virtual ~CascadePID();
+		
+		/**
+		 * Calculate new attitude and thrust setpoint.
+		 * 
+		 * @oaram dt - Discretization time
+		 */
+		void calculateAttThrustSp(double dt);
+
+	private:
+		
+		/**
+		 * Yaw reference callback function.
+		 */
+		void yawRefCb(const std_msgs::Float64ConstPtr&);
+
+        /**
+		 * Reset all position PIDs.
+		 */
+		void resetPositionPID();
+		
+		/**
+		 * Reset all velociy PIDs.
+		 */
+		void resetVelocityPID();
+
+        /**
+		 * Do all the parameter initialization here.
+		 */
+		void initializeParameters(ros::NodeHandle& nh);
+
+        /**
+		 * Callback function used for setting various parameters.
+		 */
+		void positionParamsCb(
+			uav_ros_control::PositionControlParametersConfig& configMsg,
+			uint32_t level);
+	
+		/**
+		 * Set reconfigure parameters in the given config object.
+		 */
+		void setPositionReconfigureParams(
+			uav_ros_control::PositionControlParametersConfig& config);
+
+		/** PID controller for position along the y-axis.*/
+		std::unique_ptr<PID> _posYPID;
+		
+		/** PID controller for velocity along the y-axis */
+		std::unique_ptr<PID> _velYPID;
+
+		/** PID controller for position along the x-axis.*/
+		std::unique_ptr<PID> _posXPID;
+		
+		/** PID controller for velocity along the x-axis */
+		std::unique_ptr<PID> _velXPID;
+
+		/** PID controller for position along the z-axis.*/
+		std::unique_ptr<PID> _posZPID;
+
+		/** PID controller for velocity along the y-axis */
+		std::unique_ptr<PID> _velZPID;
+
+		/** Value from 0 to 1, hover thrust */
+		double _hoverThrust = 0;
+
+		/** Feed-forward gain for linear velocity reference. */
+		double _ffGainVelocity = 0;
+
+		/** Feed-forward gain for linear acceleration reference. */
+		double _ffGainAcceleration = 0;
+
+		/** Yaw reference */
+		double _yawRef = 0;
+
+		/** Define Dynamic Reconfigure parameters **/
+		boost::recursive_mutex _posConfigMutex;
+		dynamic_reconfigure::
+			Server<uav_ros_control::PositionControlParametersConfig>
+			_posConfigServer {_posConfigMutex, ros::NodeHandle(CASCADE_DYN_RECONF)};
+		dynamic_reconfigure::
+			Server<uav_ros_control::PositionControlParametersConfig>::CallbackType
+			_posParamCallback;
+		
+		/** Velocity ref publisher */
+		ros::Publisher _velRefPub;
+
+		/** Yaw reference subscriber. */
+		ros::Subscriber _yawRefSub;
+	};
+
+	/**
+	 * Default position control program
+	 */
+	void runDefault(uav_controller::CascadePID& cc, ros::NodeHandle& nh);	
+}
+
+#endif /** CASCADE_PID_H */

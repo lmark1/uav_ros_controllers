@@ -1,0 +1,26 @@
+<launch>
+    <arg name="namespace"   default="red"/>
+    <arg name="odom"        default="/mavros/global_position/local"/>
+    <arg name="traj_ref"    default="uav/trajectory"/>
+
+    <group ns="$(arg namespace)">
+        <!-- Load joy configuration file-->
+        <rosparam 
+            command="load"
+            file="$(find uav_ros_control)/config/control/position_control.params.yaml" />
+
+        <!-- Carrot-Mode reference generator node -->
+        <node
+            pkg="uav_ros_control"
+            type="pid_cascade_node"
+            name="pid_cascade_node"
+            output="screen">
+
+            <!-- Topic remapping -->
+            <remap from="odometry"                  to="$(arg odom)" />
+            <remap from="uav/trajectory_point"      to="$(arg traj_ref)" />
+            <remap from="uav/attitude_target"       to="/mavros/setpoint_raw/attitude" />
+            <remap from="uav/euler_setpoint"        to="uav/euler_setpoint" />
+        </node>
+    </group>
+</launch>

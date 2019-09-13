@@ -1,0 +1,11 @@
+<launch>
+    <arg name="ref"     default="carrot/trajectory"/>
+    
+    <include file="$(find uav_ros_control)/launch/carrot_reference.launch">
+        <arg name="ref" value="$(arg ref)"/>
+    </include>
+    
+    <include file="$(find uav_ros_control)/launch/position_control.launch">
+        <arg name="traj_ref" value="$(arg ref)"/>
+    </include>
+</launch>
