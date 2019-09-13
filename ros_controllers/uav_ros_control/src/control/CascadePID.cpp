@@ -1,5 +1,6 @@
 #include <uav_ros_control/control/CascadePID.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
+#include <geometry_msgs/Vector3.h>
 
 // Define all parameter paths here
 #define PID_X_PARAM "control/pos_x"
@@ -24,7 +25,8 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 {
 	// Initialize class parameters
 	initializeParameters(nh);
-
+	_velRefPub = nh.advertise<geometry_msgs::Vector3>("reference/velocity", 1);
+	
 	// Setup dynamic reconfigure server
 	uav_ros_control::PositionControlParametersConfig posConfig;
 	setPositionReconfigureParams(posConfig);
@@ -167,7 +169,7 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 	velocityRefX += _ffGainVelocity * getCurrentReference().velocities[0].linear.x;
 	velocityRefY += _ffGainVelocity * getCurrentReference().velocities[0].linear.y;
 	velocityRefZ += _ffGainVelocity * getCurrentReference().velocities[0].linear.z;
-	
+
 	// Calculate second row of PID controllers
 	double roll = - _velYPID->compute(velocityRefY, getCurrVelocity()[1], dt);
 	double pitch = _velXPID->compute(velocityRefX, getCurrVelocity()[0], dt);
@@ -194,6 +196,12 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 		yaw);
 	
 	setThrustSp(thrust);
+
+	geometry_msgs::Vector3 newMsg;
+	newMsg.x = velocityRefX;
+	newMsg.y = velocityRefY;
+	newMsg.z = velocityRefZ;
+	_velRefPub.publish(newMsg);
 }
 
 void uav_controller::runDefault(

@@ -71,36 +71,7 @@ void uav_controller::ControlBase::trajPointCb(
         return;
     } 
 
-    // Position
-    _currentReference.transforms[0].translation.x = msg->transforms[0].translation.x;
-    _currentReference.transforms[0].translation.y = msg->transforms[0].translation.y;
-    _currentReference.transforms[0].translation.z = msg->transforms[0].translation.z;
-
-    // Orientation
-    _currentReference.transforms[0].rotation.w = msg->transforms[0].rotation.w;
-    _currentReference.transforms[0].rotation.x = msg->transforms[0].rotation.x;
-    _currentReference.transforms[0].rotation.y = msg->transforms[0].rotation.y;
-    _currentReference.transforms[0].rotation.z = msg->transforms[0].rotation.z;
-
-    // Linear velocity
-    _currentReference.velocities[0].linear.x = msg->velocities[0].linear.x;
-    _currentReference.velocities[0].linear.y = msg->velocities[0].linear.y;
-    _currentReference.velocities[0].linear.z = msg->velocities[0].linear.z;
-
-    // Angular velocity
-    _currentReference.velocities[0].angular.x = msg->velocities[0].angular.x;
-    _currentReference.velocities[0].angular.y = msg->velocities[0].angular.y;
-    _currentReference.velocities[0].angular.z = msg->velocities[0].angular.z;
-
-    // Linear acceleration
-    _currentReference.accelerations[0].linear.x = msg->accelerations[0].linear.x;
-    _currentReference.accelerations[0].linear.y = msg->accelerations[0].linear.y;
-    _currentReference.accelerations[0].linear.z = msg->accelerations[0].linear.z;
-
-    // Angular acceleration
-    _currentReference.accelerations[0].angular.x = msg->accelerations[0].angular.x;
-    _currentReference.accelerations[0].angular.y = msg->accelerations[0].angular.y;
-    _currentReference.accelerations[0].angular.z = msg->accelerations[0].angular.z;
+    _currentReference.transforms[0] = msg->transforms[0];
 }
 
 const std::array<double, 3>& uav_controller::ControlBase::getCurrPosition()

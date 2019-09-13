@@ -1,6 +1,8 @@
 <launch>
-    <arg name="namespace" default="red"/>
-    
+    <arg name="namespace"   default="red"/>
+    <arg name="odom"        default="/mavros/global_position/local"/>
+    <arg name="traj_ref"    default="uav/trajectory"/>
+
     <group ns="$(arg namespace)">
         <!-- Load joy configuration file-->
         <rosparam 
@@ -15,8 +17,8 @@
             output="screen">
 
             <!-- Topic remapping -->
-            <remap from="odometry"                  to="/mavros/global_position/local" />
-            <remap from="uav/trajectory_point"      to="uav/trajectory_point" />
+            <remap from="odometry"                  to="$(arg odom)" />
+            <remap from="uav/trajectory_point"      to="$(arg traj_ref)" />
             <remap from="uav/attitude_target"       to="/mavros/setpoint_raw/attitude" />
             <remap from="uav/euler_setpoint"        to="uav/euler_setpoint" />
         </node>

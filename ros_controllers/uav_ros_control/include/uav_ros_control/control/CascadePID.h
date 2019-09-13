@@ -16,7 +16,6 @@ namespace uav_controller
 
 	/**
 	 * PID cascade controller.
-     * 
 	 */
 	class CascadePID : 
 		public ControlBase
@@ -102,6 +101,9 @@ namespace uav_controller
 		dynamic_reconfigure::
 			Server<uav_ros_control::PositionControlParametersConfig>::CallbackType
 			_posParamCallback;
+		
+		/** Velocity ref publisher */
+		ros::Publisher _velRefPub;
 	};
 
 	/**

@@ -21,12 +21,12 @@ uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 	_subOdom = 
 		nh.subscribe("odometry", 1, &uav_reference::CarrotReference::odomCb, this);
 	_subPosHoldRef = 
-		nh.subscribe("carrot/traj_point", 1, 
+		nh.subscribe("position_hold/trajectory", 1, 
 		&uav_reference::CarrotReference::positionRefCb, this);
 
 	// Initialize position hold service
 	_servicePoisitionHold = nh.advertiseService(
-			"/uav/position_hold",
+			"position_hold",
 			&uav_reference::CarrotReference::posHoldServiceCb,
 			this);
 
@@ -48,7 +48,8 @@ bool uav_reference::CarrotReference::posHoldServiceCb(std_srvs::Empty::Request& 
 	if (!_positionHold)
 	{
 		ROS_WARN("CarrotControl() - Position hold enabled");
-		resetCarrot();	
+		_positionHold = true;
+		resetCarrot();
 	}
 
 	return true;
@@ -127,8 +128,8 @@ void uav_reference::CarrotReference::odomCb(const nav_msgs::OdometryConstPtr& ms
 
 	// Extract UAV position
 	_uavPos[0] = msg->pose.pose.position.x;
-	_uavPos[1] = msg->pose.pose.position.x;
-	_uavPos[2] = msg->pose.pose.position.x;
+	_uavPos[1] = msg->pose.pose.position.y;
+	_uavPos[2] = msg->pose.pose.position.z;
 }
 
 void uav_reference::CarrotReference::updateCarrotYaw()
@@ -158,8 +159,8 @@ void uav_reference::CarrotReference::updateCarrotZ()
 void uav_reference::CarrotReference::updateCarrotXY(double xOff, double yOff)
 {
 	// Adjust carrot position w.r.t. the global coordinate system
-	_carrotPoint.transforms[0].translation.x += cos(-_uavYaw) * xOff + sin(-_uavYaw) * yOff;
-	_carrotPoint.transforms[0].translation.y += cos(-_uavYaw) * yOff - sin(-_uavYaw) * xOff;
+	_carrotPoint.transforms[0].translation.x += cos(_uavYaw) * xOff - sin(_uavYaw) * yOff;
+	_carrotPoint.transforms[0].translation.y += cos(_uavYaw) * yOff + sin(_uavYaw) * xOff;
 }
 
 void uav_reference::CarrotReference::updateCarrotZ(double zOff)
@@ -210,7 +211,6 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 		_carrotEnabled = true;
 		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled.");
 		resetCarrot();
-		ROS_INFO("CarrotReference::updateCarrotStatus - current position and yaw set as carrot reference.");
 		return;
 	}
 

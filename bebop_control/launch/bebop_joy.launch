@@ -9,14 +9,11 @@
     <param name="autorepeat_rate" value="20" />
   </node>
   
-  <node 
+  <!-- node 
     pkg="bebop_control" 
     type="joy_bebop_command.py" 
     name="bebop_joy_node"
     output="screen">
-  </node>
+  </node -->
 
-  <node pkg="teleop_twist_joy" name="teleop_twist_joy" type="teleop_node">
-    <rosparam command="load" file="$(arg config_filepath)" />
-  </node>
 </launch>
