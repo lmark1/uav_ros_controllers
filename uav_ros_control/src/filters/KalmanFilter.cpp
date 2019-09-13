@@ -1,4 +1,4 @@
-#include <uav_ros_control/KalmanFilter.h>
+#include <uav_ros_control/filters/KalmanFilter.h>
 
 KalmanFilter::KalmanFilter(void) {
     //Initialization of the covariances and
@@ -75,4 +75,13 @@ double KalmanFilter::getPositionNoise()
 double KalmanFilter::getVelocityNoise()
 {
     return q_[1];
+}
+
+std::ostream& operator << (std::ostream& out, const KalmanFilter& filt)
+{
+    out << "Kalman Filter parameters are:" << "\nMeasure noise=" << filt.r_
+        << "\nPosition noise=" << filt.q_[0] 
+        << "\nVelocity noise=" << filt.q_[1]
+        <<  std::endl;
+    return out;
 }

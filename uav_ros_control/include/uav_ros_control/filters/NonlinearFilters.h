@@ -53,4 +53,17 @@ namespace nonlinear_filters
 			double K);
 }
 
+namespace util
+{
+	/**
+	 *  wrap x -> [min,max) 
+	 */
+	double wrapMinMax(double x, double min, double max);
+
+	/**
+	 * Calculates yaw angle from given quaternion components.
+	 */
+	double calculateYaw(double qx, double qy, double qz, double qw);
+}
+
 #endif /* NONLINEAR_FILTERS_H */
