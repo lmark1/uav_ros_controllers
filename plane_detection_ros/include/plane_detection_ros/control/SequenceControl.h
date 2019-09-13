@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
-#include <plane_detection_ros/control/JoyStructure.h>
+#include <uav_ros_control/reference/JoyStructure.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Bool.h>
 
