@@ -84,10 +84,10 @@ const std::array<double, 3>& uav_controller::ControlBase::getCurrVelocity()
 	return _currentVelocity;
 }
 
-void uav_controller::ControlBase::publishAttitudeTarget(int typeMask, double yawRate /* = 0 */)
+void uav_controller::ControlBase::publishAttitudeTarget(int typeMask, double yawRate)
 {
     tf2::Quaternion q;
-	q.setEuler(_attThrustSp[2], _attThrustSp[1], _attThrustSp[0]);
+	q.setEulerZYX(_attThrustSp[2], _attThrustSp[1], _attThrustSp[0]);
 
     mavros_msgs::AttitudeTarget newMessage;
 	newMessage.header.stamp = ros::Time::now();

@@ -7,6 +7,7 @@
 #include <uav_ros_control/PositionControlParametersConfig.h>
 
 #include <geometry_msgs/Vector3.h>
+#include <std_msgs/Float64.h>
 #include <std_srvs/Empty.h>
 
 namespace uav_controller 
@@ -37,6 +38,11 @@ namespace uav_controller
 		void calculateAttThrustSp(double dt);
 
 	private:
+		
+		/**
+		 * Yaw reference callback function.
+		 */
+		void yawRefCb(const std_msgs::Float64ConstPtr&);
 
         /**
 		 * Reset all position PIDs.
@@ -93,6 +99,9 @@ namespace uav_controller
 		/** Feed-forward gain for linear acceleration reference. */
 		double _ffGainAcceleration = 0;
 
+		/** Yaw reference */
+		double _yawRef = 0;
+
 		/** Define Dynamic Reconfigure parameters **/
 		boost::recursive_mutex _posConfigMutex;
 		dynamic_reconfigure::
@@ -104,6 +113,9 @@ namespace uav_controller
 		
 		/** Velocity ref publisher */
 		ros::Publisher _velRefPub;
+
+		/** Yaw reference subscriber. */
+		ros::Subscriber _yawRefSub;
 	};
 
 	/**

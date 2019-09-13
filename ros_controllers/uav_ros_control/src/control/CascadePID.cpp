@@ -1,6 +1,7 @@
 #include <uav_ros_control/control/CascadePID.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
 #include <geometry_msgs/Vector3.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 
 // Define all parameter paths here
 #define PID_X_PARAM "control/pos_x"
@@ -25,8 +26,9 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 {
 	// Initialize class parameters
 	initializeParameters(nh);
-	_velRefPub = nh.advertise<geometry_msgs::Vector3>("reference/velocity", 1);
-	
+	_velRefPub = nh.advertise<geometry_msgs::Vector3>("carrot/velocity", 1);
+	_yawRefSub = nh.subscribe("carrot/yaw", 1, &uav_controller::CascadePID::yawRefCb, this);
+
 	// Setup dynamic reconfigure server
 	uav_ros_control::PositionControlParametersConfig posConfig;
 	setPositionReconfigureParams(posConfig);
@@ -38,6 +40,11 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 
 uav_controller::CascadePID::~CascadePID()
 {
+}
+
+void uav_controller::CascadePID::yawRefCb(const std_msgs::Float64ConstPtr& msg)
+{
+	_yawRef = msg->data;
 }
 
 void uav_controller::CascadePID::positionParamsCb(
@@ -173,11 +180,8 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 	// Calculate second row of PID controllers
 	double roll = - _velYPID->compute(velocityRefY, getCurrVelocity()[1], dt);
 	double pitch = _velXPID->compute(velocityRefX, getCurrVelocity()[0], dt);
-	double yaw = util::calculateYaw(
-		getCurrentReference().transforms[0].rotation.x,
-		getCurrentReference().transforms[0].rotation.y,
-		getCurrentReference().transforms[0].rotation.z,
-		getCurrentReference().transforms[0].rotation.w);
+
+	
 	double thrust = _velZPID->compute(velocityRefZ, getCurrVelocity()[2], dt);
 	thrust += _hoverThrust;
 
@@ -186,14 +190,14 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 		getCurrentReference().accelerations[0].linear.x / GRAVITY_ACCELERATION;
 	pitch += _ffGainAcceleration * 
 		getCurrentReference().accelerations[0].linear.y / GRAVITY_ACCELERATION;
-	yaw += _ffGainAcceleration *
+	_yawRef += _ffGainAcceleration *
 		getCurrentReference().accelerations[0].linear.z / GRAVITY_ACCELERATION;
 
 	// Decouple roll and pitch w.r.t. yaw
 	setAttitudeSp( 
 		cos(getCurrentYaw()) * roll + sin(getCurrentYaw()) * pitch, 
 		cos(getCurrentYaw()) * pitch - sin(getCurrentYaw()) * roll, 
-		yaw);
+		_yawRef);
 	
 	setThrustSp(thrust);
 

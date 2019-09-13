@@ -42,6 +42,16 @@ namespace uav_reference
 		 */
 		void updateCarrotStatus();
 
+		/**
+		 * True if carrot is enabled otherwise false.
+		 */
+		bool isCarrotEnabled();
+
+		/**
+		 * True if position hold is enabled, otherwise false.
+		 */
+		bool isHoldEnabled();
+
 	private:
 
 		/** 
