@@ -15,7 +15,7 @@ uav_reference::JoyControlInput::JoyControlInput(ros::NodeHandle& nh) :
 	uav_reference::JoyControlInput::initializeParameters(nh);
 
 	// Initialize Joy subscriber
-	_subJoy = nh.subscribe("/joy", 1, &uav_reference::JoyControlInput::joyCb, this);
+	_subJoy = nh.subscribe("joy", 1, &uav_reference::JoyControlInput::joyCb, this);
 }
 
 uav_reference::JoyControlInput::~JoyControlInput()

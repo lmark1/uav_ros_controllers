@@ -1,0 +1,32 @@
+<launch>
+    <arg name="namespace" default="red"/>
+
+    <!-- MSF odometry callback-->
+    <include file="$(find msf_updates)/launch/msf_bebop.launch">
+        <arg name="namespace"   value="$(arg namespace)"/>
+    </include>
+    
+    <!-- Linear MPC control -->
+    <include file="$(find mav_linear_mpc)/launch/ardupilot_erl_linear_mpc.launch">
+        <arg name="namespace"   value="$(arg namespace)"/>
+    </include>
+
+    <!-- Maps MPC output to ardupilot command topic -->
+    <include file="$(find multirotor_transformations)/launch/mpc_to_ardupilot_command.launch">
+        <arg name="namespace"   value="$(arg namespace)"/>
+        <arg name="thrust_max"  default="10" />
+    </include>
+
+    <!-- Carrot reference topic -->
+    <include file="$(find uav_ros_control)/launch/carrot_reference.launch">
+        <arg name="ref" value="carrot/trajectory"/>
+        <arg name="namespace" value="$(arg namespace)"/>
+    </include>
+
+    <!-- TrajectoryPoint to Trajectory - MPC input -->
+    <node pkg="uav_ros_control" name="point_to_trajectory" type="point2trajectory.py" ns="$(arg namespace)">
+        <remap from="trajectory_point" to="carrot/trajectory"/>
+        <remap from="trajectory" to="command/trajectory"/>
+    </node>
+    
+</launch>
