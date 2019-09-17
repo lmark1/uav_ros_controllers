@@ -11,12 +11,12 @@ joy:
     x: 0.55
     y: 0.55
     z: 75
-    yaw: 0.1
+    yaw: 0.02
   
   scale_position:
     x: 0.05
     y: 0.05
-    z: 0.1
+    z: 0.05
     
   detection_state: 5
   left_seq: 2
