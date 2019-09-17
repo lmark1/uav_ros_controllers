@@ -108,7 +108,7 @@ void uav_reference::CarrotReference::resetCarrot()
 	// Set carrot orientation
 	_carrotYaw = _uavYaw;
 	tf2::Quaternion q;
-	q.setEuler(_carrotYaw, 0, 0);
+	q.setEulerZYX(_carrotYaw, 0, 0);
 	_carrotPoint.transforms[0].rotation.x = q.getX();
 	_carrotPoint.transforms[0].rotation.y = q.getY();
 	_carrotPoint.transforms[0].rotation.z = q.getZ();
@@ -140,11 +140,11 @@ void uav_reference::CarrotReference::odomCb(const nav_msgs::OdometryConstPtr& ms
 void uav_reference::CarrotReference::updateCarrotYaw()
 {
 	// Update Carrot yaw angle and wrap to PI
-	_carrotYaw += - getYawSpManual();
+	_carrotYaw += getYawSpManual();
 	_carrotYaw = util::wrapMinMax(_carrotYaw, -M_PI, M_PI);
 
 	tf2::Quaternion q;
-	q.setEuler(_carrotYaw, 0, 0);
+	q.setEulerZYX(_carrotYaw, 0, 0);
 	_carrotPoint.transforms[0].rotation.x = q.getX();
 	_carrotPoint.transforms[0].rotation.y = q.getY();
 	_carrotPoint.transforms[0].rotation.z = q.getZ();
@@ -181,7 +181,7 @@ void uav_reference::CarrotReference::updateCarrotZ(double zOff)
 void uav_reference::CarrotReference::publishCarrotSetpoint()
 {
 	tf2::Quaternion q;
-	q.setEuler(_carrotYaw, 0, 0);
+	q.setEulerZYX(_carrotYaw, 0, 0);
 
 	// Publish PoseStamped carrot reference
 	_pubCarrotTrajectorySp.publish(_carrotPoint);
