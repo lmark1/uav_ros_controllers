@@ -16,6 +16,8 @@ uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 		nh.advertise<std_msgs::Float64>("carrot/yaw", 1);
 	_pubUAVYaw = 
 		nh.advertise<std_msgs::Float64>("uav/yaw", 1);
+	_pubCarrotPose = 
+		nh.advertise<geometry_msgs::PoseStamped>("carrot/pose", 1);
 
 	// Define Subscribers
 	_subOdom = 
@@ -185,6 +187,18 @@ void uav_reference::CarrotReference::publishCarrotSetpoint()
 
 	// Publish PoseStamped carrot reference
 	_pubCarrotTrajectorySp.publish(_carrotPoint);
+
+	geometry_msgs::PoseStamped pose;
+	pose.header.frame_id = "world";
+	pose.header.stamp = ros::Time::now();
+	pose.pose.position.x = _carrotPoint.transforms[0].translation.x;
+	pose.pose.position.y = _carrotPoint.transforms[0].translation.y;
+	pose.pose.position.z = _carrotPoint.transforms[0].translation.z;
+	pose.pose.orientation.x = q.getX();
+	pose.pose.orientation.y = q.getY();
+	pose.pose.orientation.z = q.getZ();
+	pose.pose.orientation.w = q.getW();
+	_pubCarrotPose.publish(pose);
 }	
 
 void uav_reference::CarrotReference::initializeParameters()

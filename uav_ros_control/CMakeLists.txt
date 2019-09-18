@@ -8,7 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
     std_msgs
     dynamic_reconfigure
     sensor_msgs
-    mav_msgs)
+	mav_msgs
+	tf)
 
 find_package(cmake_modules REQUIRED)
 

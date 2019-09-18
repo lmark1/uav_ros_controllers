@@ -138,6 +138,7 @@ namespace uav_reference
 		ros::Publisher _pubCarrotTrajectorySp;
 		ros::Publisher _pubCarrotYawSp;
 		ros::Publisher _pubUAVYaw;
+		ros::Publisher _pubCarrotPose;
 
 		/** Define all Subscribers. */
 		ros::Subscriber _subOdom;
