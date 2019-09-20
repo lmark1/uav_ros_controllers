@@ -1,10 +1,16 @@
 #include <uav_ros_control/filters/NonlinearFilters.h>
 #include <uav_ros_control/reference/CarrotReference.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <std_msgs/String.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <math.h>
+
+#define CARROT_OFF "OFF"
+#define CARROT_ON  "CARROT"
+#define POS_HOLD   "HOLD"
 
 uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 	uav_reference::JoyControlInput(nh)
@@ -18,6 +24,8 @@ uav_reference::CarrotReference::CarrotReference(ros::NodeHandle& nh) :
 		nh.advertise<std_msgs::Float64>("uav/yaw", 1);
 	_pubCarrotPose = 
 		nh.advertise<geometry_msgs::PoseStamped>("carrot/pose", 1);
+	_pubCarrotStatus = 
+		nh.advertise<std_msgs::String>("carrot/status", 1);
 
 	// Define Subscribers
 	_subOdom = 
@@ -68,11 +76,11 @@ void uav_reference::CarrotReference::positionRefCb(
 			posMsg->transforms[0].rotation.y,
 			posMsg->transforms[0].rotation.z, 
 			posMsg->transforms[0].rotation.w);
-		ROS_INFO("Trajectory reference received");
+		ROS_WARN("CarrotReference - Trajectory reference received");
 	}
 	else
 	{
-		ROS_FATAL("Trajectory reference recieved, but position hold mode is disabled.");
+		ROS_FATAL("CarrotReference - Trajectory reference recieved, but position hold mode is disabled.");
 	}
 }
 
@@ -236,6 +244,16 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 		ROS_INFO("CarrotRefernce::updateCarrotStatus - carrot disabled.\n");
 		return;
 	}
+
+	// Publish carrot status.
+	std_msgs::String status;
+	if (_positionHold)
+		status.data = POS_HOLD;
+	else if (!_positionHold && _carrotEnabled)
+		status.data = CARROT_ON;
+	else 
+		status.data = CARROT_OFF;
+	_pubCarrotStatus.publish(status);
 }
 
 bool uav_reference::CarrotReference::isCarrotEnabled()
