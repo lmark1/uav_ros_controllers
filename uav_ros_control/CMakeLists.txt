@@ -40,7 +40,7 @@ target_link_libraries(kalman ${catkin_LIBRARIES})
 
 # References library
 file(GLOB_RECURSE reference_SRC "src/reference/*.cpp")
-add_library(reference_lib ${reference_SRC})
+add_library(reference_lib ${reference_SRC} src/reference/VisualServo.cpp)
 target_link_libraries(reference_lib ${catkin_LIBRARIES} nfilt)
 
 # Controller library
@@ -49,7 +49,7 @@ add_library(control_lib ${controllers_SRC})
 target_link_libraries(control_lib ${catkin_LIBRARIES} nfilt)
 
 # Carrot node
-add_executable(carrot_reference_node nodes/reference/CarrotReferenceNode.cpp)
+add_executable(carrot_reference_node nodes/reference/CarrotReferenceNode.cpp include/uav_ros_control/reference/VisualServo.h)
 target_link_libraries(carrot_reference_node reference_lib)
 
 # PID cascade node
