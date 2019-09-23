@@ -13,11 +13,17 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
 
   // Define Subscribers
   _subOdom =
-      nh.subscribe("msf_core/odometry", 1, &uav_reference::VisualServo::odomCb, this);
+      nh.subscribe("odometry", 1, &uav_reference::VisualServo::odomCb, this);
+  _subXError =
+      nh.subscribe("x_error", 1, &uav_reference::VisualServo::xErrorCb, this);
+  _subYError =
+      nh.subscribe("y_error", 1, &uav_reference::VisualServo::yErrorCb, this);
+  _subZError =
+      nh.subscribe("z_error", 1, &uav_reference::VisualServo::zErrorCb, this);
   _subYawError =
-      nh.subscribe("color_filter/yaw_err", 1, &uav_reference::VisualServo::yawErrorCb, this);
+      nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
   _subPitchError =
-      nh.subscribe("color_filter/pitch_err", 1, &uav_reference::VisualServo::pitchErrorCb, this);
+      nh.subscribe("pitch_error", 1, &uav_reference::VisualServo::pitchErrorCb, this);
 
   _serviceStartVisualServo = nh.advertiseService(
       "visual_servo",
@@ -59,25 +65,76 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
   _uavYaw = atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3));
 }
 
+void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
+  if (!ros::param::get("offset_x", _offset_x)) {
+    _offset_x = 0.0;
+  }
+  if (!ros::param::get("deadzone_x", _deadzone_x)) {
+    _deadzone_x = 0.0;
+  }
+  _dx = data.data - _offset_x;
+  if (abs(_dx) < _deadzone_x) _dx = 0;
+}
+
+void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
+  if(!ros::param::get("offset_y", _offset_y)) {
+    _offset_y = 0.0;
+  }
+  if (!ros::param::get("deadzone_y", _deadzone_y)) {
+    _deadzone_y = 0.0;
+  }
+  _dy = data.data - _offset_y;
+  if (abs(_dy) < _deadzone_y) _dy = 0;
+}
+
+void VisualServo::zErrorCb(const std_msgs::Float32 &data) {
+  _dz = data.data;
+}
+
 void VisualServo::pitchErrorCb(const std_msgs::Float32 &data) {
-  _dy = data.data;
+  _dz = data.data;
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
-  _dx = data.data;
+  _dYaw = data.data;
 }
 
 void VisualServo::updateSetpoint() {
-  double move_forward = -_dy * 0.1;
-  double move_left = -_dx * 0.1;
+
+  // Define the parameters depending on the scenario.
+  // E.g. during the brick laying scenario the yaw, z and distance gain should be zero.
+
+  if (!ros::param::get("gain_dx", _gain_dx)) {
+    _gain_dx = 0.0;
+  }
+
+  if (!ros::param::get("gain_dy", _gain_dy)) {
+    _gain_dy = 0.0;
+  }
+
+  if (!ros::param::get("gain_dz", _gain_dz)) {
+    _gain_dz = 0.0;
+  }
+
+  if (!ros::param::get("gain_dYaw", _gain_dYaw)) {
+    _gain_dYaw = 0.0;
+  }
+
+  if (!ros::param::get("gain_dDistance", _gain_dDistance)) {
+    _gain_dDistance = 0.0;
+  }
+
+  double move_forward = -_dy * _gain_dy + _dDistance * _gain_dDistance;
+  double move_left = -_dx * _gain_dx;
+  double move_up = _dz * _gain_dz;
 
   _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw);
   _setpointPosition[0] -= move_left * sin(_uavYaw);
   _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw);
   _setpointPosition[1] += move_left * cos(_uavYaw);
-  _setpointPosition[2] = _uavPos[2];
+  _setpointPosition[2] = _uavPos[2] + move_up;
 
-  _setpointYaw = _uavYaw;
+  _setpointYaw = _uavYaw + _dYaw * _gain_dYaw;
 }
 
 void VisualServo::publishNewSetpoint() {

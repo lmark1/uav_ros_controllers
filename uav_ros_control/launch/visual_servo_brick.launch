@@ -13,6 +13,9 @@
             output="screen">
 
             <!-- Topic remapping -->
+
+            <remap from="x_error" to="color_filter/yaw_error"/>
+            <remap from="y_error" to="color_filter/pitch_error"/>
             
         </node>
     </group>

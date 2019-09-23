@@ -59,13 +59,22 @@ namespace uav_reference {
 
       /**
        * Callback functions for the visual servo process values.
+       *
+       * Use xErrorCb and yErrorCb when the camera is facing the floor (brick laying scenario).
+       * When the camera is facing forward please use the yaw and pitch callbacks (drone pursuit scenario).
        */
-      void pitchErrorCb(const std_msgs::Float32&);
+      void xErrorCb(const std_msgs::Float32&);
+      void yErrorCb(const std_msgs::Float32&);
+      void zErrorCb(const std_msgs::Float32&);
       void yawErrorCb(const std_msgs::Float32&);
+      void pitchErrorCb(const std_msgs::Float32&);
 
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
-      double _dx, _dy, _uavYaw, _setpointYaw;
+      double _dx, _dy, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
+      double _dz, _dYaw, _dDistance; // drone pursuit scenario
+      double _uavYaw, _setpointYaw;
+      double _gain_dx, _gain_dy, _gain_dz, _gain_dYaw, _gain_dDistance;
 
       //bool _positionHold = false;
       bool _visualServoEnabled = false;
@@ -76,7 +85,7 @@ namespace uav_reference {
 
       /** Subscribers */
       ros::Subscriber _subOdom;
-      ros::Subscriber _subYawError, _subPitchError; // As published by erl_husky color_filter node.
+      ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError;
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
