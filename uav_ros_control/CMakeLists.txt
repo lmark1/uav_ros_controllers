@@ -52,6 +52,10 @@ target_link_libraries(control_lib ${catkin_LIBRARIES} nfilt)
 add_executable(carrot_reference_node nodes/reference/CarrotReferenceNode.cpp)
 target_link_libraries(carrot_reference_node reference_lib)
 
+# Visual servo node
+add_executable(visual_servo_node nodes/reference/VisualServoNode.cpp)
+target_link_libraries(visual_servo_node reference_lib)
+
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
 target_link_libraries(pid_cascade_node control_lib)
