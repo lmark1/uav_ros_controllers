@@ -159,11 +159,6 @@ void uav_reference::CarrotReference::updateCarrotYaw()
 	_carrotPoint.transforms[0].rotation.y = q.getY();
 	_carrotPoint.transforms[0].rotation.z = q.getZ();
 	_carrotPoint.transforms[0].rotation.w = q.getW();
-
-	// Publish referent yaw message
-	std_msgs::Float64 yawRefMsg;
-	yawRefMsg.data = _carrotYaw;
-	_pubCarrotYawSp.publish(yawRefMsg);
 }
 
 void uav_reference::CarrotReference::updateCarrotXY()
@@ -207,6 +202,11 @@ void uav_reference::CarrotReference::publishCarrotSetpoint()
 	pose.pose.orientation.z = q.getZ();
 	pose.pose.orientation.w = q.getW();
 	_pubCarrotPose.publish(pose);
+
+	// Publish referent yaw message
+	std_msgs::Float64 yawRefMsg;
+	yawRefMsg.data = _carrotYaw;
+	_pubCarrotYawSp.publish(yawRefMsg);
 }	
 
 void uav_reference::CarrotReference::initializeParameters()

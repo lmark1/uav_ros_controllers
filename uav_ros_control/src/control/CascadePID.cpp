@@ -180,8 +180,6 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 	// Calculate second row of PID controllers
 	double roll = - _velYPID->compute(velocityRefY, getCurrVelocity()[1], dt);
 	double pitch = _velXPID->compute(velocityRefX, getCurrVelocity()[0], dt);
-
-	
 	double thrust = _velZPID->compute(velocityRefZ, getCurrVelocity()[2], dt);
 	thrust += _hoverThrust;
 
