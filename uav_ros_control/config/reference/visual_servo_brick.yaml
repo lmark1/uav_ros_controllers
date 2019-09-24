@@ -6,4 +6,5 @@ gain_dx: 0.10
 gain_dy: 0.20
 gain_dz: 0.0
 gain_dDistance: 0.0
+move_saturation: 0.2
 

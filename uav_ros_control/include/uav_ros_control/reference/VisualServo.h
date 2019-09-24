@@ -75,6 +75,7 @@ namespace uav_reference {
       double _dz, _dYaw, _dDistance; // drone pursuit scenario
       double _uavYaw, _setpointYaw;
       double _gain_dx, _gain_dy, _gain_dz, _gain_dYaw, _gain_dDistance;
+      double _move_saturation;
 
       //bool _positionHold = false;
       bool _visualServoEnabled = false;

@@ -125,9 +125,20 @@ void VisualServo::updateSetpoint() {
     _gain_dDistance = 0.0;
   }
 
+  if (!ros::param::get("visual_servo_node/move_saturation", _move_saturation)) {
+    _move_saturation = 1.0;
+  }
+
   double move_forward = -_dy * _gain_dy + _dDistance * _gain_dDistance;
   double move_left = -_dx * _gain_dx;
   double move_up = _dz * _gain_dz;
+
+  if (move_forward > _move_saturation) move_forward = _move_saturation;
+  if (move_forward < -_move_saturation) move_forward = -_move_saturation;
+  if (move_left > _move_saturation) move_left = _move_saturation;
+  if (move_left < -_move_saturation) move_left = -_move_saturation;
+  if (move_up > _move_saturation) move_up = _move_saturation;
+  if (move_up < -_move_saturation) move_up = -_move_saturation;
 
   _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw);
   _setpointPosition[0] -= move_left * sin(_uavYaw);
