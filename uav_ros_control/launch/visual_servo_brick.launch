@@ -14,8 +14,12 @@
 
             <!-- Topic remapping -->
 
-            <remap from="x_error" to="color_filter/yaw_error"/>
-            <remap from="y_error" to="color_filter/pitch_error"/>
+            <remap from="x_error" to="color_filter/yaw_err"/>
+            <remap from="y_error" to="color_filter/pitch_err"/>
+            <remap from="odometry" to="msf_core/odometry"/>
+
+            <rosparam command = "load" file = "$(find uav_ros_control)/config/reference/visual_servo_brick.yaml"/>
+
             
         </node>
     </group>

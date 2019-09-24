@@ -1,0 +1,9 @@
+offset_x: 0.0
+deadzone_x: 0.005 
+offset_y: 0.3
+deadzone_y: 0.005
+gain_dx: 0.10
+gain_dy: 0.20
+gain_dz: 0.0
+gain_dDistance: 0.0
+

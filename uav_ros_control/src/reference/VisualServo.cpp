@@ -33,6 +33,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
   _new_point.accelerations = std::vector<geometry_msgs::Twist>(1);
+  _dDistance = 0.0;
 }
 
 VisualServo::~VisualServo() {}
@@ -40,11 +41,11 @@ VisualServo::~VisualServo() {}
 bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Request &request,
                                                            std_srvs::Empty::Response &response) {
   if (!_visualServoEnabled) {
-    ROS_WARN("UAV VisualServo - enabling visual servo.");
+    ROS_INFO("UAV VisualServo - enabling visual servo.");
     _visualServoEnabled = true;
   }
   else {
-    ROS_WARN("UAV VisualServo - disabling visual servo.");
+    ROS_INFO("UAV VisualServo - disabling visual servo.");
     _visualServoEnabled = false;
   }
 
@@ -66,10 +67,10 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
 }
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
-  if (!ros::param::get("offset_x", _offset_x)) {
+  if (!ros::param::get("visual_servo_node/offset_x", _offset_x)) {
     _offset_x = 0.0;
   }
-  if (!ros::param::get("deadzone_x", _deadzone_x)) {
+  if (!ros::param::get("visual_servo_node/deadzone_x", _deadzone_x)) {
     _deadzone_x = 0.0;
   }
   _dx = data.data - _offset_x;
@@ -77,10 +78,10 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
-  if(!ros::param::get("offset_y", _offset_y)) {
+  if(!ros::param::get("visual_servo_node/offset_y", _offset_y)) {
     _offset_y = 0.0;
   }
-  if (!ros::param::get("deadzone_y", _deadzone_y)) {
+  if (!ros::param::get("visual_servo_node/deadzone_y", _deadzone_y)) {
     _deadzone_y = 0.0;
   }
   _dy = data.data - _offset_y;
@@ -104,23 +105,23 @@ void VisualServo::updateSetpoint() {
   // Define the parameters depending on the scenario.
   // E.g. during the brick laying scenario the yaw, z and distance gain should be zero.
 
-  if (!ros::param::get("gain_dx", _gain_dx)) {
+  if (!ros::param::get("visual_servo_node/gain_dx", _gain_dx)) {
     _gain_dx = 0.0;
   }
 
-  if (!ros::param::get("gain_dy", _gain_dy)) {
+  if (!ros::param::get("visual_servo_node/gain_dy", _gain_dy)) {
     _gain_dy = 0.0;
   }
 
-  if (!ros::param::get("gain_dz", _gain_dz)) {
+  if (!ros::param::get("visual_servo_node/gain_dz", _gain_dz)) {
     _gain_dz = 0.0;
   }
 
-  if (!ros::param::get("gain_dYaw", _gain_dYaw)) {
+  if (!ros::param::get("visual_servo_node/gain_dYaw", _gain_dYaw)) {
     _gain_dYaw = 0.0;
   }
 
-  if (!ros::param::get("gain_dDistance", _gain_dDistance)) {
+  if (!ros::param::get("visual_servo_node/gain_dDistance", _gain_dDistance)) {
     _gain_dDistance = 0.0;
   }
 
@@ -135,6 +136,12 @@ void VisualServo::updateSetpoint() {
   _setpointPosition[2] = _uavPos[2] + move_up;
 
   _setpointYaw = _uavYaw + _dYaw * _gain_dYaw;
+
+  //ROS_WARN("\n _dx: %f, gain_x: %f", _dx, _gain_dx);
+  //ROS_WARN("\n _dy: %f, gain_y: %f", _dy, _gain_dy);
+  //ROS_WARN("\n _dz: %f, gain_z: %f", _dz, _gain_dz);
+  //ROS_WARN("\n _dD: %f, gain_D: %f", _dDistance, _gain_dDistance);
+  //ROS_WARN("\n _dyaw: %f, gain_yaw: %f", _dYaw, _gain_dYaw);
 }
 
 void VisualServo::publishNewSetpoint() {
@@ -151,6 +158,9 @@ void VisualServo::publishNewSetpoint() {
   _new_point.transforms[0].rotation.w = q.getW();
 
   _pubNewSetpoint.publish(_new_point);
+
+  //ROS_WARN("New setpoint published\n");
+  //ROS_WARN("\tx: %.2f \n\ty: %.2f \n\tz: %.2f \n\tYaw: %.2f\n\t", _setpointPosition[0], _setpointPosition[1], _setpointPosition[2], _setpointYaw);
 }
 
 bool VisualServo::isVisualServoEnabled() {
