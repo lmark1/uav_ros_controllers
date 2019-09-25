@@ -228,7 +228,7 @@ void uav_reference::CarrotReference::initializeParameters()
 void uav_reference::CarrotReference::updateCarrotStatus()
 {
 	// Detect enable button - rising edge
-	if (getJoyButtons()[_carrotEnabledIndex] == 1 && !_carrotEnabled)
+	if (getJoyButtons()[_carrotEnabledIndex] == 0 && !_carrotEnabled)
 	{
 		_carrotEnabled = true;
 		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled.");
@@ -237,7 +237,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 	}
 
 	// Detect enable button - falling edge 
-	if (getJoyButtons()[_carrotEnabledIndex] == 0 && _carrotEnabled)
+	if (getJoyButtons()[_carrotEnabledIndex] == 1 && _carrotEnabled)
 	{
 		_carrotEnabled = false;
 		_positionHold = false;
