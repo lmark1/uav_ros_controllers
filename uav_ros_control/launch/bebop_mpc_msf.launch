@@ -3,6 +3,7 @@
     <arg name="carrot_out" default="carrot/trajectory"/>
     <arg name="mpc_in" default="carrot/trajectory"/>
     <arg name="odometry" default="msf_core/odometry"/>
+    <arg name="model" default="bebop"/>
 
     <!-- MSF odometry callback-->
     <include file="$(find msf_updates)/launch/msf_bebop.launch">
@@ -12,15 +13,16 @@
     <!-- MPC trajectory frame -->
     <node name="trajectory_transform" pkg="tf" type="static_transform_publisher" 
         args="0 0 0 0 0 0 world odom 100" />
-        
+
     <!-- Linear MPC control -->
-    <include file="$(find mav_linear_mpc)/launch/ardupilot_erl_linear_mpc.launch">
+    <include file="$(find mav_linear_mpc)/launch/$(arg model)_linear_mpc.launch">
         <arg name="namespace"   value="$(arg namespace)"/>
     </include>
 
     <!-- Maps MPC output to ardupilot command topic -->
     <include file="$(find multirotor_transformations)/launch/mpc_to_px4_command.launch">
         <arg name="namespace"   value="$(arg namespace)"/>
+        <!-- Thrust max ovdje je u mpc parametrima thrust_max*masa-->
         <arg name="thrust_max"  value="10" />
         <arg name="odometry"    value="$(arg odometry)"/>
     </include>
