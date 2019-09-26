@@ -10,6 +10,7 @@
 #include <std_srvs/Empty.h>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <nav_msgs/Odometry.h>
+#include <sensor_msgs/Imu.h>
 #include <geometry_msgs/PoseWithCovariance.h>
 #include <tf2/LinearMath/Quaternion.h>
 
@@ -56,6 +57,7 @@ namespace uav_reference {
         * Odometry callback function for extracting the UAV's pose.
         */
       void odomCb(const nav_msgs::OdometryConstPtr&);
+      void imuCb (const sensor_msgs::ImuConstPtr&);
 
       /**
        * Callback functions for the visual servo process values.
@@ -76,16 +78,21 @@ namespace uav_reference {
       double _uavYaw, _setpointYaw;
       double _gain_dx, _gain_dy, _gain_dz, _gain_dYaw, _gain_dDistance;
       double _move_saturation;
+      double _coordinate_frame_yaw_difference;
+      double _yaw_error_integrator, _yaw_error_integrator_gain;
+
+      double _qx, _qy, _qz, _qw;
 
       //bool _positionHold = false;
       bool _visualServoEnabled = false;
+      bool _use_imu = false;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
       trajectory_msgs::MultiDOFJointTrajectoryPoint _new_point;
 
       /** Subscribers */
-      ros::Subscriber _subOdom;
+      ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError;
 
       /** Services */
