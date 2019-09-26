@@ -113,7 +113,8 @@ namespace uav_controller
 		
 		/** Velocity ref publisher */
 		ros::Publisher _velRefPub;
-
+		ros::Publisher _velCurrPub;
+		
 		/** Yaw reference subscriber. */
 		ros::Subscriber _yawRefSub;
 	};

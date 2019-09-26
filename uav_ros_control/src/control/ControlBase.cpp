@@ -51,8 +51,8 @@ void uav_controller::ControlBase::odomCb(const nav_msgs::OdometryConstPtr& messa
 	_currentPosition[1] = message->pose.pose.position.y;
 	_currentPosition[2] = message->pose.pose.position.z;
 
-	_currentVelocity[0] = message->twist.twist.linear.x;
-	_currentVelocity[1] = message->twist.twist.linear.y;
+	_currentVelocity[0] = cos(-_currentYaw) * message->twist.twist.linear.x + sin(-_currentYaw) * message->twist.twist.linear.y;
+	_currentVelocity[1] = cos(-_currentYaw) * message->twist.twist.linear.y - sin(-_currentYaw) * message->twist.twist.linear.x;
 	_currentVelocity[2] = - message->twist.twist.linear.z;
 
 	_currentYaw = util::calculateYaw(
