@@ -37,6 +37,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
   _new_point.accelerations = std::vector<geometry_msgs::Twist>(1);
   _dDistance = 0.0;
+  getParameters();
 }
 
 VisualServo::~VisualServo() {}
@@ -132,49 +133,6 @@ void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
 
 void VisualServo::updateSetpoint() {
 
-  // Define the parameters depending on the scenario.
-  // E.g. during the brick laying scenario the yaw, z and distance gain should be zero.
-
-  if (!ros::param::get("visual_servo_node/gain_dx", _gain_dx)) {
-    _gain_dx = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/gain_dy", _gain_dy)) {
-    _gain_dy = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/gain_dz", _gain_dz)) {
-    _gain_dz = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/gain_dYaw", _gain_dYaw)) {
-    _gain_dYaw = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/gain_dDistance", _gain_dDistance)) {
-    _gain_dDistance = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/move_saturation", _move_saturation)) {
-    _move_saturation = 1.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/coordinate_frame_yaw_difference", _coordinate_frame_yaw_difference)) {
-    _coordinate_frame_yaw_difference = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/yaw_error_integrator_gain", _yaw_error_integrator_gain)) {
-    _yaw_error_integrator_gain = 0.0;
-  }
-
-  if (!ros::param::get("visual_servo_node/yaw_error_integrator_clamp", _yaw_error_integrator_clamp)) {
-    _yaw_error_integrator_clamp = M_PI;
-  }
-
-  if (!ros::param::get("visual_servo_node/yaw_error_integrator_deadzone", _yaw_error_integrator_deadzone)) {
-    _yaw_error_integrator_deadzone = 0.0;
-  }
-
   double move_forward = -_dy * _gain_dy + _dDistance * _gain_dDistance;
   double move_left = -_dx * _gain_dx;
   double move_up = _dz * _gain_dz;
@@ -238,5 +196,52 @@ void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
     }
     loopRate.sleep();
   }
+}
+
+void VisualServo::getParameters() {
+
+  // Define the parameters depending on the scenario.
+  // E.g. during the brick laying scenario the yaw, z and distance gain should be zero.
+
+  if (!ros::param::get("visual_servo_node/gain_dx", _gain_dx)) {
+    _gain_dx = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/gain_dy", _gain_dy)) {
+    _gain_dy = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/gain_dz", _gain_dz)) {
+    _gain_dz = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/gain_dYaw", _gain_dYaw)) {
+    _gain_dYaw = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/gain_dDistance", _gain_dDistance)) {
+    _gain_dDistance = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/move_saturation", _move_saturation)) {
+    _move_saturation = 1.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/coordinate_frame_yaw_difference", _coordinate_frame_yaw_difference)) {
+    _coordinate_frame_yaw_difference = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/yaw_error_integrator_gain", _yaw_error_integrator_gain)) {
+    _yaw_error_integrator_gain = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/yaw_error_integrator_clamp", _yaw_error_integrator_clamp)) {
+    _yaw_error_integrator_clamp = M_PI;
+  }
+
+  if (!ros::param::get("visual_servo_node/yaw_error_integrator_deadzone", _yaw_error_integrator_deadzone)) {
+    _yaw_error_integrator_deadzone = 0.0;
+  }
+
 }
 } // namespace uav_reference

@@ -99,6 +99,7 @@ namespace uav_reference {
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
 
+      void getParameters();
   };
 
   void runDefault(VisualServo& cc, ros::NodeHandle& nh);
