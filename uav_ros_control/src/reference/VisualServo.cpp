@@ -88,9 +88,16 @@ void VisualServo::imuCb(const sensor_msgs::ImuConstPtr& imu) {
 }
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
-  if (!ros::param::get("visual_servo_node/offset_x", _offset_x)) {
-    _offset_x = 0.0;
+  if (!ros::param::get("visual_servo_node/offset_x_1", _offset_x_1)) {
+    _offset_x_1 = 0.0;
   }
+  if (!ros::param::get("visual_servo_node/offset_x_2", _offset_x_2)) {
+    _offset_x_2 = 0.0;
+  }
+  double _offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
+  _offset_x = (_offset_x_2 - _offset_x_1) * _uavPos[2] + _offset_x_0;
+  _offset_x = std::max(_offset_x, 0.0); // avoid negative offsets.
+
   if (!ros::param::get("visual_servo_node/deadzone_x", _deadzone_x)) {
     _deadzone_x = 0.0;
   }
@@ -101,9 +108,16 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
-  if(!ros::param::get("visual_servo_node/offset_y", _offset_y)) {
-    _offset_y = 0.0;
+  if (!ros::param::get("visual_servo_node/offset_y_1", _offset_y_1)) {
+    _offset_y_1 = 0.0;
   }
+  if (!ros::param::get("visual_servo_node/offset_y_2", _offset_y_2)) {
+    _offset_y_2 = 0.0;
+  }
+  double _offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
+  _offset_y = (_offset_y_2 - _offset_y_1) * _uavPos[2] + _offset_y_0;
+  _offset_y = std::max(_offset_y, 0.0);
+
   if (!ros::param::get("visual_servo_node/deadzone_y", _deadzone_y)) {
     _deadzone_y = 0.0;
   }
@@ -137,6 +151,20 @@ void VisualServo::updateSetpoint() {
   double move_left = -_dx * _gain_dx;
   double move_up = _dz * _gain_dz;
 
+  if (_brick_laying_scenario) {
+    if ( abs(_dx) < _landing_range_x && abs(_dy) < _landing_range_y && abs(_dYaw)< _landing_range_yaw) {
+      move_up -= _landing_speed;
+      if (_uavPos[2] <= _visual_servo_shutdown_height) {
+        move_up = 0.1;
+        // gas' svjetlo
+        // gas' fejs
+        // udri
+        //_visualServoEnabled = false;
+
+      }
+    }
+  }
+
   if (move_forward > _move_saturation) move_forward = _move_saturation;
   if (move_forward < -_move_saturation) move_forward = -_move_saturation;
   if (move_left > _move_saturation) move_left = _move_saturation;
@@ -150,14 +178,19 @@ void VisualServo::updateSetpoint() {
   _setpointPosition[1] += move_left * cos(_uavYaw + _coordinate_frame_yaw_difference);
   _setpointPosition[2] = _uavPos[2] + move_up;
 
+  if (_setpointPosition[2] < _visual_servo_shutdown_height){
+    _setpointPosition[2] = _visual_servo_shutdown_height;
+  }
+
   _setpointYaw = _uavYaw + _dYaw * _gain_dYaw + _yaw_error_integrator;
 
+
   //ROS_WARN("\n _dx: %f, gain_x: %f", _dx, _gain_dx);
-  ROS_WARN("\n _dy: %f, gain_y: %f", _dy, _gain_dy);
+  // ROS_WARN("\n _dy: %f, gain_y: %f", _dy, _gain_dy);
   //ROS_WARN("\n _dz: %f, gain_z: %f", _dz, _gain_dz);
-  ROS_WARN("\n _dD: %f, gain_D: %f", _dDistance, _gain_dDistance);
+  // ROS_WARN("\n _dD: %f, gain_D: %f", _dDistance, _gain_dDistance);
   //ROS_WARN("\n _dyaw: %f, gain_yaw: %f", _dYaw, _gain_dYaw);
-  ROS_WARN("\n_uavYaw: %f\nforward: %f\nleft:  %f\n", _uavYaw, move_forward, move_left);
+  // ROS_WARN("\n_uavYaw: %f\nforward: %f\nleft:  %f\n", _uavYaw, move_forward, move_left);
 }
 
 void VisualServo::publishNewSetpoint() {
@@ -175,9 +208,9 @@ void VisualServo::publishNewSetpoint() {
 
   _pubNewSetpoint.publish(_new_point);
 
-  ROS_WARN("New setpoint published\n\tx: %.2f -> %.2f \n\ty: %.2f -> %.2f\n\tz: %.2f -> %.2f \n\tYaw: %f -> %f\n\t integrator: %f",
+   ROS_WARN("New setpoint published\n\tx: %.2f -> %.2f \n\ty: %.2f -> %.2f\n\tz: %.2f -> %.2f \n\tYaw: %f -> %f\n\tintegrator: %f\n\tdYaw: %f",
       _uavPos[0], _setpointPosition[0], _uavPos[1], _setpointPosition[1], _uavPos[2], _setpointPosition[2],
-      _uavYaw, _setpointYaw, _yaw_error_integrator);
+     _uavYaw, _setpointYaw, _yaw_error_integrator, _dYaw);
 }
 
 bool VisualServo::isVisualServoEnabled() {
@@ -241,6 +274,30 @@ void VisualServo::getParameters() {
 
   if (!ros::param::get("visual_servo_node/yaw_error_integrator_deadzone", _yaw_error_integrator_deadzone)) {
     _yaw_error_integrator_deadzone = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/visual_servo_shutdown_height", _visual_servo_shutdown_height)) {
+    _visual_servo_shutdown_height = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/brick_laying_scenario", _brick_laying_scenario)) {
+    _brick_laying_scenario = false;
+  }
+
+  if (!ros::param::get("visual_servo_node/landing_speed", _landing_speed)) {
+    _landing_speed = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/landing_range_x", _landing_range_x)) {
+    _landing_range_x = 3*_deadzone_x;
+  }
+
+  if (!ros::param::get("visual_servo_node/landing_range_y", _landing_range_y)) {
+    _landing_range_y = 3*_deadzone_y;
+  }
+
+  if (!ros::param::get("visual_servo_node/landing_range_yaw", _landing_range_yaw)) {
+    _landing_range_yaw = 3*_yaw_error_integrator_deadzone;
   }
 
 }
