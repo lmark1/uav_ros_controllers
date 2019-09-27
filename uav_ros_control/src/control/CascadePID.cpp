@@ -27,6 +27,7 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 	// Initialize class parameters
 	initializeParameters(nh);
 	_velRefPub = nh.advertise<geometry_msgs::Vector3>("carrot/velocity", 1);
+	_velCurrPub = nh.advertise<geometry_msgs::Vector3>("uav/velocity", 1);
 	_yawRefSub = nh.subscribe("carrot/yaw", 1, &uav_controller::CascadePID::yawRefCb, this);
 
 	// Setup dynamic reconfigure server
@@ -204,6 +205,12 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 	newMsg.y = velocityRefY;
 	newMsg.z = velocityRefZ;
 	_velRefPub.publish(newMsg);
+
+	geometry_msgs::Vector3 vel;
+	vel.x = getCurrVelocity()[0];
+	vel.y = getCurrVelocity()[1];
+	vel.z = getCurrVelocity()[2];
+	_velCurrPub.publish(vel);
 }
 
 void uav_controller::runDefault(
