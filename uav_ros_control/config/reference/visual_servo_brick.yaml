@@ -1,0 +1,13 @@
+offset_x: 0.0
+deadzone_x: 0.005 
+offset_y: 0.3
+deadzone_y: 0.005
+gain_dx: 0.5
+gain_dy: 0.5
+gain_dz: 0.0
+gain_dYaw: 0.0
+gain_dDistance: 0.0
+move_saturation: 0.2
+coordinate_frame_yaw_difference: 0
+yaw_error_integrator_gain: 0.04
+use_imu_instead_of_odom: false
