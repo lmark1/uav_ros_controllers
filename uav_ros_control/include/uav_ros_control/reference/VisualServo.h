@@ -80,6 +80,7 @@ namespace uav_reference {
       double _move_saturation;
       double _coordinate_frame_yaw_difference;
       double _yaw_error_integrator, _yaw_error_integrator_gain;
+      double _yaw_error_integrator_clamp, _yaw_error_integrator_deadzone;
 
       double _qx, _qy, _qz, _qw;
 

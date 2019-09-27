@@ -123,7 +123,11 @@ void VisualServo::pitchErrorCb(const std_msgs::Float32 &data) {
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
   _dYaw = data.data;
-  _yaw_error_integrator += _dYaw * _yaw_error_integrator_gain;
+  if (abs(_dYaw) > _yaw_error_integrator_deadzone) {
+    _yaw_error_integrator += _dYaw * _yaw_error_integrator_gain;
+  }
+  _yaw_error_integrator = std::min(_yaw_error_integrator, _yaw_error_integrator_clamp);
+  _yaw_error_integrator = std::max(_yaw_error_integrator, -_yaw_error_integrator_clamp);
 }
 
 void VisualServo::updateSetpoint() {
@@ -161,6 +165,14 @@ void VisualServo::updateSetpoint() {
 
   if (!ros::param::get("visual_servo_node/yaw_error_integrator_gain", _yaw_error_integrator_gain)) {
     _yaw_error_integrator_gain = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/yaw_error_integrator_clamp", _yaw_error_integrator_clamp)) {
+    _yaw_error_integrator_clamp = M_PI;
+  }
+
+  if (!ros::param::get("visual_servo_node/yaw_error_integrator_deadzone", _yaw_error_integrator_deadzone)) {
+    _yaw_error_integrator_deadzone = 0.0;
   }
 
   double move_forward = -_dy * _gain_dy + _dDistance * _gain_dDistance;
