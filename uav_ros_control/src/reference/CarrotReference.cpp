@@ -86,11 +86,18 @@ void uav_reference::CarrotReference::positionRefCb(
 
 void uav_reference::CarrotReference::updateCarrot()
 {
+	bool inputStatus = abs(getXOffsetManual()) > 0 || abs(getYOffsetManual()) > 0 || 
+		abs(getZOffsetManual()) > 0;
 
+	if (!inputStatus && _inputActive)
+	{
+		ROS_INFO("Resetting carrot to current position.");
+		resetCarrot();
+	}
+
+	_inputActive = inputStatus;
 	// Disable Position hold if carrot inputs exist
-	if (_positionHold && (
-		abs(getXOffsetManual()) > 0 || abs(getYOffsetManual()) > 0 || 
-		abs(getZOffsetManual()) > 0))
+	if (_positionHold && _inputActive)
 	{
 		ROS_WARN("Position hold disabled - resetting carrot position");
 		resetCarrot();
