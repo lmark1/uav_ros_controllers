@@ -214,9 +214,12 @@ void uav_reference::CarrotReference::initializeParameters()
 	ROS_WARN("CarrotReference::initializeParameters()");
 
 	ros::NodeHandle nhPrivate("~");
-	bool initialized = nhPrivate.getParam("carrot_index", _carrotEnabledIndex);
+	bool initialized = nhPrivate.getParam("carrot_index", _carrotEnabledIndex) &&
+		nhPrivate.getParam("carrot_enable", _carrotEnabledValue);
 	ROS_INFO("CarrotReference::initializeParameters() - carrot button enable index is %d",
 		_carrotEnabledIndex);
+	ROS_INFO("CarrotReference::initializeParameters() - carrot enable value is %d", 
+		_carrotEnabledValue);
 	if (!initialized)
 	{
 		ROS_FATAL("CarrotReference::initializeParameters() -\
@@ -228,7 +231,7 @@ void uav_reference::CarrotReference::initializeParameters()
 void uav_reference::CarrotReference::updateCarrotStatus()
 {
 	// Detect enable button - rising edge
-	if (getJoyButtons()[_carrotEnabledIndex] == 1 && !_carrotEnabled)
+	if (getJoyButtons()[_carrotEnabledIndex] == _carrotEnabledValue && !_carrotEnabled)
 	{
 		_carrotEnabled = true;
 		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled.");
@@ -237,7 +240,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 	}
 
 	// Detect enable button - falling edge 
-	if (getJoyButtons()[_carrotEnabledIndex] == 0 && _carrotEnabled)
+	if (getJoyButtons()[_carrotEnabledIndex] == (1 - _carrotEnabledValue) && _carrotEnabled)
 	{
 		_carrotEnabled = false;
 		_positionHold = false;

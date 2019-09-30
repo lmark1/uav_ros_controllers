@@ -134,6 +134,9 @@ namespace uav_reference
 		/** Index used for enabling carrot mode */
 		int _carrotEnabledIndex = -1;
 
+		/** Carrot enable button value, 0 or 1 **/
+		int _carrotEnabledValue = 1;
+
 		/** Define all Publishers */
 		ros::Publisher _pubCarrotTrajectorySp;
 		ros::Publisher _pubCarrotYawSp;

@@ -4,6 +4,7 @@
     <arg name="ref"             default="carrot/trajectory"/>
     <arg name="config"          default="joy_control_input.config.yaml"/>
     <arg name="carrot_index"    default="5"/>
+    <arg name="carrot_enable"   default="1"/>
 
     <group ns="$(arg namespace)">
         <!-- Load joy configuration file-->
@@ -19,7 +20,8 @@
             output="screen">
 
             <!-- Private parameters -->
-            <param name="carrot_index" value="5" />
+            <param name="carrot_index" value="$(arg carrot_index)" />
+            <param name="carrot_enable" value="$(arg carrot_enable)"/>
 
             <!-- Topic remapping -->
             <remap from="carrot/trajectory" to="$(arg ref)"/>
