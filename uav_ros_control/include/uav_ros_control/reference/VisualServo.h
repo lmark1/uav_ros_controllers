@@ -80,12 +80,19 @@ namespace uav_reference {
       double _move_saturation;
       double _coordinate_frame_yaw_difference;
       double _yaw_error_integrator, _yaw_error_integrator_gain;
+      double _yaw_error_integrator_clamp, _yaw_error_integrator_deadzone;
+
+      // The x and y offset needed to align he magnetic gripper with the magnetic patch at z = 1m and z = 2m.
+      double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2; // Determine these experimentally.
+      double _visual_servo_shutdown_height;
+      double _landing_speed, _landing_range_x, _landing_range_y, _landing_range_yaw;
 
       double _qx, _qy, _qz, _qw;
 
       //bool _positionHold = false;
       bool _visualServoEnabled = false;
       bool _use_imu = false;
+      bool _brick_laying_scenario;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
@@ -98,6 +105,7 @@ namespace uav_reference {
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
 
+      void getParameters();
   };
 
   void runDefault(VisualServo& cc, ros::NodeHandle& nh);

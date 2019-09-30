@@ -1,6 +1,8 @@
-offset_x: 0.0
+offset_x_1: 0.0
+offset_x_2: 0.0
 deadzone_x: 0.005 
-offset_y: 0.3
+offset_y_1: 0.28
+offset_y_2: 0.1
 deadzone_y: 0.005
 gain_dx: 0.5
 gain_dy: 0.5
@@ -10,4 +12,16 @@ gain_dDistance: 0.0
 move_saturation: 0.2
 coordinate_frame_yaw_difference: 0
 yaw_error_integrator_gain: 0.04
+yaw_error_integrator_clamp: 1
+yaw_error_integrator_deadzone: 0.05
 use_imu_instead_of_odom: false
+brick_laying_scenario: true
+
+visual_servo_shutdown_height: 0.6  # Depending on the brick's size.
+                                   # When the UAV's altitude is lower
+                                   # than this, the camera is too close
+                                   # to the brick for successful visual servoing.
+landing_speed: 0.2
+landing_range_x: 0.01
+landing_range_y: 0.01
+landing_range_yaw: 0.1
