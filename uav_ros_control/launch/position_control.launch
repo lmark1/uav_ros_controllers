@@ -5,17 +5,14 @@
 
     <group ns="$(arg namespace)">
         <!-- Load joy configuration file-->
-        <rosparam 
-            command="load"
+        <rosparam command="load"
             file="$(find uav_ros_control)/config/control/position_control.params.yaml" />
 
         <!-- Carrot-Mode reference generator node -->
-        <node
-            pkg="uav_ros_control"
-            type="pid_cascade_node"
-            name="pid_cascade_node"
-            output="screen">
+        <node pkg="uav_ros_control" type="pid_cascade_node"
+            name="pid_cascade_node" output="screen">
 
+            <param name="msf_callback" value="false"/>
             <!-- Topic remapping -->
             <remap from="odometry"                  to="$(arg odom)" />
             <remap from="uav/trajectory_point"      to="$(arg traj_ref)" />

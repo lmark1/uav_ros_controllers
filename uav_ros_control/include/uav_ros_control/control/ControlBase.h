@@ -96,6 +96,11 @@ namespace uav_controller
 		void odomCb(const nav_msgs::OdometryConstPtr&);
 
 		/**
+		 * MSF odometry callback function
+		 */
+		void msfOdomCb(const nav_msgs::OdometryConstPtr&);
+
+		/**
 		 * Trajectory point callback function.
 		 */
 		void trajPointCb(const trajectory_msgs::MultiDOFJointTrajectoryPointConstPtr&);
