@@ -15,6 +15,7 @@ find_package(cmake_modules REQUIRED)
 
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
+	config/reference/VisualServoParameters.cfg
 )
 
 catkin_package(

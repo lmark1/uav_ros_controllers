@@ -5,9 +5,59 @@
 #include <uav_ros_control/reference/VisualServo.h>
 #include <math.h>
 
+// Define all parameter paths here
+#define VS_P_GAIN_X_PARAM          "reference/p_gain_x"
+#define VS_I_GAIN_X_PARAM          "reference/i_gain_x"
+#define VS_D_GAIN_X_PARAM          "reference/d_gain_x"
+#define VS_I_CLAMP_X_PARAM         "reference/i_clamp_x"
+#define VS_OFFSET_X_1_PARAM        "reference/offset_x_1"
+#define VS_OFFSET_X_2_PARAM        "reference/offset_x_2"
+#define VS_DEADZONE_X_PARAM        "reference/deadzone_x"
+#define VS_LANDING_RANGE_X_PARAM   "reference/landing_range_x"
+
+#define VS_P_GAIN_Y_PARAM          "reference/p_gain_y"
+#define VS_I_GAIN_Y_PARAM          "reference/p_gain_y"
+#define VS_D_GAIN_Y_PARAM          "reference/d_gain_y"
+#define VS_I_CLAMP_Y_PARAM         "reference/i_clamp_y"
+#define VS_OFFSET_Y_1_PARAM        "reference/offset_y_1"
+#define VS_OFFSET_Y_2_PARAM        "reference/offset_y_2"
+#define VS_DEADZONE_Y_PARAM        "reference/deadzone_y"
+#define VS_LANDING_RANGE_Y_PARAM   "reference/landing_range_y"
+
+#define VS_P_GAIN_Z_PARAM          "reference/p_gain_z"
+#define VS_I_GAIN_Z_PARAM          "reference/p_gain_z"
+#define VS_D_GAIN_Z_PARAM          "reference/d_gain_z"
+#define VS_I_CLAMP_Z_PARAM         "reference/i_clamp_z"
+#define VS_OFFSET_Z_1_PARAM        "reference/offset_z_1"
+#define VS_OFFSET_Z_2_PARAM        "reference/offset_z_2"
+#define VS_DEADZONE_Z_PARAM        "reference/deadzone_z"
+#define VS_LANDING_RANGE_Z_PARAM   "reference/landing_range_z"
+
+#define VS_P_GAIN_YAW_PARAM        "reference/p_gain_yaw"
+#define VS_I_GAIN_YAW_PARAM        "reference/i_gain_yaw"
+#define VS_I_CLAMP_YAW_PARAM       "reference/i_clamp_yaw"
+#define VS_I_DEADZONE_YAW_PARAM    "reference/i_deadzone_yaw"
+#define VS_D_GAIN_YAW_PARAM        "reference/d_gain_yaw"
+#define VS_LANDING_RANGE_YAW_PARAM "reference/lending_range_yaw"
+
+#define VS_P_GAIN_DIST_PARAM       "reference/p_gain_dist"
+#define VS_I_GAIN_DIST_PARAM       "reference/i_gain_dist"
+#define VS_D_GAIN_DIST_PARAM       "reference/d_gain_dist"
+#define VS_I_CLAMP_DIST_PARAM      "reference/i_clamp_dist"
+#define VS_DEADZONE_DIST_PARAM     "reference/deadzone_dist"
+
+#define VS_MOVE_SATURATION_PARAM   "reference/move_saturation"
+#define VS_YAW_DIFFERENCE_PARAM    "reference/yaw_difference"
+
+#define VS_LANDING_SPEED_PARAM     "reference/landing_speed"
+#define VS_IS_BRICK_LAYING_PARAM   "reference/is_brick_laying"
+
 namespace uav_reference {
 
 VisualServo::VisualServo(ros::NodeHandle& nh) {
+  // Initialize class parameters
+  initializeParameters(nh);
+
   // Define Publishers
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
@@ -27,6 +77,14 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
   _subPitchError =
       nh.subscribe("pitch_error", 1, &uav_reference::VisualServo::pitchErrorCb, this);
+
+  // Setup dynamic reconfigure server
+
+  uav_ros_control::VisualServoParametersConfig VSConfig;
+  setVisualServoReconfigureParams(VSConfig);
+  _VSConfigServer.updateConfig(VSConfig);
+  _VSParamCallback = boost::bind(&VisualServo::visualServoParamsCb, this, _1, _2);
+  _VSConfigServer.setCallback(_VSParamCallback);
 
   _serviceStartVisualServo = nh.advertiseService(
       "visual_servo",
@@ -57,14 +115,75 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Requ
   return true;
 }
 
+void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConfig &configMsg,
+                                                     uint32_t level) {
+  ROS_WARN("VisualServo::parametersCallback");
+
+  _gain_dx = configMsg.k_p_x;
+  _gain_dy = configMsg.k_p_y;
+  _gain_dz = configMsg.k_p_z;
+  _offset_x_1 = configMsg.offset_x_1;
+  _offset_x_2 = configMsg.offset_x_2;
+  _offset_y_1 = configMsg.offset_y_1;
+  _offset_y_2 = configMsg.offset_y_2;
+  _deadzone_x = configMsg.deadzone_x;
+  _deadzone_y = configMsg.deadzone_y;
+  _landing_range_x = configMsg.landing_range_x;
+  _landing_range_y = configMsg.landing_range_y;
+
+  _gain_dYaw = configMsg.k_p_yaw;
+  _yaw_error_integrator_gain = configMsg.k_i_yaw;
+  _yaw_error_integrator_deadzone = configMsg.deadzone_yaw;
+  _yaw_error_integrator_clamp = configMsg.clamp_yaw;
+  _landing_range_yaw = configMsg.landing_range_yaw;
+
+  _gain_dDistance = configMsg.k_p_dist;
+
+  _move_saturation = configMsg.movement_saturation;
+  _coordinate_frame_yaw_difference = configMsg.yaw_difference;
+  _visual_servo_shutdown_height = configMsg.shutdown_height;
+  _brick_laying_scenario = configMsg.is_bricklaying;
+  _landing_speed = configMsg.landing_speed;
+}
+
+void VisualServo::setVisualServoReconfigureParams(uav_ros_control::VisualServoParametersConfig &config) {
+
+  ROS_WARN("VisualServo::setVisualServoReconfigureParams");
+
+  config.k_p_x = _gain_dx;
+  config.k_p_y = _gain_dy;
+  config.k_p_z = _gain_dz;
+  config.offset_x_1 = _offset_x_1;
+  config.offset_x_2 = _offset_x_2;
+  config.offset_y_1 = _offset_y_1;
+  config.offset_y_2 = _offset_y_2;
+  config.deadzone_x = _deadzone_x;
+  config.deadzone_y = _deadzone_y;
+  config.landing_range_x = _landing_range_x;
+  config.landing_range_y = _landing_range_y;
+  config.k_p_yaw = _gain_dYaw;
+  config.k_i_yaw = _yaw_error_integrator_gain;
+  config.deadzone_yaw = _yaw_error_integrator_deadzone;
+  config.clamp_yaw = _yaw_error_integrator_clamp;
+  config.k_p_dist = _gain_dDistance;
+  config.movement_saturation = _move_saturation;
+  config.yaw_difference = _coordinate_frame_yaw_difference;
+  config.shutdown_height = _visual_servo_shutdown_height;
+  config.is_bricklaying = _brick_laying_scenario;
+  config.landing_speed = _landing_speed;
+}
+
+void VisualServo::initializeParameters(ros::NodeHandle &nh) {
+  ROS_WARN("VisualServo::initializeParameters");
+  ROS_INFO("To be implemented after the PIDs");
+  getParameters();
+}
+
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
   _uavPos[0] = odom->pose.pose.position.x;
   _uavPos[1] = odom->pose.pose.position.y;
   _uavPos[2] = odom->pose.pose.position.z;
 
-  if (!ros::param::get("visual_servo_node/use_imu_instead_of_odom", _use_imu)) {
-    _use_imu = false;
-  }
   if (!_use_imu) {
     _qx = odom->pose.pose.orientation.x;
     _qy = odom->pose.pose.orientation.y;
@@ -76,9 +195,6 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
 }
 
 void VisualServo::imuCb(const sensor_msgs::ImuConstPtr& imu) {
-  if (!ros::param::get("visual_servo_node/use_imu_instead_of_odom", _use_imu)) {
-    _use_imu = false;
-  }
   if (_use_imu) {
     _qx = imu->orientation.x;
     _qy = imu->orientation.y;
@@ -88,19 +204,10 @@ void VisualServo::imuCb(const sensor_msgs::ImuConstPtr& imu) {
 }
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
-  if (!ros::param::get("visual_servo_node/offset_x_1", _offset_x_1)) {
-    _offset_x_1 = 0.0;
-  }
-  if (!ros::param::get("visual_servo_node/offset_x_2", _offset_x_2)) {
-    _offset_x_2 = 0.0;
-  }
   double _offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
   _offset_x = (_offset_x_2 - _offset_x_1) * _uavPos[2] + _offset_x_0;
   _offset_x = std::max(_offset_x, 0.0); // avoid negative offsets.
 
-  if (!ros::param::get("visual_servo_node/deadzone_x", _deadzone_x)) {
-    _deadzone_x = 0.0;
-  }
   if (data.data) _dx = data.data - _offset_x;
   else _dx = 0.0;
 
@@ -108,19 +215,10 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
-  if (!ros::param::get("visual_servo_node/offset_y_1", _offset_y_1)) {
-    _offset_y_1 = 0.0;
-  }
-  if (!ros::param::get("visual_servo_node/offset_y_2", _offset_y_2)) {
-    _offset_y_2 = 0.0;
-  }
   double _offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
   _offset_y = (_offset_y_2 - _offset_y_1) * _uavPos[2] + _offset_y_0;
   _offset_y = std::max(_offset_y, 0.0);
 
-  if (!ros::param::get("visual_servo_node/deadzone_y", _deadzone_y)) {
-    _deadzone_y = 0.0;
-  }
 
   if(data.data) _dy = data.data - _offset_y;
   else _dy = 0.0;
@@ -300,5 +398,32 @@ void VisualServo::getParameters() {
     _landing_range_yaw = 3*_yaw_error_integrator_deadzone;
   }
 
+  if (!ros::param::get("visual_servo_node/use_imu_instead_of_odom", _use_imu)) {
+    _use_imu = false;
+  }
+
+  if (!ros::param::get("visual_servo_node/offset_x_1", _offset_x_1)) {
+    _offset_x_1 = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/offset_x_2", _offset_x_2)) {
+    _offset_x_2 = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/deadzone_x", _deadzone_x)) {
+    _deadzone_x = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/offset_y_1", _offset_y_1)) {
+    _offset_y_1 = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/offset_y_2", _offset_y_2)) {
+    _offset_y_2 = 0.0;
+  }
+
+  if (!ros::param::get("visual_servo_node/deadzone_y", _deadzone_y)) {
+    _deadzone_y = 0.0;
+  }
 }
 } // namespace uav_reference

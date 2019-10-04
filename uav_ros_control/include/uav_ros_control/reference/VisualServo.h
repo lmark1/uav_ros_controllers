@@ -19,8 +19,15 @@
 #include <ros/subscriber.h>
 #include <ros/service_server.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <uav_ros_control/VisualServoParametersConfig.h>
 
 namespace uav_reference {
+/**
+ * Name of dynamic reconfigure node.
+ */
+#define VISUAL_SERVO_DYN_RECONF "visual_servo_config"
+
  /**
   * Publish UAV reference based on the error reported by the drone's color filter.
   * The reference is published in the global coordinate system.
@@ -82,7 +89,7 @@ namespace uav_reference {
       double _yaw_error_integrator, _yaw_error_integrator_gain;
       double _yaw_error_integrator_clamp, _yaw_error_integrator_deadzone;
 
-      // The x and y offset needed to align he magnetic gripper with the magnetic patch at z = 1m and z = 2m.
+      // The x and y offset needed to align the magnetic gripper with the magnetic patch at z = 1m and z = 2m.
       double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2; // Determine these experimentally.
       double _visual_servo_shutdown_height;
       double _landing_speed, _landing_range_x, _landing_range_y, _landing_range_yaw;
@@ -104,6 +111,23 @@ namespace uav_reference {
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
+
+      void initializeParameters(ros::NodeHandle& nh);
+
+      void visualServoParamsCb(
+          uav_ros_control::VisualServoParametersConfig& configMsg, uint32_t level);
+
+      void setVisualServoReconfigureParams(
+          uav_ros_control::VisualServoParametersConfig& config);
+
+      /** Define Dynamic Reconfigure parameters **/
+      boost::recursive_mutex _VSConfigMutex;
+      dynamic_reconfigure::
+      Server<uav_ros_control::VisualServoParametersConfig>
+          _VSConfigServer {_VSConfigMutex, ros::NodeHandle(VISUAL_SERVO_DYN_RECONF)};
+      dynamic_reconfigure::
+      Server<uav_ros_control::VisualServoParametersConfig>::CallbackType
+          _VSParamCallback;
 
       void getParameters();
   };
