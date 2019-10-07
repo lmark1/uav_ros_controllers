@@ -119,60 +119,60 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
 
-  _gain_dx = configMsg.groups.x_controller.k_p_x;
-  _offset_x_1 = configMsg.groups.x_controller.offset_x_1;
-  _offset_x_2 = configMsg.groups.x_controller.offset_x_2;
-  _deadzone_x = configMsg.groups.x_controller.deadzone_x;
-  _landing_range_x = configMsg.groups.x_controller.landing_range_x;
+  _gain_dx = configMsg.groups.x_axis.k_p_x;
+  _offset_x_1 = configMsg.groups.x_axis.offset_x_1;
+  _offset_x_2 = configMsg.groups.x_axis.offset_x_2;
+  _deadzone_x = configMsg.groups.x_axis.deadzone_x;
+  _landing_range_x = configMsg.groups.x_axis.landing_range_x;
 
-  _gain_dy = configMsg.groups.y_controller.k_p_y;
-  _offset_y_1 = configMsg.groups.y_controller.offset_y_1;
-  _offset_y_2 = configMsg.groups.y_controller.offset_y_2;
-  _deadzone_y = configMsg.groups.y_controller.deadzone_y;
-  _landing_range_y = configMsg.groups.y_controller.landing_range_y;
+  _gain_dy = configMsg.groups.y_axis.k_p_y;
+  _offset_y_1 = configMsg.groups.y_axis.offset_y_1;
+  _offset_y_2 = configMsg.groups.y_axis.offset_y_2;
+  _deadzone_y = configMsg.groups.y_axis.deadzone_y;
+  _landing_range_y = configMsg.groups.y_axis.landing_range_y;
 
-  _gain_dz = configMsg.groups.z_controller.k_p_z;
+  _gain_dz = configMsg.groups.z_axis.k_p_z;
 
-  _gain_dYaw = configMsg.groups.yaw_controller.k_p_yaw;
-  _yaw_error_integrator_gain = configMsg.groups.yaw_controller.k_i_yaw;
-  _yaw_error_integrator_deadzone = configMsg.groups.yaw_controller.deadzone_yaw;
-  _yaw_error_integrator_clamp = configMsg.groups.yaw_controller.clamp_yaw;
-  _landing_range_yaw = configMsg.groups.yaw_controller.landing_range_yaw;
+  _gain_dYaw = configMsg.groups.yaw_control.k_p_yaw;
+  _yaw_error_integrator_gain = configMsg.groups.yaw_control.k_i_yaw;
+  _yaw_error_integrator_deadzone = configMsg.groups.yaw_control.deadzone_yaw;
+  _yaw_error_integrator_clamp = configMsg.groups.yaw_control.clamp_yaw;
+  _landing_range_yaw = configMsg.groups.yaw_control.landing_range_yaw;
 
-  _gain_dDistance = configMsg.groups.dist_controler.k_p_dist;
+  _gain_dDistance = configMsg.groups.distance_control.k_p_dist;
 
-  _move_saturation = configMsg.groups.general_params.movement_saturation;
-  _coordinate_frame_yaw_difference = configMsg.groups.general_params.yaw_difference;
-  _visual_servo_shutdown_height = configMsg.groups.general_params.shutdown_height;
-  _brick_laying_scenario = configMsg.groups.general_params.is_bricklaying;
-  _landing_speed = configMsg.groups.general_params.landing_speed;
+  _move_saturation = configMsg.groups.general_parameters.movement_saturation;
+  _coordinate_frame_yaw_difference = configMsg.groups.general_parameters.yaw_difference;
+  _visual_servo_shutdown_height = configMsg.groups.general_parameters.shutdown_height;
+  _brick_laying_scenario = configMsg.groups.general_parameters.is_bricklaying;
+  _landing_speed = configMsg.groups.general_parameters.landing_speed;
 }
 
 void VisualServo::setVisualServoReconfigureParams(uav_ros_control::VisualServoParametersConfig &config) {
 
   ROS_WARN("VisualServo::setVisualServoReconfigureParams");
 
-  config.groups.x_controller.k_p_x = _gain_dx;
-  config.groups.x_controller.offset_x_1 = _offset_x_1;
-  config.groups.x_controller.offset_x_2 = _offset_x_2;
-  config.groups.x_controller.deadzone_x = _deadzone_x;
-  config.groups.x_controller.landing_range_x = _landing_range_x;
-  config.groups.y_controller.k_p_y = _gain_dy;
-  config.groups.y_controller.offset_y_1 = _offset_y_1;
-  config.groups.y_controller.offset_y_2 = _offset_y_2;
-  config.groups.y_controller.deadzone_y = _deadzone_y;
-  config.groups.y_controller.landing_range_y = _landing_range_y;
-  config.groups.z_controller.k_p_z = _gain_dz;
-  config.groups.yaw_controller.k_p_yaw = _gain_dYaw;
-  config.groups.yaw_controller.k_i_yaw = _yaw_error_integrator_gain;
-  config.groups.yaw_controller.deadzone_yaw = _yaw_error_integrator_deadzone;
-  config.groups.yaw_controller.clamp_yaw = _yaw_error_integrator_clamp;
-  config.groups.dist_controller.k_p_dist = _gain_dDistance;
-  config.groups.general_params.movement_saturation = _move_saturation;
-  config.groups.general_params.yaw_difference = _coordinate_frame_yaw_difference;
-  config.groups.general_params.shutdown_height = _visual_servo_shutdown_height;
-  config.groups.general_params.is_bricklaying = _brick_laying_scenario;
-  config.groups.general_params.landing_speed = _landing_speed;
+  config.groups.x_axis.k_p_x = _gain_dx;
+  config.groups.x_axis.offset_x_1 = _offset_x_1;
+  config.groups.x_axis.offset_x_2 = _offset_x_2;
+  config.groups.x_axis.deadzone_x = _deadzone_x;
+  config.groups.x_axis.landing_range_x = _landing_range_x;
+  config.groups.y_axis.k_p_y = _gain_dy;
+  config.groups.y_axis.offset_y_1 = _offset_y_1;
+  config.groups.y_axis.offset_y_2 = _offset_y_2;
+  config.groups.y_axis.deadzone_y = _deadzone_y;
+  config.groups.y_axis.landing_range_y = _landing_range_y;
+  config.groups.z_axis.k_p_z = _gain_dz;
+  config.groups.yaw_control.k_p_yaw = _gain_dYaw;
+  config.groups.yaw_control.k_i_yaw = _yaw_error_integrator_gain;
+  config.groups.yaw_control.deadzone_yaw = _yaw_error_integrator_deadzone;
+  config.groups.yaw_control.clamp_yaw = _yaw_error_integrator_clamp;
+  config.groups.distance_control.k_p_dist = _gain_dDistance;
+  config.groups.general_parameters.movement_saturation = _move_saturation;
+  config.groups.general_parameters.yaw_difference = _coordinate_frame_yaw_difference;
+  config.groups.general_parameters.shutdown_height = _visual_servo_shutdown_height;
+  config.groups.general_parameters.is_bricklaying = _brick_laying_scenario;
+  config.groups.general_parameters.landing_speed = _landing_speed;
 }
 
 void VisualServo::initializeParameters(ros::NodeHandle &nh) {
