@@ -21,6 +21,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <uav_ros_control/VisualServoParametersConfig.h>
+#include <uav_ros_control/control/PID.h>
 
 namespace uav_reference {
 /**
@@ -52,6 +53,8 @@ namespace uav_reference {
 
      bool isVisualServoEnabled();
 
+     void setRate(double new_rate) {_rate =  new_rate;}
+
    private:
 
       /**
@@ -78,6 +81,8 @@ namespace uav_reference {
       void yawErrorCb(const std_msgs::Float32&);
       void pitchErrorCb(const std_msgs::Float32&);
 
+      PID _x_axis_PID, _y_axis_PID, _z_axis_PID, _yaw_PID;
+
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
       double _dx, _dy, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
@@ -88,6 +93,7 @@ namespace uav_reference {
       double _coordinate_frame_yaw_difference;
       double _yaw_error_integrator, _yaw_error_integrator_gain;
       double _yaw_error_integrator_clamp, _yaw_error_integrator_deadzone;
+      double _rate;
 
       // The x and y offset needed to align the magnetic gripper with the magnetic patch at z = 1m and z = 2m.
       double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2; // Determine these experimentally.
@@ -99,7 +105,7 @@ namespace uav_reference {
       //bool _positionHold = false;
       bool _visualServoEnabled = false;
       bool _use_imu = false;
-      bool _brick_laying_scenario;
+      bool _brick_laying_scenario, _pickup_allowed;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;

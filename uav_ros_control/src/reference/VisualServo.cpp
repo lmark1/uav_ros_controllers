@@ -57,7 +57,7 @@ namespace uav_reference {
 VisualServo::VisualServo(ros::NodeHandle& nh) {
   // Initialize class parameters
   initializeParameters(nh);
-
+  _yaw_error_integrator_gain = 0.0;
   // Define Publishers
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
@@ -107,6 +107,9 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Requ
   else {
     ROS_INFO("UAV VisualServo - disabling visual servo.");
     _visualServoEnabled = false;
+    _yaw_PID.resetIntegrator();
+    _x_axis_PID.resetIntegrator();
+    _y_axis_PID.resetIntegrator();
   }
 
   return true;
@@ -142,12 +145,42 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   _coordinate_frame_yaw_difference = configMsg.groups.general_parameters.yaw_difference;
   _visual_servo_shutdown_height = configMsg.groups.general_parameters.shutdown_height;
   _brick_laying_scenario = configMsg.groups.general_parameters.is_bricklaying;
+  _pickup_allowed = configMsg.groups.general_parameters.is_bricklaying;
   _landing_speed = configMsg.groups.general_parameters.landing_speed;
+
+  _x_axis_PID.set_kp(_gain_dx);
+  _x_axis_PID.set_ki(configMsg.groups.x_axis.k_i_x);
+  _x_axis_PID.set_kd(configMsg.groups.x_axis.k_d_x);
+  _x_axis_PID.set_lim_high(_move_saturation);
+  _x_axis_PID.set_lim_low(-_move_saturation);
+
+  _y_axis_PID.set_kp(_gain_dy);
+  _y_axis_PID.set_ki(configMsg.groups.y_axis.k_i_y);
+  _y_axis_PID.set_kd(configMsg.groups.y_axis.k_d_y);
+  _y_axis_PID.set_lim_high(_move_saturation);
+  _y_axis_PID.set_lim_low(-_move_saturation);
+
+  _z_axis_PID.set_kp(_gain_dz);
+  _z_axis_PID.set_ki(configMsg.groups.z_axis.k_i_z);
+  _z_axis_PID.set_kd(configMsg.groups.z_axis.k_d_z);
+  _z_axis_PID.set_lim_high(_move_saturation);
+  _z_axis_PID.set_lim_low(-_move_saturation);
+
+  _yaw_PID.set_kp(_gain_dYaw);
+  _yaw_PID.set_ki(configMsg.groups.yaw_control.k_i_yaw);
+  _yaw_PID.set_kd(configMsg.groups.yaw_control.k_d_yaw);
+  _yaw_PID.set_lim_high(configMsg.groups.yaw_control.clamp_yaw);
+  _yaw_PID.set_lim_low(-configMsg.groups.yaw_control.clamp_yaw);
+
+  // ugly hack
+  // if (isnan(configMsg.groups.yaw_control.k_i_yaw)) _yaw_PID.set_ki(0.0);
+  // else _yaw_PID.set_ki(configMsg.groups.yaw_control.k_i_yaw);
+
 }
 
 void VisualServo::setVisualServoReconfigureParams(uav_ros_control::VisualServoParametersConfig &config) {
 
-  ROS_WARN("VisualServo::setVisualServoReconfigureParams");
+  ROS_WARN("VisualServo::setVisualServoReconfigureParams %f", _yaw_error_integrator_gain);
 
   config.groups.x_axis.k_p_x = _gain_dx;
   config.groups.x_axis.offset_x_1 = _offset_x_1;
@@ -169,13 +202,14 @@ void VisualServo::setVisualServoReconfigureParams(uav_ros_control::VisualServoPa
   config.groups.general_parameters.yaw_difference = _coordinate_frame_yaw_difference;
   config.groups.general_parameters.shutdown_height = _visual_servo_shutdown_height;
   config.groups.general_parameters.is_bricklaying = _brick_laying_scenario;
+  config.groups.general_parameters.pickup_allowed = _pickup_allowed;
   config.groups.general_parameters.landing_speed = _landing_speed;
 }
 
 void VisualServo::initializeParameters(ros::NodeHandle &nh) {
   ROS_WARN("VisualServo::initializeParameters");
   ROS_INFO("To be implemented after the PIDs");
-  getParameters();
+  // getParameters();
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
@@ -207,10 +241,8 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
   _offset_x = (_offset_x_2 - _offset_x_1) * _uavPos[2] + _offset_x_0;
   _offset_x = std::max(_offset_x, 0.0); // avoid negative offsets.
 
-  if (data.data) _dx = data.data - _offset_x;
+  if (data.data) _dx = data.data;
   else _dx = 0.0;
-
-  if (abs(_dx) < _deadzone_x) _dx = 0;
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
@@ -221,8 +253,6 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
 
   if(data.data) _dy = data.data - _offset_y;
   else _dy = 0.0;
-
-  if (abs(_dy) < _deadzone_y) _dy = 0;
 }
 
 void VisualServo::zErrorCb(const std_msgs::Float32 &data) {
@@ -235,20 +265,16 @@ void VisualServo::pitchErrorCb(const std_msgs::Float32 &data) {
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
   _dYaw = data.data;
-  if (abs(_dYaw) > _yaw_error_integrator_deadzone) {
-    _yaw_error_integrator += _dYaw * _yaw_error_integrator_gain;
-  }
-  _yaw_error_integrator = std::min(_yaw_error_integrator, _yaw_error_integrator_clamp);
-  _yaw_error_integrator = std::max(_yaw_error_integrator, -_yaw_error_integrator_clamp);
 }
 
 void VisualServo::updateSetpoint() {
 
-  double move_forward = -_dy * _gain_dy + _dDistance * _gain_dDistance;
-  double move_left = -_dx * _gain_dx;
-  double move_up = _dz * _gain_dz;
 
-  if (_brick_laying_scenario) {
+  double move_forward = _y_axis_PID.compute(_offset_y, _dy, 1 / _rate) + _dDistance * _gain_dDistance;
+  double move_left = _x_axis_PID.compute(_offset_x, _dx, 1 / _rate);
+  double move_up = _z_axis_PID.compute(0, _dz, 1/_rate);
+
+  if (_brick_laying_scenario && _pickup_allowed) {
     if ( abs(_dx) < _landing_range_x && abs(_dy) < _landing_range_y && abs(_dYaw)< _landing_range_yaw) {
       move_up -= _landing_speed;
       if (_uavPos[2] <= _visual_servo_shutdown_height) {
@@ -259,12 +285,12 @@ void VisualServo::updateSetpoint() {
     }
   }
 
-  if (move_forward > _move_saturation) move_forward = _move_saturation;
-  if (move_forward < -_move_saturation) move_forward = -_move_saturation;
-  if (move_left > _move_saturation) move_left = _move_saturation;
-  if (move_left < -_move_saturation) move_left = -_move_saturation;
-  if (move_up > _move_saturation) move_up = _move_saturation;
-  if (move_up < -_move_saturation) move_up = -_move_saturation;
+  // if (move_forward > _move_saturation) move_forward = _move_saturation;
+  // if (move_forward < -_move_saturation) move_forward = -_move_saturation;
+  // if (move_left > _move_saturation) move_left = _move_saturation;
+  // if (move_left < -_move_saturation) move_left = -_move_saturation;
+  // if (move_up > _move_saturation) move_up = _move_saturation;
+  // if (move_up < -_move_saturation) move_up = -_move_saturation;
 
   _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _coordinate_frame_yaw_difference);
   _setpointPosition[0] -= move_left * sin(_uavYaw + _coordinate_frame_yaw_difference);
@@ -276,15 +302,22 @@ void VisualServo::updateSetpoint() {
     _setpointPosition[2] = _visual_servo_shutdown_height;
   }
 
-  _setpointYaw = _uavYaw + _dYaw * _gain_dYaw + _yaw_error_integrator;
+  _setpointYaw = _uavYaw + _yaw_PID.compute(0, _dYaw, 1/_rate);
 
 
-  //ROS_WARN("\n _dx: %f, gain_x: %f", _dx, _gain_dx);
-  // ROS_WARN("\n _dy: %f, gain_y: %f", _dy, _gain_dy);
-  //ROS_WARN("\n _dz: %f, gain_z: %f", _dz, _gain_dz);
-  // ROS_WARN("\n _dD: %f, gain_D: %f", _dDistance, _gain_dDistance);
-  //ROS_WARN("\n _dyaw: %f, gain_yaw: %f", _dYaw, _gain_dYaw);
-  // ROS_WARN("\n_uavYaw: %f\nforward: %f\nleft:  %f\n", _uavYaw, move_forward, move_left);
+  ROS_WARN("\n _dx: %f, gain_x: %f", _dx, _gain_dx);
+  ROS_WARN("\n _dy: %f, gain_y: %f", _dy, _gain_dy);
+  ROS_WARN("\n _dz: %f, gain_z: %f", _dz, _gain_dz);
+  ROS_WARN("\n _dD: %f, gain_D: %f", _dDistance, _gain_dDistance);
+  ROS_WARN("\n _dyaw: %f, gain_yaw: %f", _dYaw, _gain_dYaw);
+  ROS_WARN("\n_uavYaw: %f\nforward: %f\nleft:  %f\n", _uavYaw, move_forward, move_left);
+
+  float debug, debug_p, debug_i, debug_d;
+  _x_axis_PID.get_pid_values(&debug_p, &debug_i, &debug_d, &debug);
+  /* ROS_WARN("X AXIS PID PARAMS:\n \
+               P: %f \n \
+               I: %f \n \
+            values: %f %f %f %f\n", _x_axis_PID.get_kp(), _x_axis_PID.get_ki(), debug_p, debug_i, debug_d, debug); */
 }
 
 void VisualServo::publishNewSetpoint() {
@@ -302,9 +335,9 @@ void VisualServo::publishNewSetpoint() {
 
   _pubNewSetpoint.publish(_new_point);
 
-   ROS_WARN("New setpoint published\n\tx: %.2f -> %.2f \n\ty: %.2f -> %.2f\n\tz: %.2f -> %.2f \n\tYaw: %f -> %f\n\tintegrator: %f\n\tdYaw: %f",
+   /*ROS_WARN("New setpoint published\n\tx: %.2f -> %.2f \n\ty: %.2f -> %.2f\n\tz: %.2f -> %.2f \n\tYaw: %f -> %f\n\tintegrator: %f\n\tdYaw: %f",
       _uavPos[0], _setpointPosition[0], _uavPos[1], _setpointPosition[1], _uavPos[2], _setpointPosition[2],
-     _uavYaw, _setpointYaw, _yaw_error_integrator, _dYaw);
+     _uavYaw, _setpointYaw, _yaw_error_integrator, _dYaw);*/
 }
 
 bool VisualServo::isVisualServoEnabled() {
@@ -313,6 +346,7 @@ bool VisualServo::isVisualServoEnabled() {
 
 void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
   double rate = 50;
+  visualServoRefObj.setRate(rate);
   ros::Rate loopRate(rate);
 
   while (ros::ok()) {
