@@ -80,9 +80,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
 
   // Setup dynamic reconfigure server
 
-  uav_ros_control::VisualServoParametersConfig VSConfig;
-  setVisualServoReconfigureParams(VSConfig);
-  _VSConfigServer.updateConfig(VSConfig);
   _VSParamCallback = boost::bind(&VisualServo::visualServoParamsCb, this, _1, _2);
   _VSConfigServer.setCallback(_VSParamCallback);
 
