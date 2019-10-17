@@ -19,9 +19,7 @@
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="imu" to="/mavros/imu/data"/>
             <remap from="yaw_error" to="/red/red_color_filter/orientation_err"/>
-
-            <rosparam command = "load" file = "$(find uav_ros_control)/config/reference/visual_servo_brick.yaml"/>
-
+            <remap from="n_contours" to="/red/red_color_filter/nContours"/>
             
         </node>
     </group>

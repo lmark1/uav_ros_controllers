@@ -75,6 +75,8 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
   _subPitchError =
       nh.subscribe("pitch_error", 1, &uav_reference::VisualServo::pitchErrorCb, this);
+  _subNContours =
+      nh.subscribe("n_contours", 1, &uav_reference::VisualServo::nContoursCb, this);
 
   // Setup dynamic reconfigure
 
@@ -131,7 +133,7 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   _coordinate_frame_yaw_difference = configMsg.groups.general_parameters.yaw_difference;
   _visual_servo_shutdown_height = configMsg.groups.general_parameters.shutdown_height;
   _brick_laying_scenario = configMsg.groups.general_parameters.is_bricklaying;
-  _pickup_allowed = configMsg.groups.general_parameters.is_bricklaying;
+  _pickup_allowed = configMsg.groups.general_parameters.pickup_allowed;
   _landing_speed = configMsg.groups.general_parameters.landing_speed;
 
   _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
@@ -214,6 +216,10 @@ void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
   _error_yaw = -nonlinear_filters::deadzone(data.data, -_deadzone_yaw, _deadzone_yaw);
 }
 
+void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
+  _n_contours = data.data;
+}
+
 void VisualServo::updateSetpoint() {
 
   double move_forward = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate) +
@@ -221,7 +227,7 @@ void VisualServo::updateSetpoint() {
   double move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
   double move_up = 0;  // Todo
 
-  if (_brick_laying_scenario && _pickup_allowed) {
+  if (_brick_laying_scenario && _pickup_allowed && _n_contours > 0) {
     if (abs(_error_x) < _landing_range_x && abs(_error_y) < _landing_range_y && abs(_error_yaw) < _landing_range_yaw) {
       move_up -= _landing_speed;
       if (_uavPos[2] <= _visual_servo_shutdown_height) {

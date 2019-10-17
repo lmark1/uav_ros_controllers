@@ -7,6 +7,7 @@
 
 #include <geometry_msgs/Vector3.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Int32.h>
 #include <std_srvs/Empty.h>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <nav_msgs/Odometry.h>
@@ -81,6 +82,7 @@ namespace uav_reference {
       void zErrorCb(const std_msgs::Float32&);
       void yawErrorCb(const std_msgs::Float32&);
       void pitchErrorCb(const std_msgs::Float32&);
+      void nContoursCb(const std_msgs::Int32&);
 
       // X and Y axes of the image coordinate frame.
       PID _x_axis_PID, _y_axis_PID;
@@ -90,6 +92,7 @@ namespace uav_reference {
       // TODO: To be used for the UAV pursuit scenario
       PID _distance_PID, _z_axis_PID;
 
+      int _n_contours;
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
       double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
@@ -117,7 +120,7 @@ namespace uav_reference {
 
       /** Subscribers */
       ros::Subscriber _subOdom, _subImu;
-      ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError;
+      ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError, _subNContours;
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
