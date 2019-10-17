@@ -22,6 +22,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <uav_ros_control/VisualServoParametersConfig.h>
 #include <uav_ros_control/control/PID.h>
+#include <uav_ros_control/filters/NonlinearFilters.h>
 
 namespace uav_reference {
 /**
@@ -81,18 +82,21 @@ namespace uav_reference {
       void yawErrorCb(const std_msgs::Float32&);
       void pitchErrorCb(const std_msgs::Float32&);
 
-      PID _x_axis_PID, _y_axis_PID, _z_axis_PID, _yaw_PID;
+      // X and Y axes of the image coordinate frame.
+      PID _x_axis_PID, _y_axis_PID;
+
+      PID _yaw_PID;
+
+      // TODO: To be used for the UAV pursuit scenario
+      PID _distance_PID, _z_axis_PID;
 
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
-      double _dx, _dy, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
-      double _dz, _dYaw, _dDistance; // drone pursuit scenario
+      double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
+      double _error_z, _error_yaw, _error_distance, _offset_distance; // drone pursuit scenario
       double _uavYaw, _setpointYaw;
-      double _gain_dx, _gain_dy, _gain_dz, _gain_dYaw, _gain_dDistance;
-      double _move_saturation;
       double _coordinate_frame_yaw_difference;
-      double _yaw_error_integrator, _yaw_error_integrator_gain;
-      double _yaw_error_integrator_clamp, _yaw_error_integrator_deadzone;
+      double _deadzone_yaw;
       double _rate;
 
       // The x and y offset needed to align the magnetic gripper with the magnetic patch at z = 1m and z = 2m.
@@ -118,13 +122,8 @@ namespace uav_reference {
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
 
-      void initializeParameters(ros::NodeHandle& nh);
-
       void visualServoParamsCb(
           uav_ros_control::VisualServoParametersConfig& configMsg, uint32_t level);
-
-      void setVisualServoReconfigureParams(
-          uav_ros_control::VisualServoParametersConfig& config);
 
       /** Define Dynamic Reconfigure parameters **/
       boost::recursive_mutex _VSConfigMutex;
@@ -134,8 +133,6 @@ namespace uav_reference {
       dynamic_reconfigure::
       Server<uav_ros_control::VisualServoParametersConfig>::CallbackType
           _VSParamCallback;
-
-      void getParameters();
   };
 
   void runDefault(VisualServo& cc, ros::NodeHandle& nh);

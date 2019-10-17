@@ -1,27 +1,172 @@
-offset_x_1: 0.0
-offset_x_2: 0.0
-deadzone_x: 0.005 
-offset_y_1: 0.28
-offset_y_2: 0.1
-deadzone_y: 0.005
-gain_dx: 0.5
-gain_dy: 0.5
-gain_dz: 0.0
-gain_dYaw: 0.0
-gain_dDistance: 0.0
-move_saturation: 0.2
-coordinate_frame_yaw_difference: 0
-yaw_error_integrator_gain: 0.04
-yaw_error_integrator_clamp: 1
-yaw_error_integrator_deadzone: 0.05
-use_imu_instead_of_odom: false
-brick_laying_scenario: true
-
-visual_servo_shutdown_height: 0.6  # Depending on the brick's size.
-                                   # When the UAV's altitude is lower
-                                   # than this, the camera is too close
-                                   # to the brick for successful visual servoing.
-landing_speed: 0.2
-landing_range_x: 0.01
-landing_range_y: 0.01
-landing_range_yaw: 0.1
+!!python/object/new:dynamic_reconfigure.encoding.Config
+dictitems:
+  clamp_dist: 0.2
+  clamp_x: 0.2
+  clamp_y: 0.2
+  clamp_z: 0.2
+  deadzone_dist: 0.02
+  deadzone_x: 0.01
+  deadzone_y: 0.01
+  deadzone_yaw: 0.02
+  deadzone_z: 0.5
+  groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+    dictitems:
+      groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+        dictitems:
+          Distance_control: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              clamp_dist: 0.2
+              deadzone_dist: 0.02
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 5
+              k_d_dist: 0.0
+              k_i_dist: 0.0
+              k_p_dist: 0.0
+              name: Distance_control
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              saturation_dist: 0.0
+              state: true
+              type: ''
+            state: []
+          General_parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 6
+              is_bricklaying: false
+              landing_speed: 0.2
+              name: General_parameters
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              pickup_allowed: false
+              shutdown_height: 0.7
+              state: true
+              type: ''
+              yaw_difference: 0.0
+            state: []
+          X_axis: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              clamp_x: 0.2
+              deadzone_x: 0.01
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 1
+              k_d_x: 0.0
+              k_i_x: 0.0
+              k_p_x: 0.5
+              landing_range_x: 0.05
+              name: X_axis
+              offset_x_1: 0.2
+              offset_x_2: 0.2
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              saturation_x: 0.2
+              state: true
+              type: ''
+            state: []
+          Y_axis: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              clamp_y: 0.2
+              deadzone_y: 0.01
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 2
+              k_d_y: 0.0
+              k_i_y: 0.0
+              k_p_y: 0.5
+              landing_range_y: 0.05
+              name: Y_axis
+              offset_y_1: 0.2
+              offset_y_2: 0.2
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              saturation_y: 0.2
+              state: true
+              type: ''
+            state: []
+          Yaw_control: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              deadzone_yaw: 0.02
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 4
+              k_d_yaw: 0.0
+              k_i_yaw: 0.1
+              k_p_yaw: 0.0
+              landing_range_yaw: 0.05
+              name: Yaw_control
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              saturation_yaw: 1.0
+              state: true
+              type: ''
+            state: []
+          Z_axis: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              clamp_z: 0.2
+              deadzone_z: 0.5
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 3
+              k_d_z: 0.0
+              k_i_z: 0.0
+              k_p_z: 0.0
+              landing_range_z: 0.05
+              name: Z_axis
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              saturation_z: 0.0
+              state: true
+              type: ''
+            state: []
+        state: []
+      id: 0
+      name: Default
+      parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      parent: 0
+      state: true
+      type: ''
+    state: []
+  is_bricklaying: false
+  k_d_dist: 0.0
+  k_d_x: 0.0
+  k_d_y: 0.0
+  k_d_yaw: 0.0
+  k_d_z: 0.0
+  k_i_dist: 0.0
+  k_i_x: 0.0
+  k_i_y: 0.0
+  k_i_yaw: 0.1
+  k_i_z: 0.0
+  k_p_dist: 0.0
+  k_p_x: 0.5
+  k_p_y: 0.5
+  k_p_yaw: 0.0
+  k_p_z: 0.0
+  landing_range_x: 0.05
+  landing_range_y: 0.05
+  landing_range_yaw: 0.05
+  landing_range_z: 0.05
+  landing_speed: 0.2
+  offset_x_1: 0.2
+  offset_x_2: 0.2
+  offset_y_1: 0.2
+  offset_y_2: 0.2
+  pickup_allowed: false
+  saturation_dist: 0.0
+  saturation_x: 0.2
+  saturation_y: 0.2
+  saturation_yaw: 1.0
+  saturation_z: 0.0
+  shutdown_height: 0.7
+  yaw_difference: 0.0
+state: []
