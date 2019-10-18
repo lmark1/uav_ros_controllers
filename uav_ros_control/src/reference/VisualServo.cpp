@@ -261,6 +261,10 @@ void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
   _n_contours = data.data;
 }
 
+void VisualServo::clickerCb(const std_msgs::Bool &data) {
+  _clicker_clicked = data.data;
+}
+
 void VisualServo::updateSetpoint() {
 
   double move_forward = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate) +
@@ -272,9 +276,13 @@ void VisualServo::updateSetpoint() {
     if (abs(_error_x) < _landing_range_x && abs(_error_y) < _landing_range_y && abs(_error_yaw) < _landing_range_yaw) {
       move_up -= _landing_speed;
       if (_uavPos[2] <= _visual_servo_shutdown_height) {
-        move_up = 0.1;
-        //_visualServoEnabled = false;
-        // initiate pickup routine.
+        if (!_clicker_clicked) move_up = 0.1;
+        else {
+          _visualServoEnabled = false;
+          // Todo successful pickup.
+
+
+        }
       }
     }
   }

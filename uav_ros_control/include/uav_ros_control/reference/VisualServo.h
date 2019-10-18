@@ -8,6 +8,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int32.h>
+#include <std_msgs/Bool.h>
 #include <std_srvs/Empty.h>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <nav_msgs/Odometry.h>
@@ -83,6 +84,7 @@ namespace uav_reference {
       void yawErrorCb(const std_msgs::Float32&);
       void pitchErrorCb(const std_msgs::Float32&);
       void nContoursCb(const std_msgs::Int32&);
+      void clickerCb(const std_msgs::Bool&);
 
       // X and Y axes of the image coordinate frame.
       PID _x_axis_PID, _y_axis_PID;
@@ -116,6 +118,7 @@ namespace uav_reference {
       bool _use_imu = false;
       bool _use_odometry;
       bool _brick_laying_scenario, _pickup_allowed;
+      bool _clicker_clicked;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
