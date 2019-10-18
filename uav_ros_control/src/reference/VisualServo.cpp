@@ -142,11 +142,25 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   _x_axis_PID.set_lim_high(configMsg.groups.x_axis.saturation_x);
   _x_axis_PID.set_lim_low(-configMsg.groups.x_axis.saturation_x);
 
+  if (!configMsg.groups.x_axis.x_armed) {
+    _x_axis_PID.set_kp(0);
+    _x_axis_PID.set_ki(0);
+    _x_axis_PID.set_kd(0);
+    _x_axis_PID.resetIntegrator();
+  }
+
   _y_axis_PID.set_kp(configMsg.groups.y_axis.k_p_y);
   _y_axis_PID.set_ki(configMsg.groups.y_axis.k_i_y);
   _y_axis_PID.set_kd(configMsg.groups.y_axis.k_d_y);
   _y_axis_PID.set_lim_high(configMsg.groups.y_axis.saturation_y);
   _y_axis_PID.set_lim_low(-configMsg.groups.y_axis.saturation_y);
+
+  if (!configMsg.groups.y_axis.y_armed) {
+    _y_axis_PID.set_kp(0);
+    _y_axis_PID.set_ki(0);
+    _y_axis_PID.set_kd(0);
+    _y_axis_PID.resetIntegrator();
+  }
 
   _z_axis_PID.set_kp(configMsg.groups.z_axis.k_p_z);
   _z_axis_PID.set_ki(configMsg.groups.z_axis.k_i_z);
@@ -154,11 +168,25 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   _z_axis_PID.set_lim_high(configMsg.groups.z_axis.saturation_z);
   _z_axis_PID.set_lim_low(-configMsg.groups.z_axis.saturation_z);
 
+  if (!configMsg.groups.z_axis.z_armed) {
+    _z_axis_PID.set_kp(0);
+    _z_axis_PID.set_ki(0);
+    _z_axis_PID.set_kd(0);
+    _z_axis_PID.resetIntegrator();
+  }
+
   _yaw_PID.set_kp(configMsg.groups.yaw_control.k_p_yaw);
   _yaw_PID.set_ki(configMsg.groups.yaw_control.k_i_yaw);
   _yaw_PID.set_kd(configMsg.groups.yaw_control.k_d_yaw);
   _yaw_PID.set_lim_high(configMsg.groups.yaw_control.saturation_yaw);
   _yaw_PID.set_lim_low(-configMsg.groups.yaw_control.saturation_yaw);
+
+  if (!configMsg.groups.yaw_control.yaw_armed) {
+    _yaw_PID.set_kp(0);
+    _yaw_PID.set_ki(0);
+    _yaw_PID.set_kd(0);
+    _yaw_PID.resetIntegrator();
+  }
 
 }
 
