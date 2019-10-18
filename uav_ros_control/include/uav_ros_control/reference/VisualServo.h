@@ -102,6 +102,8 @@ namespace uav_reference {
       double _deadzone_yaw;
       double _rate;
 
+      nav_msgs::Odometry _current_odom;
+
       // The x and y offset needed to align the magnetic gripper with the magnetic patch at z = 1m and z = 2m.
       double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2; // Determine these experimentally.
       double _visual_servo_shutdown_height;
@@ -112,6 +114,7 @@ namespace uav_reference {
       //bool _positionHold = false;
       bool _visualServoEnabled = false;
       bool _use_imu = false;
+      bool _use_odometry;
       bool _brick_laying_scenario, _pickup_allowed;
 
       /** Publishers */

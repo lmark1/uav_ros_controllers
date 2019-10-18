@@ -101,6 +101,13 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Requ
   if (!_visualServoEnabled) {
     ROS_INFO("UAV VisualServo - enabling visual servo.");
     _visualServoEnabled = true;
+
+    if (!_use_odometry) {
+      ROS_INFO("Saving current position as initial.");
+      _uavPos[0] = _current_odom.pose.pose.position.x;
+      _uavPos[1] = _current_odom.pose.pose.position.y;
+      _uavPos[2] = _current_odom.pose.pose.position.z;
+    }
   }
   else {
     ROS_INFO("UAV VisualServo - disabling visual servo.");
@@ -134,6 +141,7 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   _visual_servo_shutdown_height = configMsg.groups.general_parameters.shutdown_height;
   _brick_laying_scenario = configMsg.groups.general_parameters.is_bricklaying;
   _pickup_allowed = configMsg.groups.general_parameters.pickup_allowed;
+  _use_odometry = configMsg.groups.general_parameters.use_odometry;
   _landing_speed = configMsg.groups.general_parameters.landing_speed;
 
   _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
@@ -191,9 +199,14 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
-  _uavPos[0] = odom->pose.pose.position.x;
-  _uavPos[1] = odom->pose.pose.position.y;
-  _uavPos[2] = odom->pose.pose.position.z;
+
+  _current_odom = *odom;
+
+  if (_use_odometry) {
+    _uavPos[0] = odom->pose.pose.position.x;
+    _uavPos[1] = odom->pose.pose.position.y;
+    _uavPos[2] = odom->pose.pose.position.z;
+  }
 
   if (!_use_imu) {
     _qx = odom->pose.pose.orientation.x;
