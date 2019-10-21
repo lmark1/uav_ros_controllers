@@ -15,6 +15,7 @@ find_package(cmake_modules REQUIRED)
 
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
+	config/reference/VisualServoParameters.cfg
 )
 
 catkin_package(
@@ -41,7 +42,7 @@ target_link_libraries(kalman ${catkin_LIBRARIES})
 # References library
 file(GLOB_RECURSE reference_SRC "src/reference/*.cpp")
 add_library(reference_lib ${reference_SRC})
-target_link_libraries(reference_lib ${catkin_LIBRARIES} nfilt)
+target_link_libraries(reference_lib ${catkin_LIBRARIES} nfilt pid)
 
 # Controller library
 file(GLOB_RECURSE controllers_SRC "src/control/*.cpp")

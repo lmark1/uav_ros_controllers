@@ -15,3 +15,5 @@ bebop_gazebo/launch/task*
 *.DAT
 *.BIN
 *.TXT
+cmake-build*
+.idea

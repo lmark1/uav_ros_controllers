@@ -13,6 +13,13 @@
             output="screen">
 
             <!-- Topic remapping -->
+
+            <remap from="x_error" to="red_color_filter/yaw_err"/>
+            <remap from="y_error" to="red_color_filter/pitch_err"/>
+            <remap from="odometry" to="$(arg odom)"/>
+            <remap from="imu" to="/mavros/imu/data"/>
+            <remap from="yaw_error" to="/red/red_color_filter/orientation_err"/>
+            <remap from="n_contours" to="/red/red_color_filter/nContours"/>
             
         </node>
     </group>

@@ -86,11 +86,18 @@ void uav_reference::CarrotReference::positionRefCb(
 
 void uav_reference::CarrotReference::updateCarrot()
 {
+	bool inputStatus = abs(getXOffsetManual()) > 0 || abs(getYOffsetManual()) > 0 || 
+		abs(getZOffsetManual()) > 0;
 
+	if (!inputStatus && _inputActive)
+	{
+		ROS_INFO("Resetting carrot to current position.");
+		resetCarrot();
+	}
+
+	_inputActive = inputStatus;
 	// Disable Position hold if carrot inputs exist
-	if (_positionHold && (
-		abs(getXOffsetManual()) > 0 || abs(getYOffsetManual()) > 0 || 
-		abs(getZOffsetManual()) > 0))
+	if (_positionHold && _inputActive)
 	{
 		ROS_WARN("Position hold disabled - resetting carrot position");
 		resetCarrot();
@@ -214,9 +221,12 @@ void uav_reference::CarrotReference::initializeParameters()
 	ROS_WARN("CarrotReference::initializeParameters()");
 
 	ros::NodeHandle nhPrivate("~");
-	bool initialized = nhPrivate.getParam("carrot_index", _carrotEnabledIndex);
+	bool initialized = nhPrivate.getParam("carrot_index", _carrotEnabledIndex) &&
+		nhPrivate.getParam("carrot_enable", _carrotEnabledValue);
 	ROS_INFO("CarrotReference::initializeParameters() - carrot button enable index is %d",
 		_carrotEnabledIndex);
+	ROS_INFO("CarrotReference::initializeParameters() - carrot enable value is %d", 
+		_carrotEnabledValue);
 	if (!initialized)
 	{
 		ROS_FATAL("CarrotReference::initializeParameters() -\
@@ -228,7 +238,7 @@ void uav_reference::CarrotReference::initializeParameters()
 void uav_reference::CarrotReference::updateCarrotStatus()
 {
 	// Detect enable button - rising edge
-	if (getJoyButtons()[_carrotEnabledIndex] == 0 && !_carrotEnabled)
+	if (getJoyButtons()[_carrotEnabledIndex] == _carrotEnabledValue && !_carrotEnabled)
 	{
 		_carrotEnabled = true;
 		ROS_INFO("CarrotReference::updateCarrotStatus - carrot enabled.");
@@ -236,8 +246,8 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 		return;
 	}
 
-	// Detect enable button - falling edge 
-	if (getJoyButtons()[_carrotEnabledIndex] == 1 && _carrotEnabled)
+	// Detect enable button - falling edge
+	if (getJoyButtons()[_carrotEnabledIndex] == (1 - _carrotEnabledValue) && _carrotEnabled)
 	{
 		_carrotEnabled = false;
 		_positionHold = false;

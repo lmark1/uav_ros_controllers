@@ -22,10 +22,21 @@
 #include <math.h>
 
 uav_controller::ControlBase::ControlBase(ros::NodeHandle& nh)
-{
+{	
+	ros::NodeHandle nhPrivate("~");
+	bool msf_callback = false;
+	bool initialized = nhPrivate.getParam("msf_callback", msf_callback);
+	if (!initialized)
+	{
+		ROS_FATAL("ControlBase - parameters not loaded.");
+		throw std::runtime_error("Parameters not loaded");
+	}
+	auto odomCallback = &uav_controller::ControlBase::odomCb;
+	if (msf_callback)
+		odomCallback = &uav_controller::ControlBase::msfOdomCb;
+
 	// Initialize all subscribers
-	_subOdom = nh.subscribe("odometry", 1,
-		&uav_controller::ControlBase::odomCb, this);
+	_subOdom = nh.subscribe("odometry", 1, odomCallback, this);
 	_subReference = nh.subscribe("uav/trajectory_point", 1, 
 		&uav_controller::ControlBase::trajPointCb, this);
 
@@ -46,6 +57,23 @@ uav_controller::ControlBase::~ControlBase()
 }
 
 void uav_controller::ControlBase::odomCb(const nav_msgs::OdometryConstPtr& message)
+{
+	_currentPosition[0] = message->pose.pose.position.x;
+	_currentPosition[1] = message->pose.pose.position.y;
+	_currentPosition[2] = message->pose.pose.position.z;
+
+	_currentVelocity[0] = message->twist.twist.linear.x;
+	_currentVelocity[1] = message->twist.twist.linear.y;
+	_currentVelocity[2] = - message->twist.twist.linear.z;
+
+	_currentYaw = util::calculateYaw(
+		message->pose.pose.orientation.x,
+		message->pose.pose.orientation.y,
+		message->pose.pose.orientation.z,
+		message->pose.pose.orientation.w);
+}
+
+void uav_controller::ControlBase::msfOdomCb(const nav_msgs::OdometryConstPtr& message)
 {
 	_currentPosition[0] = message->pose.pose.position.x;
 	_currentPosition[1] = message->pose.pose.position.y;
