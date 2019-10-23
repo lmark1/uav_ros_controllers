@@ -99,16 +99,22 @@ VisualServo::~VisualServo() {}
 bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Request &request,
                                                            std_srvs::Empty::Response &response) {
   if (!_visualServoEnabled) {
-    ROS_INFO("UAV VisualServo - enabling visual servo.");
-    _visualServoEnabled = true;
+    if (_n_contours) {
+      ROS_INFO("UAV VisualServo - enabling visual servo.");
+      _visualServoEnabled = true;
 
-    if (!_use_odometry) {
-      ROS_INFO("Saving current position as initial.");
-      _uavPos[0] = _current_odom.pose.pose.position.x;
-      _uavPos[1] = _current_odom.pose.pose.position.y;
-      _uavPos[2] = _current_odom.pose.pose.position.z;
+      if (!_use_odometry) {
+        ROS_INFO("Saving current position as initial.");
+        _uavPos[0] = _current_odom.pose.pose.position.x;
+        _uavPos[1] = _current_odom.pose.pose.position.y;
+        _uavPos[2] = _current_odom.pose.pose.position.z;
+      }
+    }
+    else {
+      ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.")
     }
   }
+
   else {
     ROS_INFO("UAV VisualServo - disabling visual servo.");
     _visualServoEnabled = false;
