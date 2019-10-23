@@ -57,6 +57,10 @@ namespace uav_reference {
 VisualServo::VisualServo(ros::NodeHandle& nh) {
 
   // Define Publishers
+  _pubMoveUp = nh.advertise<std_msgs::Float32>("move_up", 1);
+  _pubMoveLeft = nh.advertise<std_msgs::Float32>("move_left", 1);
+  _pubChangeYaw = nh.advertise<std_msgs::Float32>("change_yaw", 1);
+  _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
@@ -111,7 +115,7 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Requ
       }
     }
     else {
-      ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.")
+      ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.");
     }
   }
 
@@ -129,6 +133,17 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Requ
 void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConfig &configMsg,
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
+
+  if (configMsg.groups.general_parameters.disable) {
+    std_srvs::Empty::Request req;
+    std_srvs::Empty::Response res;
+    if (isVisualServoEnabled()) startVisualServoServiceCb(req, res);
+  }
+  else {
+    std_srvs::Empty::Request req;
+    std_srvs::Empty::Response res;
+    if (!isVisualServoEnabled()) startVisualServoServiceCb(req, res);
+  }
 
   _offset_x_1 = configMsg.groups.x_axis.offset_x_1;
   _offset_x_2 = configMsg.groups.x_axis.offset_x_2;
@@ -277,6 +292,7 @@ void VisualServo::updateSetpoint() {
       _distance_PID.compute(_offset_distance, _error_distance, 1/_rate);
   double move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
   double move_up = 0;  // Todo
+  double change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
 
   if (_brick_laying_scenario && _pickup_allowed && _n_contours > 0) {
     if (abs(_error_x) < _landing_range_x && abs(_error_y) < _landing_range_y && abs(_error_yaw) < _landing_range_yaw) {
@@ -303,7 +319,18 @@ void VisualServo::updateSetpoint() {
     _setpointPosition[2] = _visual_servo_shutdown_height;
   }
 
-  _setpointYaw = _uavYaw + _yaw_PID.compute(0, _error_yaw, 1 / _rate);
+  _setpointYaw = _uavYaw + change_yaw;
+
+  _moveUpMsg.data = move_up;
+  _moveLeftMsg.data = move_left;
+  _changeYawMsg.data = change_yaw;
+  _moveForwardMsg.data = move_forward;
+
+  _pubMoveUp.publish(_moveUpMsg);
+  _pubMoveLeft.publish(_moveLeftMsg);
+  _pubChangeYaw.publish(_changeYawMsg);
+  _pubMoveForward.publish(_moveForwardMsg);
+
 }
 
 void VisualServo::publishNewSetpoint() {
