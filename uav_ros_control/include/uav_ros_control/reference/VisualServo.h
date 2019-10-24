@@ -128,6 +128,10 @@ namespace uav_reference {
       // Topics for direct rotor control
       ros::Publisher _pubMoveLeft, _pubMoveForward, _pubChangeYaw, _pubMoveUp;
       std_msgs::Float32 _moveLeftMsg, _moveForwardMsg, _changeYawMsg, _moveUpMsg;
+
+      // Topics for debugging
+      ros::Publisher _pubUavYawDebug, _pubChangeYawDebug, _pubYawErrorDebug;
+      std_msgs::Float32 _floatMsg;
       /** Subscribers */
       ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError, _subNContours;
