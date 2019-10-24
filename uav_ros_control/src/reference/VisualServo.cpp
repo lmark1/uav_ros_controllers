@@ -164,6 +164,7 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   _pickup_allowed = configMsg.groups.general_parameters.pickup_allowed;
   _use_odometry = configMsg.groups.general_parameters.use_odometry;
   _landing_speed = configMsg.groups.general_parameters.landing_speed;
+  _pose_snapshot_movement = configMsg.groups.general_parameters.pose_snapshot_movement;
 
   _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
   _x_axis_PID.set_ki(configMsg.groups.x_axis.k_i_x);
@@ -347,6 +348,13 @@ void VisualServo::publishNewSetpoint() {
   _new_point.transforms[0].rotation.w = q.getW();
 
   _pubNewSetpoint.publish(_new_point);
+
+  // Move the pose snapshot a bit:
+  if (!_use_odometry) {
+    _uavPos[0] += nonlinear_filters::saturation(_setpointPosition[0] - _uavPos[0],-_pose_snapshot_movement, _pose_snapshot_movement);
+    _uavPos[1] += nonlinear_filters::saturation(_setpointPosition[1] - _uavPos[1],-_pose_snapshot_movement, _pose_snapshot_movement);
+    _uavPos[2] += nonlinear_filters::saturation(_setpointPosition[2] - _uavPos[2],-_pose_snapshot_movement, _pose_snapshot_movement);
+  }
 }
 
 bool VisualServo::isVisualServoEnabled() {
