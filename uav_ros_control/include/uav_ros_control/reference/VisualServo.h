@@ -110,6 +110,7 @@ namespace uav_reference {
       double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2; // Determine these experimentally.
       double _visual_servo_shutdown_height;
       double _landing_speed, _landing_range_x, _landing_range_y, _landing_range_yaw;
+      double _pose_snapshot_movement;
 
       double _qx, _qy, _qz, _qw;
 
@@ -124,6 +125,9 @@ namespace uav_reference {
       ros::Publisher _pubNewSetpoint;
       trajectory_msgs::MultiDOFJointTrajectoryPoint _new_point;
 
+      // Topics for direct rotor control
+      ros::Publisher _pubMoveLeft, _pubMoveForward, _pubChangeYaw, _pubMoveUp;
+      std_msgs::Float32 _moveLeftMsg, _moveForwardMsg, _changeYawMsg, _moveUpMsg;
       /** Subscribers */
       ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError, _subNContours;
