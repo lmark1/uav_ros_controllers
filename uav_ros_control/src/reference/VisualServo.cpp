@@ -238,7 +238,7 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
     _qz = odom->pose.pose.orientation.z;
     _qw = odom->pose.pose.orientation.w;
 
-    _uavYaw = atan2(2 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qx * _qx + _qy * _qy));
+    _uavYaw = atan2(2 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qy * _qy + _qz * _qz));
     _floatMsg.data = _uavYaw;
     _pubUavYawDebug.publish(_floatMsg);
   }
