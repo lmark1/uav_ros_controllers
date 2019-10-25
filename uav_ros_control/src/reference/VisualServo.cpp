@@ -61,6 +61,9 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubMoveLeft = nh.advertise<std_msgs::Float32>("move_left", 1);
   _pubChangeYaw = nh.advertise<std_msgs::Float32>("change_yaw", 1);
   _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
+  _pubUavYawDebug = nh.advertise<std_msgs::Float32>("debug/Uav_yaw", 1);
+  _pubYawErrorDebug = nh.advertise<std_msgs::Float32>("debug/yaw_error", 1);
+  _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendlyness
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
@@ -221,7 +224,6 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
-
   _current_odom = *odom;
 
   if (_use_odometry) {
@@ -236,7 +238,9 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
     _qz = odom->pose.pose.orientation.z;
     _qw = odom->pose.pose.orientation.w;
 
-    _uavYaw = atan2(2 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qx * _qx + _qy * _qy));
+    _uavYaw = atan2(2 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qy * _qy + _qz * _qz));
+    _floatMsg.data = _uavYaw;
+    _pubUavYawDebug.publish(_floatMsg);
   }
 }
 
@@ -276,7 +280,8 @@ void VisualServo::pitchErrorCb(const std_msgs::Float32 &data) {
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
-  _error_yaw = -nonlinear_filters::deadzone(data.data, -_deadzone_yaw, _deadzone_yaw);
+  _error_yaw = -data.data;
+  _pubYawErrorDebug.publish(data);
 }
 
 void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
@@ -294,6 +299,9 @@ void VisualServo::updateSetpoint() {
   double move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
   double move_up = 0;  // Todo
   double change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
+
+  _floatMsg.data = change_yaw;
+  _pubChangeYawDebug.publish(_floatMsg);
 
   if (_brick_laying_scenario && _pickup_allowed && _n_contours > 0) {
     if (abs(_error_x) < _landing_range_x && abs(_error_y) < _landing_range_y && abs(_error_yaw) < _landing_range_yaw) {
