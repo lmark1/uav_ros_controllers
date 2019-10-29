@@ -16,6 +16,7 @@ find_package(cmake_modules REQUIRED)
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
 	config/reference/VisualServoParameters.cfg
+	config/reference/VisualServoStateMachineParameters.cfg
 )
 
 catkin_package(
@@ -56,6 +57,10 @@ target_link_libraries(carrot_reference_node reference_lib)
 # Visual servo node
 add_executable(visual_servo_node nodes/reference/VisualServoNode.cpp)
 target_link_libraries(visual_servo_node reference_lib)
+
+# visual servo state machine
+add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
+target_link_libraries(visual_servo_sm ${catkin_LIBRARIES})
 
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
