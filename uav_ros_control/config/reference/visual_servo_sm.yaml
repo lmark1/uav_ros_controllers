@@ -1,0 +1,8 @@
+visual_servo:
+  state_machine:
+    
+    rate: 50
+    min_error: 0.1
+    touchdown_height: 0.5
+    touchdown_delta: 0.1
+    touchdown_duration: 2
