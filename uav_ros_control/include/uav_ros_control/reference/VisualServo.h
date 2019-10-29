@@ -127,6 +127,8 @@ namespace uav_reference {
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
+      std_srvs::Empty::Request _empty_req;
+      std_srvs::Empty::Response _empty_res;
 
       void visualServoParamsCb(
           uav_ros_control::VisualServoParametersConfig& configMsg, uint32_t level);

@@ -63,7 +63,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
   _pubUavYawDebug = nh.advertise<std_msgs::Float32>("debug/Uav_yaw", 1);
   _pubYawErrorDebug = nh.advertise<std_msgs::Float32>("debug/yaw_error", 1);
-  _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendlyness
+  _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendliness
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
@@ -123,14 +123,10 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   ROS_WARN("VisualServo::parametersCallback");
 
   if (configMsg.groups.general_parameters.enable) {
-    std_srvs::Empty::Request req;
-    std_srvs::Empty::Response res;
-    if (isVisualServoEnabled()) startVisualServoServiceCb(req, res);
+    if (!isVisualServoEnabled()) startVisualServoServiceCb(_empty_req, _empty_res);
   }
   else {
-    std_srvs::Empty::Request req;
-    std_srvs::Empty::Response res;
-    if (!isVisualServoEnabled()) startVisualServoServiceCb(req, res);
+    if (isVisualServoEnabled()) startVisualServoServiceCb(_empty_req, _empty_res);
   }
 
   _offset_x= configMsg.groups.x_axis.offset_x;
@@ -214,6 +210,12 @@ void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
 
 void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
   _n_contours = data.data;
+  if (!_n_contours){
+      if (isVisualServoEnabled()){
+          ROS_ERROR("Lost sight of object!");
+          startVisualServoServiceCb(_empty_req, _empty_res);
+      }
+  }
 }
 
 void VisualServo::updateSetpoint() {
