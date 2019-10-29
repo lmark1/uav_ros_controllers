@@ -99,24 +99,28 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
 
 VisualServo::~VisualServo() {}
 
-bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Request &request,
-                                                           std_srvs::Empty::Response &response) {
-  if (!_visualServoEnabled) {
+bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Request &request,
+                                                           std_srvs::SetBool::Response &response) {
+  if (request.data) {
     if (_n_contours) {
-      ROS_INFO("UAV VisualServo - enabling visual servo.");
+      if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
       _visualServoEnabled = true;
+      response.message = "Visual servo enabled.";
     }
     else {
       ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.");
+      response.message = "The color filter reports no contours. Cannot enable visual servo.";
     }
   }
   else {
-    ROS_INFO("UAV VisualServo - disabling visual servo.");
+    if(isVisualServoEnabled()) ROS_INFO("UAV VisualServo - disabling visual servo.");
     _visualServoEnabled = false;
     _yaw_PID.resetIntegrator();
     _x_axis_PID.resetIntegrator();
     _y_axis_PID.resetIntegrator();
+    response.message = "Visual servo disabled.";
   }
+  response.success = _visualServoEnabled;
   return true;
 }
 
@@ -125,10 +129,12 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   ROS_WARN("VisualServo::parametersCallback");
 
   if (configMsg.groups.general_parameters.enable) {
-    if (!isVisualServoEnabled()) startVisualServoServiceCb(_empty_req, _empty_res);
+      _setBoolRequest.data = true;
+      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
   }
   else {
-    if (isVisualServoEnabled()) startVisualServoServiceCb(_empty_req, _empty_res);
+      _setBoolRequest.data = false;
+      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
   }
 
   _offset_x= configMsg.groups.x_axis.offset_x;
@@ -219,7 +225,8 @@ void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
   if (!_n_contours){
       if (isVisualServoEnabled()){
           ROS_ERROR("Lost sight of object!");
-          startVisualServoServiceCb(_empty_req, _empty_res);
+          _setBoolRequest.data = false;
+          startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
       }
   }
 }

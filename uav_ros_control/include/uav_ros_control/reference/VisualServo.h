@@ -9,7 +9,7 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int32.h>
 #include <std_msgs/Bool.h>
-#include <std_srvs/Empty.h>
+#include <std_srvs/SetBool.h>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
@@ -65,8 +65,8 @@ namespace uav_reference {
       /**
        * Callback function for StartVisualServo service
        */
-      bool startVisualServoServiceCb(std_srvs::Empty::Request& request,
-          std_srvs::Empty::Response& response);
+      bool startVisualServoServiceCb(std_srvs::SetBool::Request& request,
+          std_srvs::SetBool::Response& response);
 
       /**
         * Odometry callback function for extracting the UAV's pose.
@@ -131,8 +131,8 @@ namespace uav_reference {
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
-      std_srvs::Empty::Request _empty_req;
-      std_srvs::Empty::Response _empty_res;
+      std_srvs::SetBool::Request _setBoolRequest;
+      std_srvs::SetBool::Response _setBoolResponse;
 
       void visualServoParamsCb(
           uav_ros_control::VisualServoParametersConfig& configMsg, uint32_t level);
