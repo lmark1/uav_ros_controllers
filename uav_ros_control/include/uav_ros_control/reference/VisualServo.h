@@ -70,7 +70,6 @@ namespace uav_reference {
         * Odometry callback function for extracting the UAV's pose.
         */
       void odomCb(const nav_msgs::OdometryConstPtr&);
-      void imuCb (const sensor_msgs::ImuConstPtr&);
 
       /**
        * Callback functions for the visual servo process values.
@@ -80,25 +79,19 @@ namespace uav_reference {
        */
       void xErrorCb(const std_msgs::Float32&);
       void yErrorCb(const std_msgs::Float32&);
-      void zErrorCb(const std_msgs::Float32&);
       void yawErrorCb(const std_msgs::Float32&);
-      void pitchErrorCb(const std_msgs::Float32&);
       void nContoursCb(const std_msgs::Int32&);
-      void clickerCb(const std_msgs::Bool&);
 
       // X and Y axes of the image coordinate frame.
       PID _x_axis_PID, _y_axis_PID;
 
       PID _yaw_PID;
 
-      // TODO: To be used for the UAV pursuit scenario
-      PID _distance_PID, _z_axis_PID;
-
       int _n_contours;
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
       double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
-      double _error_z, _error_yaw, _error_distance, _offset_distance; // drone pursuit scenario
+      double _error_yaw;
       double _uavYaw, _setpointYaw;
       double _coordinate_frame_yaw_difference;
       double _deadzone_yaw;
@@ -106,35 +99,24 @@ namespace uav_reference {
 
       nav_msgs::Odometry _current_odom;
 
-      // The x and y offset needed to align the magnetic gripper with the magnetic patch at z = 1m and z = 2m.
-      double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2; // Determine these experimentally.
-      double _visual_servo_shutdown_height;
-      double _landing_speed, _landing_range_x, _landing_range_y, _landing_range_yaw;
-      double _pose_snapshot_movement;
-
       double _qx, _qy, _qz, _qw;
 
-      //bool _positionHold = false;
       bool _visualServoEnabled = false;
-      bool _use_imu = false;
-      bool _use_odometry;
-      bool _brick_laying_scenario, _pickup_allowed;
-      bool _clicker_clicked;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
       trajectory_msgs::MultiDOFJointTrajectoryPoint _new_point;
 
       // Topics for direct rotor control
-      ros::Publisher _pubMoveLeft, _pubMoveForward, _pubChangeYaw, _pubMoveUp;
-      std_msgs::Float32 _moveLeftMsg, _moveForwardMsg, _changeYawMsg, _moveUpMsg;
+      ros::Publisher _pubMoveLeft, _pubMoveForward, _pubChangeYaw;
+      std_msgs::Float32 _moveLeftMsg, _moveForwardMsg, _changeYawMsg;
 
       // Topics for debugging
       ros::Publisher _pubUavYawDebug, _pubChangeYawDebug, _pubYawErrorDebug;
       std_msgs::Float32 _floatMsg;
       /** Subscribers */
       ros::Subscriber _subOdom, _subImu;
-      ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subPitchError, _subNContours;
+      ros::Subscriber _subXError, _subYError, _subYawError, _subNContours;
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;
