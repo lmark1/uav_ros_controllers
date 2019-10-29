@@ -57,6 +57,7 @@ namespace uav_reference {
 VisualServo::VisualServo(ros::NodeHandle& nh) {
 
   // Define Publishers
+  _pubIsEnabledTopic = nh.advertise<std_msgs::Bool>("is_enabled", 1);
   _pubMoveLeft = nh.advertise<std_msgs::Float32>("move_left", 1);
   _pubChangeYaw = nh.advertise<std_msgs::Float32>("change_yaw", 1);
   _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
@@ -87,6 +88,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       "visual_servo",
       &uav_reference::VisualServo::startVisualServoServiceCb,
       this);
+
 
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
@@ -257,6 +259,11 @@ void VisualServo::publishNewSetpoint() {
   _pubNewSetpoint.publish(_new_point);
 }
 
+void VisualServo::publishStatus() {
+    _boolMsg.data = isVisualServoEnabled();
+    _pubIsEnabledTopic.publish(_boolMsg);
+}
+
 bool VisualServo::isVisualServoEnabled() {
   return _visualServoEnabled;
 }
@@ -272,6 +279,7 @@ void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
       visualServoRefObj.updateSetpoint();
       visualServoRefObj.publishNewSetpoint();
     }
+    visualServoRefObj.publishStatus();
     loopRate.sleep();
   }
 }

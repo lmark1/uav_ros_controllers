@@ -56,6 +56,8 @@ namespace uav_reference {
 
      bool isVisualServoEnabled();
 
+     void publishStatus();
+
      void setRate(double new_rate) {_rate =  new_rate;}
 
    private:
@@ -106,6 +108,11 @@ namespace uav_reference {
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
       trajectory_msgs::MultiDOFJointTrajectoryPoint _new_point;
+
+      // Status topic
+
+      ros::Publisher _pubIsEnabledTopic;
+      std_msgs::Bool _boolMsg;
 
       // Topics for direct rotor control
       ros::Publisher _pubMoveLeft, _pubMoveForward, _pubChangeYaw;
