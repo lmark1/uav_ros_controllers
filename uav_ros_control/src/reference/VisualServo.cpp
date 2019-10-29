@@ -57,7 +57,9 @@ namespace uav_reference {
 VisualServo::VisualServo(ros::NodeHandle& nh) {
 
   // Define Publishers
-  _pubIsEnabledTopic = nh.advertise<std_msgs::Bool>("is_enabled", 1);
+  _pubXError = nh.advertise<std_msgs::Float32>("visual_servo/x_error", 1);
+  _pubYError = nh.advertise<std_msgs::Float32>("visual_servo/y_error", 1);
+  _pubIsEnabledTopic = nh.advertise<std_msgs::Bool>("visual_servo/is_enabled", 1);
   _pubMoveLeft = nh.advertise<std_msgs::Float32>("move_left", 1);
   _pubChangeYaw = nh.advertise<std_msgs::Float32>("change_yaw", 1);
   _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
@@ -197,10 +199,14 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
   _error_x = nonlinear_filters::deadzone(data.data, -_deadzone_x, _deadzone_x);
+  _floatMsg.data = data.data;
+  _pubXError.publish(_floatMsg);
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
   _error_y = nonlinear_filters::deadzone(data.data, -_deadzone_y, _deadzone_y);
+  _floatMsg.data = data.data;
+  _pubYError.publish(_floatMsg);
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {

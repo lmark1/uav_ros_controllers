@@ -121,6 +121,10 @@ namespace uav_reference {
       // Topics for debugging
       ros::Publisher _pubUavYawDebug, _pubChangeYawDebug, _pubYawErrorDebug;
       std_msgs::Float32 _floatMsg;
+
+      // Brick errors publisher
+      ros::Publisher _pubXError, _pubYError;
+
       /** Subscribers */
       ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subYawError, _subNContours;
