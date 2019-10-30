@@ -66,6 +66,9 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubUavYawDebug = nh.advertise<std_msgs::Float32>("debug/Uav_yaw", 1);
   _pubYawErrorDebug = nh.advertise<std_msgs::Float32>("debug/yaw_error", 1);
   _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendliness
+  _pubUavRollDebug = nh.advertise<std_msgs::Float32>("debug/uav_roll", 1);
+  _pubUavPitchDebug = nh.advertise<std_msgs::Float32>("debug/uav_pitch", 1);
+
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
@@ -194,6 +197,8 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
     _yaw_PID.resetIntegrator();
   }
 
+  _compensate_roll_and_pitch = configMsg.groups.general_parameters.compensate_roll_and_pitch;
+  _camera_fov = configMsg.groups.general_parameters.camera_fov * M_PI / 180.0;
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
@@ -202,17 +207,35 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
     _qy = odom->pose.pose.orientation.y;
     _qz = odom->pose.pose.orientation.z;
     _qw = odom->pose.pose.orientation.w;
+
+    _uavRoll = atan2( 2*(_qw * _qx + _qy * _qz), 1 - 2 * (_qx*_qx + _qy*_qy) );
+    _uavPitch = asin( 2*(_qw*_qy - _qx*_qz) );
+
+    _floatMsg.data = _uavRoll;
+    _pubUavRollDebug.publish(_floatMsg);
+    _floatMsg.data = _uavPitch;
+    _pubUavPitchDebug.publish(_floatMsg);
 }
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
-  _error_x = nonlinear_filters::deadzone(data.data, -_deadzone_x, _deadzone_x);
-  _floatMsg.data = data.data - _offset_x;
+  _error_x = data.data;
+
+  if (_compensate_roll_and_pitch){
+      _error_x += tan(_uavRoll)/tan(_camera_fov);
+  }
+
+  _floatMsg.data = _error_x - _offset_x;
   _pubXError.publish(_floatMsg);
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
-  _error_y = nonlinear_filters::deadzone(data.data, -_deadzone_y, _deadzone_y);
-  _floatMsg.data = data.data - _offset_y;
+  _error_y = data.data;
+
+  if(_compensate_roll_and_pitch) {
+      _error_y += tan(_uavPitch)/tan(_camera_fov);
+  }
+
+  _floatMsg.data = _error_y - _offset_y;
   _pubYError.publish(_floatMsg);
 }
 

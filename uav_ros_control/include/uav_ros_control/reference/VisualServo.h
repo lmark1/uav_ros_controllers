@@ -99,13 +99,16 @@ namespace uav_reference {
       double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;
       double _error_yaw;
       double _uavYaw, _setpointYaw;
+      double _uavRoll, _uavPitch;
       double _deadzone_yaw;
       double _rate;
+      double _camera_fov;
 
       double _qx, _qy, _qz, _qw;
 
       bool _visualServoEnabled = false;
       bool _x_frozen, _y_frozen, _yaw_frozen;
+      bool _compensate_roll_and_pitch;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
@@ -122,6 +125,7 @@ namespace uav_reference {
 
       // Topics for debugging
       ros::Publisher _pubUavYawDebug, _pubChangeYawDebug, _pubYawErrorDebug;
+      ros::Publisher _pubUavRollDebug, _pubUavPitchDebug;
       std_msgs::Float32 _floatMsg;
 
       // Brick errors publisher
