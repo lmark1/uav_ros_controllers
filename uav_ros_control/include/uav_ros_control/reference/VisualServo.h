@@ -25,6 +25,7 @@
 #include <uav_ros_control/VisualServoParametersConfig.h>
 #include <uav_ros_control/control/PID.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control_msgs/VisualServoProcessValues.h>
 
 namespace uav_reference {
 /**
@@ -83,6 +84,7 @@ namespace uav_reference {
       void yErrorCb(const std_msgs::Float32&);
       void yawErrorCb(const std_msgs::Float32&);
       void nContoursCb(const std_msgs::Int32&);
+      void VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues&);
 
       // X and Y axes of the image coordinate frame.
       PID _x_axis_PID, _y_axis_PID;
@@ -92,18 +94,17 @@ namespace uav_reference {
       int _n_contours;
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
-      double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;  // brick laying scenario
+      double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;
       double _error_yaw;
       double _uavYaw, _setpointYaw;
       double _coordinate_frame_yaw_difference;
       double _deadzone_yaw;
       double _rate;
 
-      nav_msgs::Odometry _current_odom;
-
       double _qx, _qy, _qz, _qw;
 
       bool _visualServoEnabled = false;
+      bool _x_frozen, _y_frozen, _yaw_frozen;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
@@ -128,6 +129,9 @@ namespace uav_reference {
       /** Subscribers */
       ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subYawError, _subNContours;
+      ros::Subscriber _subVisualServoProcessValuesMsg;
+
+      uav_ros_control_msgs::VisualServoProcessValues VisualServoProcessValuesMsg;
 
       /** Services */
       ros::ServiceServer _serviceStartVisualServo;

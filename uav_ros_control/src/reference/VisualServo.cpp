@@ -80,6 +80,8 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
   _subNContours =
       nh.subscribe("n_contours", 1, &uav_reference::VisualServo::nContoursCb, this);
+  _subVisualServoProcessValuesMsg =
+      nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
   // Setup dynamic reconfigure
 
@@ -95,6 +97,10 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
   _new_point.accelerations = std::vector<geometry_msgs::Twist>(1);
+
+  _x_frozen = false;
+  _y_frozen = false;
+  _yaw_frozen = false;
 }
 
 VisualServo::~VisualServo() {}
@@ -187,20 +193,11 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
-  _current_odom = *odom;
-
-    _uavPos[0] = odom->pose.pose.position.x;
-    _uavPos[1] = odom->pose.pose.position.y;
-    _uavPos[2] = odom->pose.pose.position.z;
 
     _qx = odom->pose.pose.orientation.x;
     _qy = odom->pose.pose.orientation.y;
     _qz = odom->pose.pose.orientation.z;
     _qw = odom->pose.pose.orientation.w;
-
-    _uavYaw = atan2(2 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qy * _qy + _qz * _qz));
-    _floatMsg.data = _uavYaw;
-    _pubUavYawDebug.publish(_floatMsg);
 }
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
@@ -231,11 +228,42 @@ void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
   }
 }
 
+void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues &msg) {
+    if (msg.x == 0.0) {
+        _x_frozen = true;
+    }
+    if (!_x_frozen) {
+        _uavPos[0] = msg.x;
+    }
+
+    if (msg.y == 0.0) {
+        _y_frozen = true;
+    }
+    if (!_y_frozen) {
+        _uavPos[1] = msg.y;
+    }
+
+    if (msg.yaw == 0.0) {
+        _yaw_frozen = true;
+    }
+    if (!_yaw_frozen) {
+        _uavYaw = msg.yaw;
+    }
+    _floatMsg.data = _uavYaw;
+    _pubUavYawDebug.publish(_floatMsg);
+
+    _uavPos[2] = msg.z;
+}
+
 void VisualServo::updateSetpoint() {
 
-  double move_forward = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
-  double move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
-  double change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
+  double move_forward = 0.0;
+  double move_left = 0.0;
+  double change_yaw = 0.0;
+
+  if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
+  if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
+  if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
 
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
