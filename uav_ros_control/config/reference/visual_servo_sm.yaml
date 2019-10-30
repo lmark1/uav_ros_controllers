@@ -3,6 +3,8 @@ visual_servo:
     
     rate: 50
     min_error: 0.1
+    min_yaw_error: 0.1
     touchdown_height: 0.5
     touchdown_delta: 0.1
     touchdown_duration: 2
+    descent_speed: 1
