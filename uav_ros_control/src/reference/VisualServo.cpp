@@ -205,13 +205,13 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
   _error_x = nonlinear_filters::deadzone(data.data, -_deadzone_x, _deadzone_x);
-  _floatMsg.data = data.data;
+  _floatMsg.data = data.data - _offset_x;
   _pubXError.publish(_floatMsg);
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
   _error_y = nonlinear_filters::deadzone(data.data, -_deadzone_y, _deadzone_y);
-  _floatMsg.data = data.data;
+  _floatMsg.data = data.data - _offset_y;
   _pubYError.publish(_floatMsg);
 }
 
