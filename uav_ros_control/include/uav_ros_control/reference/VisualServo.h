@@ -97,7 +97,6 @@ namespace uav_reference {
       double _error_x, _error_y, _offset_x, _offset_y, _deadzone_x, _deadzone_y;
       double _error_yaw;
       double _uavYaw, _setpointYaw;
-      double _coordinate_frame_yaw_difference;
       double _deadzone_yaw;
       double _rate;
 

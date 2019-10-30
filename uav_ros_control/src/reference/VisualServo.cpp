@@ -268,10 +268,10 @@ void VisualServo::updateSetpoint() {
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
 
-  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[0] -= move_left * sin(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[1] += move_left * cos(_uavYaw + _coordinate_frame_yaw_difference);
+  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw);
+  _setpointPosition[0] -= move_left * sin(_uavYaw);
+  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw);
+  _setpointPosition[1] += move_left * cos(_uavYaw);
   _setpointPosition[2] = _uavPos[2];
 
   _setpointYaw = _uavYaw + change_yaw;
