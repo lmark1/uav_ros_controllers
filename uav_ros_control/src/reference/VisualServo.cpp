@@ -80,6 +80,10 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
   _subNContours =
       nh.subscribe("n_contours", 1, &uav_reference::VisualServo::nContoursCb, this);
+  _subXOffset =
+      nh.subscribe("x_offset", 1, &uav_reference::VisualServo::xOffsetCb, this);
+  _subYOffset =
+      nh.subscribe("y_offset", 1, &uav_reference::VisualServo::yOffsetCb, this);
   _subVisualServoProcessValuesMsg =
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
@@ -253,6 +257,14 @@ void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualS
     _pubUavYawDebug.publish(_floatMsg);
 
     _uavPos[2] = msg.z;
+}
+
+void VisualServo::xOffsetCb(const std_msgs::Float32 &msg) {
+    _offset_x = msg.data;
+}
+
+void VisualServo::yOffsetCb(const std_msgs::Float32 &msg){
+    _offset_y = msg.data;
 }
 
 void VisualServo::updateSetpoint() {

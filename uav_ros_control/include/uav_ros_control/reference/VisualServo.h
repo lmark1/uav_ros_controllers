@@ -85,6 +85,8 @@ namespace uav_reference {
       void yawErrorCb(const std_msgs::Float32&);
       void nContoursCb(const std_msgs::Int32&);
       void VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues&);
+      void xOffsetCb(const std_msgs::Float32&);
+      void yOffsetCb(const std_msgs::Float32&);
 
       // X and Y axes of the image coordinate frame.
       PID _x_axis_PID, _y_axis_PID;
@@ -129,6 +131,7 @@ namespace uav_reference {
       ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subYawError, _subNContours;
       ros::Subscriber _subVisualServoProcessValuesMsg;
+      ros::Subscriber _subXOffset, _subYOffset;
 
       uav_ros_control_msgs::VisualServoProcessValues VisualServoProcessValuesMsg;
 
