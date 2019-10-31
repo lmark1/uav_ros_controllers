@@ -8,3 +8,9 @@ visual_servo:
     touchdown_delta: 0.1
     touchdown_duration: 2
     descent_speed: 1
+
+    offset_x_1: 1
+    offset_x_2: 2
+
+    offset_y_1: 1
+    offset_y_2: 2

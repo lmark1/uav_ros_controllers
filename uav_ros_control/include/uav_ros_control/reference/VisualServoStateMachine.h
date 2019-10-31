@@ -26,6 +26,11 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_TOUCHDOWN_DURATION    "visual_servo/state_machine/touchdown_duration"
 #define PARAM_RATE                  "visual_servo/state_machine/rate"
 #define PARAM_DESCENT_SPEED         "visual_servo/state_machine/descent_speed"
+#define PARAM_OFF1_X                "visual_servo/state_machine/offset_x_1"
+#define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
+#define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
+#define PARAM_OFF2_Y                "visual_servo/state_machine/offset_y_2"
+
 
 #define VS_ACTIVE   "ON"
 #define VS_INACTIVE "OFF"
@@ -48,6 +53,8 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     // Define Publishers
     _pubVisualServoFeed = 
         nh.advertise<uav_ros_control_msgs::VisualServoProcessValues>("visual_servo/process_value", 1);
+    _pubOffsetX = nh.advertise<std_msgs::Float64>("visual_servo/offset_x", 1);
+    _pubOffsetY = nh.advertise<std_msgs::Float64>("visual_servo/offset_y", 1);
 
     // Define Subscribers
     _subOdom =
@@ -58,6 +65,10 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("visual_servo/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
     _subVSStatus = 
         nh.subscribe("visual_servo/status", 1, &uav_reference::VisualServoStateMachine::statusCb, this);
+    _subOffsetX = 
+        nh.subscribe("visual_servo/x_error", 1, &uav_reference::VisualServoStateMachine::xErrorCb, this);
+    _subOffsetY =
+        nh.subscribe("visual_servo/y_error", 1, &uav_reference::VisualServoStateMachine::yErrorCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -136,12 +147,20 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _touchdownHeight = configMsg.touchdown_height;
     _touchdownDelta = configMsg.touchdown_delta;
     _touchdownDuration = configMsg.touchdown_duration;
+    _offset_x_1 = configMsg.x_offset_1;
+    _offset_x_2 = configMsg.x_offset_2;
+    _offset_y_1 = configMsg.y_offset_1;
+    _offset_y_2 = configMsg.y_offset_2;
 }
 
 void setVSSMParameters(vssm_param_t& config)
 {
     config.min_error = _minTargetError;
     config.min_yaw_error = _minYawError;
+    config.x_offset_1 = _offset_x_1;
+    config.x_offset_2 = _offset_x_2;
+    config.y_offset_1 = _offset_y_1;
+    config.y_offset_2 = _offset_y_2;
     config.touchdown_delta = _touchdownDelta;
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
@@ -156,6 +175,10 @@ void initializeParameters(ros::NodeHandle& nh)
 		&& nh.getParam(PARAM_TOUCHDOWN_DURATION, _touchdownDuration)
         && nh.getParam(PARAM_TOUCHDOWN_DELTA, _touchdownDelta)
         && nh.getParam(PARAM_DESCENT_SPEED, _descentSpeed)
+        && nh.getParam(PARAM_OFF1_X, _offset_x_1)
+        && nh.getParam(PARAM_OFF2_X, _offset_x_2)
+        && nh.getParam(PARAM_OFF1_Y, _offset_y_1)
+        && nh.getParam(PARAM_OFF2_Y, _offset_y_2)
         && nh.getParam(PARAM_RATE, _rate);
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum target error: %.2f", _minTargetError);
@@ -164,6 +187,8 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
     ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
+    ROS_INFO("X offsets: %.2f, %.2f", _offset_x_1, _offset_x_2);
+    ROS_INFO("Y offsets: %.2f, %.2f", _offset_y_1, _offset_y_2);
     if (!initialized)
 	{
 		ROS_FATAL("VisualServoStateMachine::initializeParameters() - failed to initialize parameters");
@@ -295,6 +320,35 @@ void publishVisualServoSetpoint(double dt)
 
     _currVisualServoFeed.header.stamp = ros::Time::now();
     _pubVisualServoFeed.publish(_currVisualServoFeed);
+
+    std_msgs::Float64 xOffset, yOffset;
+
+}
+
+void xErrorCb(const std_msgs::Float64ConstPtr &msg) 
+{
+    double offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
+    double offset_x = (_offset_x_2 - _offset_x_1) * _currOdom.pose.pose.position.z + offset_x_0;
+    
+    // the offset should have the same sign as the offsets at 2 and 1
+    if (offset_x * _offset_x_1 < 0 ) offset_x = 0;
+
+    std_msgs::Float64 newMsg;
+    newMsg.data = offset_x;
+    _pubOffsetX.publish(newMsg);
+}
+
+void yErrorCb(const std_msgs::Float64ConstPtr &msg) 
+{
+    double offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
+    double offset_y = (_offset_y_2 - _offset_y_1) * _currOdom.pose.pose.position.z + offset_y_0;
+
+    // the offset should have the same sign as the offsets at 2 and 1
+    if (offset_y * _offset_y_1 < 0 ) offset_y = 0;
+
+    std_msgs::Float64 newMsg;
+    newMsg.data = offset_y;
+    _pubOffsetY.publish(newMsg);
 }
 
 void statusCb(const std_msgs::StringConstPtr& msg)
@@ -341,7 +395,13 @@ private:
     /* Client for calling visual servo */
     ros::ServiceClient _vsClienCaller;
 
-    // Pose publisher
+    /* Offset subscriber and publisher */
+    ros::Subscriber _subOffsetX;
+    ros::Subscriber _subOffsetY;
+    ros::Publisher _pubOffsetX;
+    ros::Publisher _pubOffsetY;
+
+    /* Pose publisher */
     ros::Publisher _pubVisualServoFeed;
     uav_ros_control_msgs::VisualServoProcessValues _currVisualServoFeed;
 
@@ -365,7 +425,8 @@ private:
     
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
-    double _currHeightReference, _descentSpeed;
+    double _currHeightReference, _descentSpeed; 
+    double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2;
 
     /* Define Dynamic Reconfigure parameters */
     boost::recursive_mutex _vssmConfigMutex;
