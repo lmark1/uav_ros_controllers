@@ -124,23 +124,26 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - calling visual servo failed.");
         response.success = false;
         response.message = "Service caller for visual servo failed.";
+        _currentState = VisualServoState::OFF;
         return true;
     }
 
     if (resp.success)
     {
         // Visual servo successfully activated
-        ROS_INFO("VisualServoStateMachine::brickPickupServiceCb - brick pickup activated.");
+        ROS_INFO("VisualServoStateMachine::brickPickupServiceCb() - brick pickup activated.");
         response.success = true;
         response.message = "Visual servo enabled - brick pickup activated.";
         _brickPickupActivated = true;
+        _vsStatus = true;
         return true;
     }
     
     ROS_WARN("VisualServoStateMachine::brickPickupServiceCb - unable to activate brick pickup.");
     response.success = false;
     response.message = "Visual servo failed to start - brick pickup inactive.";
-    
+    _brickPickupActivated = false;
+
     return true;
 }
 
@@ -242,11 +245,12 @@ void turnOffVisualServo()
 void updateState()
 {
     // If visual servo is inactive, deactivate state machine
-    if (!_vsStatus || !_brickPickupActivated)
+    if (_currentState != VisualServoState::OFF && (!_brickPickupActivated || !_vsStatus))
     {
         ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
         _currentState = VisualServoState::OFF;
         _brickPickupActivated = false;
+        turnOffVisualServo();
         ROS_WARN("VSSM::updateStatus - OFF State activated.");
         return;
     }
@@ -296,16 +300,20 @@ void publishVisualServoSetpoint(double dt)
     switch (_currentState)
     {
         case VisualServoState::OFF :
-            _currVisualServoFeed.x = 0;
-            _currVisualServoFeed.y = 0;
-            _currVisualServoFeed.z = 0;
-            _currVisualServoFeed.yaw = 0;
+            _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
+            _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
+            _currVisualServoFeed.z = _currOdom.pose.pose.position.z;
+            _currVisualServoFeed.yaw = util::calculateYaw(
+                _currOdom.pose.pose.orientation.x,
+                _currOdom.pose.pose.orientation.y,
+                _currOdom.pose.pose.orientation.z,
+                _currOdom.pose.pose.orientation.w);
             break;
         
         case VisualServoState::BRICK_ALIGNMENT : 
             _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
             _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
-            _currVisualServoFeed.x = _currHeightReference;
+            _currVisualServoFeed.z = _currHeightReference;
             _currVisualServoFeed.yaw = util::calculateYaw(
                 _currOdom.pose.pose.orientation.x,
                 _currOdom.pose.pose.orientation.y,
@@ -336,9 +344,6 @@ void publishVisualServoSetpoint(double dt)
 
     _currVisualServoFeed.header.stamp = ros::Time::now();
     _pubVisualServoFeed.publish(_currVisualServoFeed);
-
-    std_msgs::Float32 xOffset, yOffset;
-
 }
 
 void publishOffsets()
