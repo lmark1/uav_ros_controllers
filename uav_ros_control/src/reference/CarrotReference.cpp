@@ -143,6 +143,12 @@ void uav_reference::CarrotReference::odomCb(const nav_msgs::OdometryConstPtr& ms
 	_uavPos[0] = msg->pose.pose.position.x;
 	_uavPos[1] = msg->pose.pose.position.y;
 	_uavPos[2] = msg->pose.pose.position.z;
+
+	if (_firstPass)
+	{
+		_firstPass = false;
+		resetCarrot();
+	}
 }
 
 void uav_reference::CarrotReference::updateCarrotYaw()
