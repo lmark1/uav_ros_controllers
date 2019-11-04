@@ -57,33 +57,38 @@ namespace uav_reference {
 VisualServo::VisualServo(ros::NodeHandle& nh) {
 
   // Define Publishers
-  _pubMoveUp = nh.advertise<std_msgs::Float32>("move_up", 1);
+  _pubXError = nh.advertise<std_msgs::Float32>("visual_servo/x_error", 1);
+  _pubYError = nh.advertise<std_msgs::Float32>("visual_servo/y_error", 1);
+  _pubIsEnabledTopic = nh.advertise<std_msgs::Bool>("visual_servo/is_enabled", 1);
   _pubMoveLeft = nh.advertise<std_msgs::Float32>("move_left", 1);
   _pubChangeYaw = nh.advertise<std_msgs::Float32>("change_yaw", 1);
   _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
   _pubUavYawDebug = nh.advertise<std_msgs::Float32>("debug/Uav_yaw", 1);
   _pubYawErrorDebug = nh.advertise<std_msgs::Float32>("debug/yaw_error", 1);
-  _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendlyness
+  _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendliness
+  _pubUavRollDebug = nh.advertise<std_msgs::Float32>("debug/uav_roll", 1);
+  _pubUavPitchDebug = nh.advertise<std_msgs::Float32>("debug/uav_pitch", 1);
+
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
   // Define Subscribers
   _subOdom =
       nh.subscribe("odometry", 1, &uav_reference::VisualServo::odomCb, this);
-  _subImu =
-      nh.subscribe("imu", 1, &uav_reference::VisualServo::imuCb, this);
   _subXError =
       nh.subscribe("x_error", 1, &uav_reference::VisualServo::xErrorCb, this);
   _subYError =
       nh.subscribe("y_error", 1, &uav_reference::VisualServo::yErrorCb, this);
-  _subZError =
-      nh.subscribe("z_error", 1, &uav_reference::VisualServo::zErrorCb, this);
   _subYawError =
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
-  _subPitchError =
-      nh.subscribe("pitch_error", 1, &uav_reference::VisualServo::pitchErrorCb, this);
   _subNContours =
       nh.subscribe("n_contours", 1, &uav_reference::VisualServo::nContoursCb, this);
+  _subXOffset =
+      nh.subscribe("x_offset", 1, &uav_reference::VisualServo::xOffsetCb, this);
+  _subYOffset =
+      nh.subscribe("y_offset", 1, &uav_reference::VisualServo::yOffsetCb, this);
+  _subVisualServoProcessValuesMsg =
+      nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
   // Setup dynamic reconfigure
 
@@ -95,41 +100,40 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       &uav_reference::VisualServo::startVisualServoServiceCb,
       this);
 
+
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
   _new_point.accelerations = std::vector<geometry_msgs::Twist>(1);
-  _error_distance = 0.0;
+
+  _x_frozen = false;
+  _y_frozen = false;
+  _yaw_frozen = false;
 }
 
 VisualServo::~VisualServo() {}
 
-bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::Empty::Request &request,
-                                                           std_srvs::Empty::Response &response) {
-  if (!_visualServoEnabled) {
+bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Request &request,
+                                                           std_srvs::SetBool::Response &response) {
+  if (request.data) {
     if (_n_contours) {
-      ROS_INFO("UAV VisualServo - enabling visual servo.");
+      if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
       _visualServoEnabled = true;
-
-      if (!_use_odometry) {
-        ROS_INFO("Saving current position as initial.");
-        _uavPos[0] = _current_odom.pose.pose.position.x;
-        _uavPos[1] = _current_odom.pose.pose.position.y;
-        _uavPos[2] = _current_odom.pose.pose.position.z;
-      }
+      response.message = "Visual servo enabled.";
     }
     else {
       ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.");
+      response.message = "The color filter reports no contours. Cannot enable visual servo.";
     }
   }
-
   else {
-    ROS_INFO("UAV VisualServo - disabling visual servo.");
+    if(isVisualServoEnabled()) ROS_INFO("UAV VisualServo - disabling visual servo.");
     _visualServoEnabled = false;
     _yaw_PID.resetIntegrator();
     _x_axis_PID.resetIntegrator();
     _y_axis_PID.resetIntegrator();
+    response.message = "Visual servo disabled.";
   }
-
+  response.success = _visualServoEnabled;
   return true;
 }
 
@@ -137,37 +141,22 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
 
-  if (configMsg.groups.general_parameters.disable) {
-    std_srvs::Empty::Request req;
-    std_srvs::Empty::Response res;
-    if (isVisualServoEnabled()) startVisualServoServiceCb(req, res);
+  if (configMsg.groups.general_parameters.enable) {
+      _setBoolRequest.data = true;
+      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
   }
   else {
-    std_srvs::Empty::Request req;
-    std_srvs::Empty::Response res;
-    if (!isVisualServoEnabled()) startVisualServoServiceCb(req, res);
+      _setBoolRequest.data = false;
+      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
   }
 
-  _offset_x_1 = configMsg.groups.x_axis.offset_x_1;
-  _offset_x_2 = configMsg.groups.x_axis.offset_x_2;
+  _offset_x= configMsg.groups.x_axis.offset_x;
   _deadzone_x = configMsg.groups.x_axis.deadzone_x;
-  _landing_range_x = configMsg.groups.x_axis.landing_range_x;
 
-  _offset_y_1 = configMsg.groups.y_axis.offset_y_1;
-  _offset_y_2 = configMsg.groups.y_axis.offset_y_2;
+  _offset_y= configMsg.groups.y_axis.offset_y;
   _deadzone_y = configMsg.groups.y_axis.deadzone_y;
-  _landing_range_y = configMsg.groups.y_axis.landing_range_y;
 
   _deadzone_yaw  = configMsg.groups.yaw_control.deadzone_yaw;
-  _landing_range_yaw = configMsg.groups.yaw_control.landing_range_yaw;
-
-  _coordinate_frame_yaw_difference = configMsg.groups.general_parameters.yaw_difference;
-  _visual_servo_shutdown_height = configMsg.groups.general_parameters.shutdown_height;
-  _brick_laying_scenario = configMsg.groups.general_parameters.is_bricklaying;
-  _pickup_allowed = configMsg.groups.general_parameters.pickup_allowed;
-  _use_odometry = configMsg.groups.general_parameters.use_odometry;
-  _landing_speed = configMsg.groups.general_parameters.landing_speed;
-  _pose_snapshot_movement = configMsg.groups.general_parameters.pose_snapshot_movement;
 
   _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
   _x_axis_PID.set_ki(configMsg.groups.x_axis.k_i_x);
@@ -195,19 +184,6 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
     _y_axis_PID.resetIntegrator();
   }
 
-  _z_axis_PID.set_kp(configMsg.groups.z_axis.k_p_z);
-  _z_axis_PID.set_ki(configMsg.groups.z_axis.k_i_z);
-  _z_axis_PID.set_kd(configMsg.groups.z_axis.k_d_z);
-  _z_axis_PID.set_lim_high(configMsg.groups.z_axis.saturation_z);
-  _z_axis_PID.set_lim_low(-configMsg.groups.z_axis.saturation_z);
-
-  if (!configMsg.groups.z_axis.z_armed) {
-    _z_axis_PID.set_kp(0);
-    _z_axis_PID.set_ki(0);
-    _z_axis_PID.set_kd(0);
-    _z_axis_PID.resetIntegrator();
-  }
-
   _yaw_PID.set_kp(configMsg.groups.yaw_control.k_p_yaw);
   _yaw_PID.set_ki(configMsg.groups.yaw_control.k_i_yaw);
   _yaw_PID.set_kd(configMsg.groups.yaw_control.k_d_yaw);
@@ -221,62 +197,46 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
     _yaw_PID.resetIntegrator();
   }
 
+  _compensate_roll_and_pitch = configMsg.groups.general_parameters.compensate_roll_and_pitch;
+  _camera_fov = configMsg.groups.general_parameters.camera_fov * M_PI / 180.0;
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
-  _current_odom = *odom;
 
-  if (_use_odometry) {
-    _uavPos[0] = odom->pose.pose.position.x;
-    _uavPos[1] = odom->pose.pose.position.y;
-    _uavPos[2] = odom->pose.pose.position.z;
-  }
-
-  if (!_use_imu) {
     _qx = odom->pose.pose.orientation.x;
     _qy = odom->pose.pose.orientation.y;
     _qz = odom->pose.pose.orientation.z;
     _qw = odom->pose.pose.orientation.w;
 
-    _uavYaw = atan2(2 * (_qw * _qz + _qx * _qy), 1.0 - 2.0 * (_qy * _qy + _qz * _qz));
-    _floatMsg.data = _uavYaw;
-    _pubUavYawDebug.publish(_floatMsg);
-  }
-}
+    _uavRoll = atan2( 2*(_qw * _qx + _qy * _qz), 1 - 2 * (_qx*_qx + _qy*_qy) );
+    _uavPitch = asin( 2*(_qw*_qy - _qx*_qz) );
 
-void VisualServo::imuCb(const sensor_msgs::ImuConstPtr& imu) {
-  if (_use_imu) {
-    _qx = imu->orientation.x;
-    _qy = imu->orientation.y;
-    _qz = imu->orientation.z;
-    _qw = imu->orientation.w;
-  }
+    _floatMsg.data = _uavRoll;
+    _pubUavRollDebug.publish(_floatMsg);
+    _floatMsg.data = _uavPitch;
+    _pubUavPitchDebug.publish(_floatMsg);
 }
 
 void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
-  double _offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
-  _offset_x = (_offset_x_2 - _offset_x_1) * _uavPos[2] + _offset_x_0;
-  _offset_x = std::max(_offset_x, 0.0); // avoid negative offsets.
+  _error_x = data.data;
 
-  _error_x = nonlinear_filters::deadzone(data.data, -_deadzone_x, _deadzone_x);
+  if (_compensate_roll_and_pitch){
+      _error_x += tan(_uavRoll)/tan(_camera_fov);
+  }
+
+  _floatMsg.data = _error_x - _offset_x;
+  _pubXError.publish(_floatMsg);
 }
 
 void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
-  double _offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
-  _offset_y = (_offset_y_2 - _offset_y_1) * _uavPos[2] + _offset_y_0;
+  _error_y = data.data;
 
-  // the offset should have the same sign as the offsets at 2 and 1
-  if (_offset_y * _offset_y_1 < 0 ) _offset_y = 0;
+  if(_compensate_roll_and_pitch) {
+      _error_y += tan(_uavPitch)/tan(_camera_fov);
+  }
 
-  _error_y = nonlinear_filters::deadzone(data.data, -_deadzone_y, _deadzone_y);
-}
-
-void VisualServo::zErrorCb(const std_msgs::Float32 &data) {
-  _error_z = data.data;
-}
-
-void VisualServo::pitchErrorCb(const std_msgs::Float32 &data) {
-  _error_z = data.data;
+  _floatMsg.data = _error_y - _offset_y;
+  _pubYError.publish(_floatMsg);
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
@@ -286,56 +246,75 @@ void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
 
 void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
   _n_contours = data.data;
+  if (!_n_contours){
+      if (isVisualServoEnabled()){
+          ROS_ERROR("Lost sight of object!");
+          _setBoolRequest.data = false;
+          startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
+      }
+  }
 }
 
-void VisualServo::clickerCb(const std_msgs::Bool &data) {
-  _clicker_clicked = data.data;
+void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues &msg) {
+    if (msg.x == 0.0) {
+        _x_frozen = true;
+    }
+    if (!_x_frozen) {
+        _uavPos[0] = msg.x;
+    }
+
+    if (msg.y == 0.0) {
+        _y_frozen = true;
+    }
+    if (!_y_frozen) {
+        _uavPos[1] = msg.y;
+    }
+
+    if (msg.yaw == 0.0) {
+        _yaw_frozen = true;
+    }
+    if (!_yaw_frozen) {
+        _uavYaw = msg.yaw;
+    }
+    _floatMsg.data = _uavYaw;
+    _pubUavYawDebug.publish(_floatMsg);
+
+    _uavPos[2] = msg.z;
+}
+
+void VisualServo::xOffsetCb(const std_msgs::Float32 &msg) {
+    _offset_x = msg.data;
+}
+
+void VisualServo::yOffsetCb(const std_msgs::Float32 &msg){
+    _offset_y = msg.data;
 }
 
 void VisualServo::updateSetpoint() {
 
-  double move_forward = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate) +
-      _distance_PID.compute(_offset_distance, _error_distance, 1/_rate);
-  double move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
-  double move_up = 0;  // Todo
-  double change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
+  double move_forward = 0.0;
+  double move_left = 0.0;
+  double change_yaw = 0.0;
+
+  if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
+  if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
+  if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
 
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
 
-  if (_brick_laying_scenario && _pickup_allowed && _n_contours > 0) {
-    if (abs(_error_x) < _landing_range_x && abs(_error_y) < _landing_range_y && abs(_error_yaw) < _landing_range_yaw) {
-      move_up -= _landing_speed;
-      if (_uavPos[2] <= _visual_servo_shutdown_height) {
-        if (!_clicker_clicked) move_up = 0.1;
-        else {
-          _visualServoEnabled = false;
-          // Todo successful pickup.
-
-
-        }
-      }
-    }
-  }
-
-  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[0] -= move_left * sin(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[1] += move_left * cos(_uavYaw + _coordinate_frame_yaw_difference);
-  _setpointPosition[2] = _uavPos[2] + move_up;
-
-  if (_setpointPosition[2] < _visual_servo_shutdown_height){
-    _setpointPosition[2] = _visual_servo_shutdown_height;
-  }
+  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw);
+  _setpointPosition[0] -= move_left * sin(_uavYaw);
+  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw);
+  _setpointPosition[1] += move_left * cos(_uavYaw);
+  _setpointPosition[2] = _uavPos[2];
 
   _setpointYaw = _uavYaw + change_yaw;
 
-  _moveUpMsg.data = move_up;
   _moveLeftMsg.data = move_left;
   _changeYawMsg.data = change_yaw;
   _moveForwardMsg.data = move_forward;
 
-  _pubMoveUp.publish(_moveUpMsg);
   _pubMoveLeft.publish(_moveLeftMsg);
   _pubChangeYaw.publish(_changeYawMsg);
   _pubMoveForward.publish(_moveForwardMsg);
@@ -356,13 +335,11 @@ void VisualServo::publishNewSetpoint() {
   _new_point.transforms[0].rotation.w = q.getW();
 
   _pubNewSetpoint.publish(_new_point);
+}
 
-  // Move the pose snapshot a bit:
-  if (!_use_odometry) {
-    _uavPos[0] += nonlinear_filters::saturation(_setpointPosition[0] - _uavPos[0],-_pose_snapshot_movement, _pose_snapshot_movement);
-    _uavPos[1] += nonlinear_filters::saturation(_setpointPosition[1] - _uavPos[1],-_pose_snapshot_movement, _pose_snapshot_movement);
-    _uavPos[2] += nonlinear_filters::saturation(_setpointPosition[2] - _uavPos[2],-_pose_snapshot_movement, _pose_snapshot_movement);
-  }
+void VisualServo::publishStatus() {
+    _boolMsg.data = isVisualServoEnabled();
+    _pubIsEnabledTopic.publish(_boolMsg);
 }
 
 bool VisualServo::isVisualServoEnabled() {
@@ -380,6 +357,7 @@ void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
       visualServoRefObj.updateSetpoint();
       visualServoRefObj.publishNewSetpoint();
     }
+    visualServoRefObj.publishStatus();
     loopRate.sleep();
   }
 }

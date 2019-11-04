@@ -129,13 +129,16 @@ namespace uav_reference
 		bool _carrotEnabled = false;
 
 		/** True if position hold mode is enabled, otherwise false */
-		bool _positionHold = false;
+		bool _positionHold = true;
 
 		/** Index used for enabling carrot mode */
 		int _carrotEnabledIndex = -1;
 
 		/** Carrot enable button value, 0 or 1 **/
 		int _carrotEnabledValue = 1;
+
+		/* First pass flag - set carrot to odometry */
+		bool _firstPass = true;	
 
 		/** Define all Publishers */
 		ros::Publisher _pubCarrotTrajectorySp;

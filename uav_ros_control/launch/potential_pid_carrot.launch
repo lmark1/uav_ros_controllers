@@ -9,13 +9,14 @@
     <!-- Velodyne to MPC state -->
     <node name="state_to_leddar" pkg="tf" type="static_transform_publisher" 
         args="0.08 0 -0.1578 0. 0.1323284641020683 3.141592653589793 state velodyne 100" />
-        
-    <!-- MPC + MSF stack -->
+            
+    <!-- PID Carrot stack -->
     <include file="$(find uav_ros_control)/launch/pid_carrot.launch">
         <arg name="namespace" value="$(arg namespace)"/>
         <arg name="carrot_out" value="$(arg carrot_out)"/>
         <arg name="pid_in" value="$(arg pid_in)"/>
         <arg name="odometry" value="$(arg odometry)"/>
+        <arg name="msf_callback_enable" value="true"/>
     </include>
 
     <!-- Potential fields -->
