@@ -159,6 +159,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _offset_x_2 = configMsg.x_offset_2;
     _offset_y_1 = configMsg.y_offset_1;
     _offset_y_2 = configMsg.y_offset_2;
+    _descentSpeed = configMsg.descent_speed;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -172,6 +173,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.touchdown_delta = _touchdownDelta;
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
+    config.descent_speed = _descentSpeed;
 }
 
 void initializeParameters(ros::NodeHandle& nh)

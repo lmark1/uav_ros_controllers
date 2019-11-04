@@ -4,13 +4,13 @@ visual_servo:
     rate: 50
     min_error: 0.1
     min_yaw_error: 0.1
-    touchdown_height: 0.5
-    touchdown_delta: 0.1
-    touchdown_duration: 2
-    descent_speed: 1
+    touchdown_height: 1
+    touchdown_delta: 0.5
+    touchdown_duration: 2.5
+    descent_speed: 0.5
 
-    offset_x_1: 1
-    offset_x_2: 2
+    offset_x_1: 0
+    offset_x_2: 0
 
-    offset_y_1: 1
-    offset_y_2: 2
+    offset_y_1: 0
+    offset_y_2: 0
