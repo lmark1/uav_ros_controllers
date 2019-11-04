@@ -221,7 +221,7 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
   _error_x = data.data;
 
   if (_compensate_roll_and_pitch){
-      _error_x += tan(_uavRoll)/tan(_camera_fov);
+      _error_x -= tan(_uavRoll)/tan(_camera_fov);
   }
 
   _floatMsg.data = _error_x - _offset_x;
