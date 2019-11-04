@@ -3,9 +3,10 @@
 
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
-#include <std_msgs/Float64.h>
+#include <std_msgs/Float32.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
+#include <std_msgs/Bool.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <dynamic_reconfigure/server.h>
 #include <std_srvs/Empty.h>
@@ -31,10 +32,6 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
 #define PARAM_OFF2_Y                "visual_servo/state_machine/offset_y_2"
 
-
-#define VS_ACTIVE   "ON"
-#define VS_INACTIVE "OFF"
-
 enum VisualServoState {
     OFF,
     BRICK_ALIGNMENT,
@@ -53,22 +50,20 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     // Define Publishers
     _pubVisualServoFeed = 
         nh.advertise<uav_ros_control_msgs::VisualServoProcessValues>("visual_servo/process_value", 1);
-    _pubOffsetX = nh.advertise<std_msgs::Float64>("visual_servo/offset_x", 1);
-    _pubOffsetY = nh.advertise<std_msgs::Float64>("visual_servo/offset_y", 1);
+    _pubOffsetX = nh.advertise<std_msgs::Float32>("visual_servo/offset_x", 1);
+    _pubOffsetY = nh.advertise<std_msgs::Float32>("visual_servo/offset_y", 1);
 
     // Define Subscribers
     _subOdom =
         nh.subscribe("odometry", 1, &uav_reference::VisualServoStateMachine::odomCb, this);
-    _subTargetError =  
-        nh.subscribe("visual_servo/target_error", 1, &uav_reference::VisualServoStateMachine::targetErrorCb, this);
+    _subTargetErrorX =  
+        nh.subscribe("visual_servo/target_error_x", 1, &uav_reference::VisualServoStateMachine::targetErrorXCb, this);
+    _subTargetErrorY =  
+        nh.subscribe("visual_servo/target_error_y", 1, &uav_reference::VisualServoStateMachine::targetErrorYCb, this);
     _subYawError = 
         nh.subscribe("visual_servo/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
     _subVSStatus = 
         nh.subscribe("visual_servo/status", 1, &uav_reference::VisualServoStateMachine::statusCb, this);
-    _subOffsetX = 
-        nh.subscribe("visual_servo/x_error", 1, &uav_reference::VisualServoStateMachine::xErrorCb, this);
-    _subOffsetY =
-        nh.subscribe("visual_servo/y_error", 1, &uav_reference::VisualServoStateMachine::yErrorCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -85,14 +80,23 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 			this);
 
     // Initialize visual servo client caller
-    _vsClienCaller = nh.serviceClient<std_srvs::Empty::Request, std_srvs::SetBool::Response>("visual_servo");
+    _vsClienCaller = nh.serviceClient<std_srvs::SetBool::Request, std_srvs::SetBool::Response>("visual_servo");
 }
 
 ~VisualServoStateMachine()
 {}
 
-bool brickPickupServiceCb(std_srvs::Empty::Request& request, std_srvs::SetBool::Response& response)
+bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
+    if (!request.data)
+    {
+        turnOffVisualServo();
+        _brickPickupActivated = false;
+        response.success = false;
+        response.message = "Visual servo and brick pickup deactivated";
+        return true;
+    }
+
     if (_brickPickupActivated)
     {
         ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - brick pickup is already active.");
@@ -102,23 +106,24 @@ bool brickPickupServiceCb(std_srvs::Empty::Request& request, std_srvs::SetBool::
     }
 
     // If VS is already active for some reason ...
-    if (_vsStatus == VS_ACTIVE)
+    if (_vsStatus)
     {
         ROS_INFO("Visual servo is already active.");
         _brickPickupActivated = true;
         response.message = true;
-        response.message = "Brick pickup activated";
+        response.message = "Visual servo was already active - brick pickup activated";
         return true;
     }
 
     // Try calling visual servo
-    std_srvs::Empty::Request req;
+    std_srvs::SetBool::Request req;
     std_srvs::SetBool::Response resp;
+    req.data = true;
     if (!_vsClienCaller.call(req, resp))
     {
         ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - calling visual servo failed.");
         response.success = false;
-        response.message = "Calling visual servo failed.";
+        response.message = "Service caller for visual servo failed.";
         return true;
     }
 
@@ -127,14 +132,14 @@ bool brickPickupServiceCb(std_srvs::Empty::Request& request, std_srvs::SetBool::
         // Visual servo successfully activated
         ROS_INFO("VisualServoStateMachine::brickPickupServiceCb - brick pickup activated.");
         response.success = true;
-        response.message = "Brick pickup activated.";
+        response.message = "Visual servo enabled - brick pickup activated.";
         _brickPickupActivated = true;
         return true;
     }
     
-    ROS_INFO("VisualServoStateMachine::brickPickupServiceCb - unable to activate brick pickup.");
+    ROS_WARN("VisualServoStateMachine::brickPickupServiceCb - unable to activate brick pickup.");
     response.success = false;
-    response.message = "Brick pickup not activated";
+    response.message = "Visual servo failed to start - brick pickup inactive.";
     
     return true;
 }
@@ -196,15 +201,53 @@ void initializeParameters(ros::NodeHandle& nh)
 	}
 }
 
+void turnOffVisualServo()
+{
+    if (!_vsStatus)
+    {
+        _currentState = VisualServoState::OFF;
+        ROS_INFO("VSSM::updateStatus - OFF state activated. ");
+        _brickPickupActivated = false;
+        ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
+        return;
+    }
+
+    // Attempt to turn off visual servo
+    std_srvs::SetBool::Request req;
+    std_srvs::SetBool::Response resp;
+    req.data = false;
+    if (!_vsClienCaller.call(req, resp))
+    {
+        ROS_FATAL("VSSM::updateStatus - calling visual servo failed.");
+        return;
+    }
+
+    if (!resp.success)
+    {
+        ROS_INFO("VSSM::updateStatus - visual servo successfully deactivated");
+        // Visual servo successfully activated
+        _currentState = VisualServoState::OFF;
+        ROS_INFO("VSSM::updateStatus - OFF state activated. ");
+        _brickPickupActivated = false; 
+        ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
+        return;
+    }
+    else
+    {
+        // Visual servo is still active here...
+        ROS_FATAL("VSSM::updateStatus - Touchdown finished but unable to deactivate visual servo.");
+    }
+}
+
 void updateState()
 {
     // If visual servo is inactive, deactivate state machine
-    if (_vsStatus == VS_INACTIVE || !_brickPickupActivated)
+    if (!_vsStatus || !_brickPickupActivated)
     {
-        ROS_INFO("VSSM::updateStatus - Visual servo is inactive.");
+        ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
         _currentState = VisualServoState::OFF;
         _brickPickupActivated = false;
-        ROS_INFO("VSSM::updateStatus - OFF State activated.");
+        ROS_WARN("VSSM::updateStatus - OFF State activated.");
         return;
     }
 
@@ -220,8 +263,8 @@ void updateState()
 
     // If brick alignemnt is activated and target error is withing range start descent
     if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
-        _currTargetError < _minTargetError && 
-        _currYawError < _minYawError)
+        sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError && 
+        abs(_currYawError) < _minYawError)
     {
         _currentState = VisualServoState::DESCENT;
         ROS_INFO("VSSM::updateStatus - DESCENT state activated");
@@ -244,34 +287,7 @@ void updateState()
         _touchdownTime >= _touchdownDuration)
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
-        if (_vsStatus == VS_INACTIVE)
-        {
-            _currentState = VisualServoState::OFF;
-            ROS_INFO("VSSM::updateStatus - OFF state activated. ");
-            _brickPickupActivated = false;
-            ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
-            return;
-        }
-
-        // Attempt to turn off visual servo
-        std_srvs::Empty::Request req;
-        std_srvs::SetBool::Response resp;
-        if (!_vsClienCaller.call(req, resp))
-        {
-            ROS_FATAL("VSSM::updateStatus - calling visual servo failed.");
-            return;
-        }
-
-        if (resp.success)
-        {
-            ROS_INFO("VSSM::updateStatus - visual servo successfully deactivated");
-            // Visual servo successfully activated
-            _currentState = VisualServoState::OFF;
-            ROS_INFO("VSSM::updateStatus - OFF state activated. ");
-            _brickPickupActivated = false; 
-            ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
-            return;
-        }    
+        turnOffVisualServo();
     }
 }   
 
@@ -321,11 +337,11 @@ void publishVisualServoSetpoint(double dt)
     _currVisualServoFeed.header.stamp = ros::Time::now();
     _pubVisualServoFeed.publish(_currVisualServoFeed);
 
-    std_msgs::Float64 xOffset, yOffset;
+    std_msgs::Float32 xOffset, yOffset;
 
 }
 
-void xErrorCb(const std_msgs::Float64ConstPtr &msg) 
+void publishOffsets()
 {
     double offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
     double offset_x = (_offset_x_2 - _offset_x_1) * _currOdom.pose.pose.position.z + offset_x_0;
@@ -333,25 +349,22 @@ void xErrorCb(const std_msgs::Float64ConstPtr &msg)
     // the offset should have the same sign as the offsets at 2 and 1
     if (offset_x * _offset_x_1 < 0 ) offset_x = 0;
 
-    std_msgs::Float64 newMsg;
-    newMsg.data = offset_x;
-    _pubOffsetX.publish(newMsg);
-}
+    std_msgs::Float32 offsetXMsg;
+    offsetXMsg.data = offset_x;
+    _pubOffsetX.publish(offsetXMsg);
 
-void yErrorCb(const std_msgs::Float64ConstPtr &msg) 
-{
     double offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
     double offset_y = (_offset_y_2 - _offset_y_1) * _currOdom.pose.pose.position.z + offset_y_0;
 
     // the offset should have the same sign as the offsets at 2 and 1
     if (offset_y * _offset_y_1 < 0 ) offset_y = 0;
 
-    std_msgs::Float64 newMsg;
-    newMsg.data = offset_y;
-    _pubOffsetY.publish(newMsg);
+    std_msgs::Float32 offsetYMsg;
+    offsetYMsg.data = offset_y;
+    _pubOffsetY.publish(offsetYMsg);
 }
 
-void statusCb(const std_msgs::StringConstPtr& msg)
+void statusCb(const std_msgs::BoolConstPtr& msg)
 {
     _vsStatus = msg->data;
 }
@@ -361,12 +374,17 @@ void odomCb(const nav_msgs::OdometryConstPtr& msg)
     _currOdom = *msg;
 }
 
-void targetErrorCb(const std_msgs::Float64ConstPtr& msg)
+void targetErrorXCb(const std_msgs::Float32ConstPtr& msg)
 {
-    _currTargetError = msg->data;
+    _currTargetErrorX = msg->data;
 }
 
-void yawErrorCb(const std_msgs::Float64ConstPtr& msg)
+void targetErrorYCb(const std_msgs::Float32ConstPtr& msg)
+{
+    _currTargetErrorY = msg->data;
+}
+
+void yawErrorCb(const std_msgs::Float32ConstPtr& msg)
 {
     _currYawError = msg->data;
 }
@@ -379,6 +397,8 @@ void run()
 	{
 		ros::spinOnce();
         updateState();
+        publishOffsets();
+        publishVisualServoSetpoint(dt);
         loopRate.sleep();
     }
 }
@@ -410,8 +430,8 @@ private:
     nav_msgs::Odometry _currOdom;
 
     /* Target error subscriber */
-    ros::Subscriber _subTargetError;
-    double _currTargetError = 1e5;
+    ros::Subscriber _subTargetErrorX, _subTargetErrorY;
+    double _currTargetErrorX, _currTargetErrorY = 1e5;
     double _minTargetError;
 
     /* Yaw error subscriber */
@@ -421,7 +441,7 @@ private:
 
     /* VS status subscriber */
     ros::Subscriber _subVSStatus;
-    std::string _vsStatus = VS_INACTIVE;
+    bool _vsStatus = false;
     
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
