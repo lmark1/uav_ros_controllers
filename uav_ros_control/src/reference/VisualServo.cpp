@@ -133,6 +133,10 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Re
     _y_axis_PID.resetIntegrator();
     response.message = "Visual servo disabled.";
   }
+
+  _x_frozen = false;
+  _y_frozen = false;
+  _yaw_frozen = false;
   response.success = _visualServoEnabled;
   return true;
 }
@@ -150,10 +154,8 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
       startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
   }
 
-  _offset_x= configMsg.groups.x_axis.offset_x;
   _deadzone_x = configMsg.groups.x_axis.deadzone_x;
 
-  _offset_y= configMsg.groups.y_axis.offset_y;
   _deadzone_y = configMsg.groups.y_axis.deadzone_y;
 
   _deadzone_yaw  = configMsg.groups.yaw_control.deadzone_yaw;
