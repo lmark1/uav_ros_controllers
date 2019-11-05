@@ -88,7 +88,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data)
+    if (!request.data || _currOdom.pose.pose.position.z < 2)
     {
         turnOffVisualServo();
         _brickPickupActivated = false;
@@ -97,9 +97,10 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         return true;
     }
 
+    // Check if brick pickup is already activated.
     if (_brickPickupActivated)
     {
-        ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - brick pickup is already active.");
+        ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup is already active.");
         response.success = false;
         response.message = "Brick pickup is already active";
         return true;
@@ -121,7 +122,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     req.data = true;
     if (!_vsClienCaller.call(req, resp))
     {
-        ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - calling visual servo failed.");
+        ROS_FATAL("VSSM::brickPickupServiceCb - calling visual servo failed.");
         response.success = false;
         response.message = "Service caller for visual servo failed.";
         _currentState = VisualServoState::OFF;
@@ -131,7 +132,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     if (resp.success)
     {
         // Visual servo successfully activated
-        ROS_INFO("VisualServoStateMachine::brickPickupServiceCb() - brick pickup activated.");
+        ROS_INFO("VSSM::brickPickupServiceCb() - brick pickup activated.");
         response.success = true;
         response.message = "Visual servo enabled - brick pickup activated.";
         _brickPickupActivated = true;
@@ -139,7 +140,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         return true;
     }
     
-    ROS_WARN("VisualServoStateMachine::brickPickupServiceCb - unable to activate brick pickup.");
+    ROS_WARN("VSSM::brickPickupServiceCb - unable to activate brick pickup.");
     response.success = false;
     response.message = "Visual servo failed to start - brick pickup inactive.";
     _brickPickupActivated = false;
