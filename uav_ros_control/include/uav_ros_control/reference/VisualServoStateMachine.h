@@ -291,7 +291,8 @@ void updateState()
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _touchdownTime >= _touchdownDuration)
+        _touchdownTime >= 10 && //TODO: Parameter here
+        _currHeightReference >= 3) // TOD: Parameter here
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
         turnOffVisualServo();
@@ -335,11 +336,12 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN : 
             _currVisualServoFeed.x = 0;
             _currVisualServoFeed.y = 0;
-            double dz = 2 * _touchdownDelta / _touchdownDuration * dt;
+            double dz = _touchdownDelta / _touchdownDuration * dt;
             if (_touchdownTime < _touchdownDuration/2.0)
                 _currVisualServoFeed.z = _currHeightReference - dz;
             else
-                _currVisualServoFeed.z = _currHeightReference + dz;
+                _currVisualServoFeed.z = _currHeightReference + _descentSpeed * dt / 2;
+            _currHeightReference = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownTime +=dt;
             break;
