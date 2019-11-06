@@ -336,7 +336,7 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN : 
             _currVisualServoFeed.x = 0;
             _currVisualServoFeed.y = 0;
-            double dz = _touchdownDelta / _touchdownDuration * dt;
+            double dz = 2 * _touchdownDelta / _touchdownDuration * dt;
             if (_touchdownTime < _touchdownDuration/2.0)
                 _currVisualServoFeed.z = _currHeightReference - dz;
             else
