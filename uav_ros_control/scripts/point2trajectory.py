@@ -17,15 +17,21 @@ class TrajectoryPacker():
         self.odom_msg = Odometry()
         rospy.Subscriber('carrot/status', String, self.status_cb)
         self.pub_odom = True
+        self.status = "OFF"
         self.traj_pub = rospy.Publisher('trajectory', MultiDOFJointTrajectory, queue_size=1)
 
     def ref_sub(self, msg):
         traj = MultiDOFJointTrajectory()
         traj.points = []
-
-        if not self.pub_odom:
-            traj.points.append(msg)
-        else:
+        traj.points.append(msg)
+        if not self.status == "OFF":
+            self.traj_pub.publish(traj)
+        
+    def status_cb(self, msg):
+        self.status = msg.data
+        if msg.data == "OFF":
+            traj = MultiDOFJointTrajectory()
+            traj.points = []
             # Take it from odometry
             point = MultiDOFJointTrajectoryPoint()
             transform = Transform()
@@ -38,14 +44,6 @@ class TrajectoryPacker():
             transform.rotation.w = self.odom_msg.pose.pose.orientation.w
             point.transforms.append(transform)
             traj.points.append(point)
-
-        self.traj_pub.publish(traj)
-        
-    def status_cb(self, msg):
-        if msg.data == "OFF":
-            self.pub_odom = True
-        else:
-            self.pub_odom = False
 
     def odom_sub(self, msg):
         self.odom_msg = msg
