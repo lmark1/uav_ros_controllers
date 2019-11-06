@@ -88,7 +88,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data)
+    if (!request.data || _currOdom.pose.pose.position.z < 2)
     {
         turnOffVisualServo();
         _brickPickupActivated = false;
@@ -97,9 +97,10 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         return true;
     }
 
+    // Check if brick pickup is already activated.
     if (_brickPickupActivated)
     {
-        ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - brick pickup is already active.");
+        ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup is already active.");
         response.success = false;
         response.message = "Brick pickup is already active";
         return true;
@@ -121,7 +122,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     req.data = true;
     if (!_vsClienCaller.call(req, resp))
     {
-        ROS_FATAL("VisualServoStateMachine::brickPickupServiceCb - calling visual servo failed.");
+        ROS_FATAL("VSSM::brickPickupServiceCb - calling visual servo failed.");
         response.success = false;
         response.message = "Service caller for visual servo failed.";
         _currentState = VisualServoState::OFF;
@@ -131,7 +132,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     if (resp.success)
     {
         // Visual servo successfully activated
-        ROS_INFO("VisualServoStateMachine::brickPickupServiceCb() - brick pickup activated.");
+        ROS_INFO("VSSM::brickPickupServiceCb() - brick pickup activated.");
         response.success = true;
         response.message = "Visual servo enabled - brick pickup activated.";
         _brickPickupActivated = true;
@@ -139,7 +140,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         return true;
     }
     
-    ROS_WARN("VisualServoStateMachine::brickPickupServiceCb - unable to activate brick pickup.");
+    ROS_WARN("VSSM::brickPickupServiceCb - unable to activate brick pickup.");
     response.success = false;
     response.message = "Visual servo failed to start - brick pickup inactive.";
     _brickPickupActivated = false;
@@ -159,6 +160,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _offset_x_2 = configMsg.x_offset_2;
     _offset_y_1 = configMsg.y_offset_1;
     _offset_y_2 = configMsg.y_offset_2;
+    _descentSpeed = configMsg.descent_speed;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -172,6 +174,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.touchdown_delta = _touchdownDelta;
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
+    config.descent_speed = _descentSpeed;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
@@ -288,7 +291,8 @@ void updateState()
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _touchdownTime >= _touchdownDuration)
+        _touchdownTime >= 10 && //TODO: Parameter here
+        _currHeightReference >= 3) // TOD: Parameter here
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
         turnOffVisualServo();
@@ -336,7 +340,8 @@ void publishVisualServoSetpoint(double dt)
             if (_touchdownTime < _touchdownDuration/2.0)
                 _currVisualServoFeed.z = _currHeightReference - dz;
             else
-                _currVisualServoFeed.z = _currHeightReference + dz;
+                _currVisualServoFeed.z = _currHeightReference + _descentSpeed * dt / 2;
+            _currHeightReference = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownTime +=dt;
             break;
