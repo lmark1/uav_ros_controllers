@@ -38,6 +38,7 @@
     <node pkg="uav_ros_control" name="point_to_trajectory" type="point2trajectory.py" ns="$(arg namespace)">
         <remap from="trajectory_point" to="$(arg mpc_in)"/>
         <remap from="trajectory" to="command/trajectory"/>
+        <remap from="odometry"  to="$(arg odometry)"/>
     </node>
     
 </launch>
