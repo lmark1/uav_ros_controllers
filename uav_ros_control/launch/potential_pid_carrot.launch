@@ -5,6 +5,7 @@
     <arg name="potfield_out" default="potential_fields/trajectory"/>
     <arg name="pid_in" default="potential_fields/trajectory"/>
     <arg name="odometry" default="msf_core/odometry"/>
+    <arg name="laser_points" default="/leddar_points"/>
     
     <!-- PID Carrot stack -->
     <include file="$(find uav_ros_control)/launch/pid_carrot.launch">
@@ -20,6 +21,21 @@
         <arg name="potfield_in" value="$(arg potfield_in)"/>
         <arg name="potfield_out" value="$(arg potfield_out)"/>
         <arg name="odometry" value="$(arg odometry)"/>
+        <arg name="laser_points" value="$(arg laser_points)"/>
+        <!-- Potential fields arguments -->
+        <arg name="frame_id" value="/bebop/base_link" />
+        <arg name="lim_x" value="1.5" />
+        <arg name ="lim_y" value="1.5" />
+        <arg name ="lim_z" value="0.5" />
+        <arg name ="rate" value = "20" />
+        <arg name ="segment_distance" value = "0.65" />
+        <arg name ="v_max" value = "1.0" />
+        <arg name ="gain_repulsive" value = "2.5" />
+        <arg name ="gain_attractive" value = "1.0" />
+        <arg name ="kr" value = "10.0" />
+        <arg name ="dmax" value = "3" />
+        <arg name ="yaw_factor" value = "0.5" />
+        <arg name ="r" value = "0.8" />
     </include>
 
     <!-- Velodyne to MPC state -->
