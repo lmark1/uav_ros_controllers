@@ -287,12 +287,13 @@ void updateState()
     }
 
     // if height is below touchdown treshold start touchdown
-    if (_currentState == VisualServoState::DESCENT && 
-        _currOdom.pose.pose.position.z <= _touchdownHeight)
+    if (_currentState == VisualServoState::DESCENT &&
+        isRelativeDistanceValid() && 
+        _relativeBrickDistance <= _touchdownHeight)
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _currHeightReference = _currOdom.pose.pose.position.z;
+        _currHeightReference = _relativeBrickDistance;
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
     }
@@ -306,6 +307,11 @@ void updateState()
         turnOffVisualServo();
     }
 }   
+
+bool isRelativeDistanceValid()
+{
+    return _relativeBrickDistance > 0;
+}
 
 void publishVisualServoSetpoint(double dt)
 {
@@ -417,6 +423,10 @@ void run()
         updateState();
         publishOffsets();
         publishVisualServoSetpoint(dt);
+
+        if (_currentState == VisualServoState::DESCENT && !isRelativeDistanceValid())
+            ROS_FATAL("*** FATAL - BLIND DESCENT ***"); // TODO: :) (?)
+
         loopRate.sleep();
     }
 }

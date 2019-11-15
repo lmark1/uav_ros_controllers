@@ -49,6 +49,7 @@
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="visual_servo/status" to="$(arg status)"/>
             <remap from="visual_servo/yaw_error" to="red_color_filter/orientation_err"/>
+            <remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/>
         </node>
     </group>
 </launch>
