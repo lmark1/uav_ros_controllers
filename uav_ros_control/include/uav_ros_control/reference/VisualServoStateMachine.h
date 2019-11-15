@@ -31,6 +31,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
 #define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
 #define PARAM_OFF2_Y                "visual_servo/state_machine/offset_y_2"
+#define INVALID_DISTANCE -1
 
 enum VisualServoState {
     OFF,
@@ -64,6 +65,8 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("visual_servo/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
     _subVSStatus = 
         nh.subscribe("visual_servo/status", 1, &uav_reference::VisualServoStateMachine::statusCb, this);
+    _subBrickDist = 
+        nh.subscribe("brick/distance", 1, &uav_reference::VisualServoStateMachine::brickDistCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -85,6 +88,11 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 
 ~VisualServoStateMachine()
 {}
+
+void brickDistCb(const std_msgs::Float32ConstPtr& msg)
+{
+    _relativeBrickDistance = msg->data;
+}
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
@@ -452,6 +460,9 @@ private:
     /* VS status subscriber */
     ros::Subscriber _subVSStatus;
     bool _vsStatus = false;
+
+    ros::Subscriber _subBrickDist;
+    double _relativeBrickDistance = INVALID_DISTANCE;
     
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
