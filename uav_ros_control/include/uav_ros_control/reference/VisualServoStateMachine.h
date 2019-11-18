@@ -31,6 +31,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
 #define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
 #define PARAM_OFF2_Y                "visual_servo/state_machine/offset_y_2"
+#define INVALID_DISTANCE -1
 
 enum VisualServoState {
     OFF,
@@ -64,6 +65,8 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("visual_servo/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
     _subVSStatus = 
         nh.subscribe("visual_servo/status", 1, &uav_reference::VisualServoStateMachine::statusCb, this);
+    _subBrickDist = 
+        nh.subscribe("brick/distance", 1, &uav_reference::VisualServoStateMachine::brickDistCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -85,6 +88,11 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 
 ~VisualServoStateMachine()
 {}
+
+void brickDistCb(const std_msgs::Float32ConstPtr& msg)
+{
+    _relativeBrickDistance = msg->data;
+}
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
@@ -279,12 +287,13 @@ void updateState()
     }
 
     // if height is below touchdown treshold start touchdown
-    if (_currentState == VisualServoState::DESCENT && 
-        _currOdom.pose.pose.position.z <= _touchdownHeight)
+    if (_currentState == VisualServoState::DESCENT &&
+        isRelativeDistanceValid() && 
+        _relativeBrickDistance <= _touchdownHeight)
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _currHeightReference = _currOdom.pose.pose.position.z;
+        _currHeightReference = _relativeBrickDistance;
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
     }
@@ -298,6 +307,11 @@ void updateState()
         turnOffVisualServo();
     }
 }   
+
+bool isRelativeDistanceValid()
+{
+    return _relativeBrickDistance > 0;
+}
 
 void publishVisualServoSetpoint(double dt)
 {
@@ -409,6 +423,10 @@ void run()
         updateState();
         publishOffsets();
         publishVisualServoSetpoint(dt);
+
+        if (_currentState == VisualServoState::DESCENT && !isRelativeDistanceValid())
+            ROS_FATAL("*** FATAL - BLIND DESCENT ***"); // TODO: :) (?)
+
         loopRate.sleep();
     }
 }
@@ -452,6 +470,9 @@ private:
     /* VS status subscriber */
     ros::Subscriber _subVSStatus;
     bool _vsStatus = false;
+
+    ros::Subscriber _subBrickDist;
+    double _relativeBrickDistance = INVALID_DISTANCE;
     
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
