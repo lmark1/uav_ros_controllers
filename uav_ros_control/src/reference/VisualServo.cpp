@@ -79,6 +79,8 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("x_error", 1, &uav_reference::VisualServo::xErrorCb, this);
   _subYError =
       nh.subscribe("y_error", 1, &uav_reference::VisualServo::yErrorCb, this);
+  _subZError = 
+      nh.subscribe("z_error", 1, &uav_reference::VisualServo::zErrorCb, this);
   _subYawError =
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
   _subXOffset =
@@ -89,7 +91,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
   // Setup dynamic reconfigure
-
   _VSParamCallback = boost::bind(&VisualServo::visualServoParamsCb, this, _1, _2);
   _VSConfigServer.setCallback(_VSParamCallback);
 
@@ -97,7 +98,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       "visual_servo",
       &uav_reference::VisualServo::startVisualServoServiceCb,
       this);
-
 
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
@@ -220,6 +220,11 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
 
   _floatMsg.data = _error_y - _offset_y;
   _pubYError.publish(_floatMsg);
+}
+
+void VisualServo::zErrorCb(const std_msgs::Float32& msg)
+{
+  _error_z = msg.data;
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
