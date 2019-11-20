@@ -83,7 +83,6 @@ namespace uav_reference {
       void xErrorCb(const std_msgs::Float32&);
       void yErrorCb(const std_msgs::Float32&);
       void yawErrorCb(const std_msgs::Float32&);
-      void nContoursCb(const std_msgs::Int32&);
       void VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues&);
       void xOffsetCb(const std_msgs::Float32&);
       void yOffsetCb(const std_msgs::Float32&);

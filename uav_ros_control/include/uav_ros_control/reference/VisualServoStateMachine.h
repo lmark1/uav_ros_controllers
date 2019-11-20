@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Bool.h>
@@ -67,7 +68,9 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("visual_servo/status", 1, &uav_reference::VisualServoStateMachine::statusCb, this);
     _subBrickDist = 
         nh.subscribe("brick/distance", 1, &uav_reference::VisualServoStateMachine::brickDistCb, this);
-
+    _subNContours =
+        nh.subscribe("n_contours", 1, &uav_reference::VisualServoStateMachine::nContoursCb, this);
+  
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
 	setVSSMParameters(vssmConfig);
@@ -92,6 +95,15 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 void brickDistCb(const std_msgs::Float32ConstPtr& msg)
 {
     _relativeBrickDistance = msg->data;
+}
+
+void nContoursCb(const std_msgs::Int32ConstPtr& msg)
+{
+    if (msg->data == 0 && _currentState != VisualServoState::TOUCHDOWN && 
+        _currentState !=VisualServoState::OFF)
+    {
+        turnOffVisualServo();
+    }
 }
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
@@ -473,7 +485,10 @@ private:
 
     ros::Subscriber _subBrickDist;
     double _relativeBrickDistance = INVALID_DISTANCE;
-    
+
+    /* Contour subscriber */
+    ros::Subscriber _subNContours;
+
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
     double _currHeightReference, _descentSpeed; 

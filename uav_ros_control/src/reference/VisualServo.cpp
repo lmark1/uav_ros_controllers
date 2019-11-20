@@ -81,8 +81,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("y_error", 1, &uav_reference::VisualServo::yErrorCb, this);
   _subYawError =
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
-  _subNContours =
-      nh.subscribe("n_contours", 1, &uav_reference::VisualServo::nContoursCb, this);
   _subXOffset =
       nh.subscribe("x_offset", 1, &uav_reference::VisualServo::xOffsetCb, this);
   _subYOffset =
@@ -144,7 +142,7 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Re
 void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConfig &configMsg,
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
-  
+
   _deadzone_x = configMsg.groups.x_axis.deadzone_x;
   _deadzone_y = configMsg.groups.y_axis.deadzone_y;
   _deadzone_yaw  = configMsg.groups.yaw_control.deadzone_yaw;
@@ -233,17 +231,6 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
   _error_yaw = -data.data;
   _pubYawErrorDebug.publish(data);
-}
-
-void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
-  _n_contours = data.data;
-  if (!_n_contours){
-      if (isVisualServoEnabled()){
-          ROS_ERROR("Lost sight of object!");
-          _setBoolRequest.data = false;
-          startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
-      }
-  }
 }
 
 void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues &msg) {
