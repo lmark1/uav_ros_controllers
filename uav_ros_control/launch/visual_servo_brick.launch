@@ -24,8 +24,7 @@
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="imu" to="/mavros/imu/data"/>
             <remap from="yaw_error" to="red_color_filter/orientation_err"/>
-            <remap from="n_contours" to="red_color_filter/nContours"/>
-            
+
             <!-- State machine topics -->
             <remap from="x_offset" to="$(arg x_offset)"/>
             <remap from="y_offset" to="$(arg y_offset)"/>
@@ -48,6 +47,7 @@
 
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="visual_servo/status" to="$(arg status)"/>
+            <remap from="n_contours" to="red_color_filter/nContours"/>
             <remap from="visual_servo/yaw_error" to="red_color_filter/orientation_err"/>
             <remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/>
         </node>

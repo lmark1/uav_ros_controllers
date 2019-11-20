@@ -113,15 +113,9 @@ VisualServo::~VisualServo() {}
 bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Request &request,
                                                            std_srvs::SetBool::Response &response) {
   if (request.data) {
-    if (_n_contours) {
-      if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
-      _visualServoEnabled = true;
-      response.message = "Visual servo enabled.";
-    }
-    else {
-      ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.");
-      response.message = "The color filter reports no contours. Cannot enable visual servo.";
-    }
+    if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
+    _visualServoEnabled = true;
+    response.message = "Visual servo enabled.";
   }
   else {
     if(isVisualServoEnabled()) ROS_INFO("UAV VisualServo - disabling visual servo.");
