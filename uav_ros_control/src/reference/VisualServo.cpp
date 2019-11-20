@@ -144,20 +144,9 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Re
 void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConfig &configMsg,
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
-
-  if (configMsg.groups.general_parameters.enable) {
-      _setBoolRequest.data = true;
-      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
-  }
-  else {
-      _setBoolRequest.data = false;
-      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
-  }
-
+  
   _deadzone_x = configMsg.groups.x_axis.deadzone_x;
-
   _deadzone_y = configMsg.groups.y_axis.deadzone_y;
-
   _deadzone_yaw  = configMsg.groups.yaw_control.deadzone_yaw;
 
   _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
