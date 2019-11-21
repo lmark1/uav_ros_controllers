@@ -23,8 +23,8 @@
             output="screen">
 
             <!-- Topic remapping -->
-            <remap from="x_error" to="red_color_filter/yaw_err"/>
-            <remap from="y_error" to="red_color_filter/pitch_err"/>
+            <remap from="x_error" to="red_color_filter/patch_yaw_err"/>
+            <remap from="y_error" to="red_color_filter/patch_pitch_err"/>
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="imu" to="/mavros/imu/data"/>
             <remap from="yaw_error" to="red_color_filter/orientation_err"/>
