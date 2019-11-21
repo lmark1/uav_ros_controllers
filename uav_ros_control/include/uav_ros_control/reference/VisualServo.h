@@ -54,13 +54,10 @@ namespace uav_reference {
       * Publish new setpoint as MultiDOFJointTrajectoryPoint
       */
      void publishNewSetpoint();
-
      bool isVisualServoEnabled();
-
      void publishStatus();
-
      void setRate(double new_rate) {_rate =  new_rate;}
-
+     void initializeParameters(ros::NodeHandle&);
    private:
 
       /**
@@ -95,7 +92,7 @@ namespace uav_reference {
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
       double _error_x = 0, _error_y = 0, _error_z = 0, _error_yaw = 0, _offset_x = 0;
-      double _offset_y = 0, _offset_z = 0,  _deadzone_x = 0, _deadzone_y = 0, _deadzone_yaw = 0;
+      double _offset_y = 0, _offset_z = 0,  _deadzone_x = 0, _deadzone_y = 0, _deadzone_z = 0, _deadzone_yaw = 0;
       double _uavYaw, _uavRoll, _uavPitch, _setpointYaw;
       double _rate, _camera_fov;
       double _qx, _qy, _qz, _qw;

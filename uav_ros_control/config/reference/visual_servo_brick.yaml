@@ -1,38 +1,40 @@
 visual_servo:
   
   camera_fov: 80
-  compensate_roll_and_pitch: false
+  compensate_roll_and_pitch: true
 
   pid_x:
     x_armed:  true
-    k_p_x:  1
-    k_i_x:  0.1
-    k_d_x:  0
+    kp:  1
+    ki:  0.1
+    kd:  0
+    lim_low: -0.5
+    lim_high: 0.5
     deadzone_x: 0
-    saturation_x: 0.5
 
   pid_y:
     y_armed:  true
-    k_p_y:  1
-    k_i_y:  0.1
-    k_d_y:  0
+    kp:  1
+    ki:  0.1
+    kd:  0
+    lim_low: -0.5
+    lim_high: 0.5
     deadzone_y: 0
-    saturation_y: 0.5
 
   pid_z:  
     z_armed: false
-    k_p_z:  0
-    k_i_z:  0
-    k_d_z:  0
+    kp:  0
+    ki:  0
+    kd:  0  
+    lim_low: -0.5
+    lim_high: 0.5
     deadzone_z: 0
-    saturation_z: 0.5
 
   pid_yaw:
     yaw_armed: true
-    k_p_yaw:  0.2
-    k_i_yaw:  0.01
-    k_d_yaw:  0
+    kp:  0.2
+    ki:  0.01
+    kd:  0
+    lim_low: -0.05
+    lim_high: 0.05
     deadzone_yaw: 0
-    saturation_yaw: 0.05
-
-    

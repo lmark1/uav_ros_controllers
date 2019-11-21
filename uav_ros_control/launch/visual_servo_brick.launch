@@ -11,6 +11,10 @@
 
     <group ns="$(arg namespace)">
         
+         <!-- Visual servo state machine parameters -->
+        <rosparam command="load"
+            file="$(find uav_ros_control)/config/reference/visual_servo_brick.yaml" />
+        
         <!-- Visual servo node -->
         <node
             pkg="uav_ros_control"
@@ -36,7 +40,7 @@
 
         <!-- Visual servo state machine parameters -->
         <rosparam command="load"
-            file="$(find uav_ros_control)/config/reference/visual_servo_sm.yaml" />
+            file="$(find uav_ros_control)/config/reference/visual_servo_brick_sm.yaml" />
         
         <!-- Visual Servo state machine node -->
         <node
