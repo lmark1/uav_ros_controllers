@@ -89,7 +89,7 @@ namespace uav_reference {
       void zOffsetCb(const std_msgs::Float32&);
 
       // X and Y axes of the image coordinate frame.
-      PID _x_axis_PID, _y_axis_PID, _z_axis_PID, _yaw_PID;;
+      PID _x_axis_PID{"x-axis"}, _y_axis_PID{"y-axis"}, _z_axis_PID{"z-axis"}, _yaw_PID{"yaw"};
 
       int _n_contours = 0;
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
