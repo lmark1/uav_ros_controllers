@@ -56,6 +56,7 @@ namespace uav_reference {
 
 VisualServo::VisualServo(ros::NodeHandle& nh) {
   initializeParameters(nh);
+  ros::Duration(2.0).sleep();
 
   // Define Publishers
   _pubXError = nh.advertise<std_msgs::Float32>("visual_servo/x_error", 1);
@@ -221,52 +222,52 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
 
-  _deadzone_x = configMsg.groups.x_axis.deadzone_x;
-  _deadzone_y = configMsg.groups.y_axis.deadzone_y;
-  _deadzone_yaw  = configMsg.groups.yaw_control.deadzone_yaw;
-  _deadzone_z = configMsg.groups.z_axis.deadzone_z;
+  _deadzone_x = configMsg.deadzone_x;
+  _deadzone_y = configMsg.deadzone_y;
+  _deadzone_yaw  = configMsg.deadzone_yaw;
+  _deadzone_z = configMsg.deadzone_z;
    
-  _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
-  _x_axis_PID.set_ki(configMsg.groups.x_axis.k_i_x);
-  _x_axis_PID.set_kd(configMsg.groups.x_axis.k_d_x);
-  _x_axis_PID.set_lim_high(configMsg.groups.x_axis.saturation_x);
-  _x_axis_PID.set_lim_low(-configMsg.groups.x_axis.saturation_x);
+  _x_axis_PID.set_kp(configMsg.k_p_x);
+  _x_axis_PID.set_ki(configMsg.k_i_x);
+  _x_axis_PID.set_kd(configMsg.k_d_x);
+  _x_axis_PID.set_lim_high(configMsg.saturation_x);
+  _x_axis_PID.set_lim_low(-configMsg.saturation_x);
 
-  if (!configMsg.groups.x_axis.x_armed) {
+  if (!configMsg.x_armed) {
     _x_axis_PID.set_kp(0);
     _x_axis_PID.set_ki(0);
     _x_axis_PID.set_kd(0);
     _x_axis_PID.resetIntegrator();
   }
 
-  _y_axis_PID.set_kp(configMsg.groups.y_axis.k_p_y);
-  _y_axis_PID.set_ki(configMsg.groups.y_axis.k_i_y);
-  _y_axis_PID.set_kd(configMsg.groups.y_axis.k_d_y);
-  _y_axis_PID.set_lim_high(configMsg.groups.y_axis.saturation_y);
-  _y_axis_PID.set_lim_low(-configMsg.groups.y_axis.saturation_y);
+  _y_axis_PID.set_kp(configMsg.k_p_y);
+  _y_axis_PID.set_ki(configMsg.k_i_y);
+  _y_axis_PID.set_kd(configMsg.k_d_y);
+  _y_axis_PID.set_lim_high(configMsg.saturation_y);
+  _y_axis_PID.set_lim_low(-configMsg.saturation_y);
 
-  if (!configMsg.groups.y_axis.y_armed) {
+  if (!configMsg.y_armed) {
     _y_axis_PID.set_kp(0);
     _y_axis_PID.set_ki(0);
     _y_axis_PID.set_kd(0);
     _y_axis_PID.resetIntegrator();
   }
 
-  _yaw_PID.set_kp(configMsg.groups.yaw_control.k_p_yaw);
-  _yaw_PID.set_ki(configMsg.groups.yaw_control.k_i_yaw);
-  _yaw_PID.set_kd(configMsg.groups.yaw_control.k_d_yaw);
-  _yaw_PID.set_lim_high(configMsg.groups.yaw_control.saturation_yaw);
-  _yaw_PID.set_lim_low(-configMsg.groups.yaw_control.saturation_yaw);
+  _yaw_PID.set_kp(configMsg.k_p_yaw);
+  _yaw_PID.set_ki(configMsg.k_i_yaw);
+  _yaw_PID.set_kd(configMsg.k_d_yaw);
+  _yaw_PID.set_lim_high(configMsg.saturation_yaw);
+  _yaw_PID.set_lim_low(-configMsg.saturation_yaw);
 
-  if (!configMsg.groups.yaw_control.yaw_armed) {
+  if (!configMsg.yaw_armed) {
     _yaw_PID.set_kp(0);
     _yaw_PID.set_ki(0);
     _yaw_PID.set_kd(0);
     _yaw_PID.resetIntegrator();
   }
 
-  _compensate_roll_and_pitch = configMsg.groups.general_parameters.compensate_roll_and_pitch;
-  _camera_fov = configMsg.groups.general_parameters.camera_fov * M_PI / 180.0;
+  _compensate_roll_and_pitch = configMsg.compensate_roll_and_pitch;
+  _camera_fov = configMsg.camera_fov * M_PI / 180.0;
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
