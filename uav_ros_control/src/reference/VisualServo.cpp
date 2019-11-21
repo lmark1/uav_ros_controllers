@@ -68,7 +68,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendliness
   _pubUavRollDebug = nh.advertise<std_msgs::Float32>("debug/uav_roll", 1);
   _pubUavPitchDebug = nh.advertise<std_msgs::Float32>("debug/uav_pitch", 1);
-
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
@@ -87,6 +86,9 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("x_offset", 1, &uav_reference::VisualServo::xOffsetCb, this);
   _subYOffset =
       nh.subscribe("y_offset", 1, &uav_reference::VisualServo::yOffsetCb, this);
+  _subZOffset =
+      nh.subscribe("z_offset", 1, &uav_reference::VisualServo::zOffsetCb, this);
+            
   _subVisualServoProcessValuesMsg =
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
@@ -102,10 +104,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
   _new_point.accelerations = std::vector<geometry_msgs::Twist>(1);
-
-  _x_frozen = false;
-  _y_frozen = false;
-  _yaw_frozen = false;
 }
 
 VisualServo::~VisualServo() {}
@@ -265,6 +263,10 @@ void VisualServo::xOffsetCb(const std_msgs::Float32 &msg) {
 
 void VisualServo::yOffsetCb(const std_msgs::Float32 &msg){
     _offset_y = msg.data;
+}
+
+void VisualServo::zOffsetCb(const std_msgs::Float32 &msg){
+    _offset_z = msg.data;
 }
 
 void VisualServo::updateSetpoint() {

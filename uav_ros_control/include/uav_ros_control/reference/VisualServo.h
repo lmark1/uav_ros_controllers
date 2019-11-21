@@ -86,35 +86,28 @@ namespace uav_reference {
       void VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues&);
       void xOffsetCb(const std_msgs::Float32&);
       void yOffsetCb(const std_msgs::Float32&);
+      void zOffsetCb(const std_msgs::Float32&);
 
       // X and Y axes of the image coordinate frame.
-      PID _x_axis_PID, _y_axis_PID, _z_axis_PID;
+      PID _x_axis_PID, _y_axis_PID, _z_axis_PID, _yaw_PID;;
 
-      PID _yaw_PID;
-
-      int _n_contours;
+      int _n_contours = 0;
       std::array<double, 3> _uavPos{0.0, 0.0, 0.0};
       std::array<double, 3> _setpointPosition{0.0, 0.0, 0.0};
-      double _error_x, _error_y, _error_z, _offset_x, _offset_y, _offset_z,  _deadzone_x, _deadzone_y;
-      double _error_yaw;
-      double _uavYaw, _setpointYaw;
-      double _uavRoll, _uavPitch;
-      double _deadzone_yaw;
-      double _rate;
-      double _camera_fov;
-
+      double _error_x = 0, _error_y = 0, _error_z = 0, _error_yaw = 0, _offset_x = 0;
+      double _offset_y = 0, _offset_z = 0,  _deadzone_x = 0, _deadzone_y = 0, _deadzone_yaw = 0;
+      double _uavYaw, _uavRoll, _uavPitch, _setpointYaw;
+      double _rate, _camera_fov;
       double _qx, _qy, _qz, _qw;
 
-      bool _visualServoEnabled = false;
-      bool _x_frozen, _y_frozen, _yaw_frozen;
-      bool _compensate_roll_and_pitch;
+      bool _visualServoEnabled = false,  _compensate_roll_and_pitch = false;
+      bool _x_frozen = false, _y_frozen = false, _yaw_frozen = false;
 
       /** Publishers */
       ros::Publisher _pubNewSetpoint;
       trajectory_msgs::MultiDOFJointTrajectoryPoint _new_point;
 
       // Status topic
-
       ros::Publisher _pubIsEnabledTopic;
       std_msgs::Bool _boolMsg;
 
@@ -134,7 +127,7 @@ namespace uav_reference {
       ros::Subscriber _subOdom, _subImu;
       ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subNContours;
       ros::Subscriber _subVisualServoProcessValuesMsg;
-      ros::Subscriber _subXOffset, _subYOffset;
+      ros::Subscriber _subXOffset, _subYOffset, _subZOffset;
 
       uav_ros_control_msgs::VisualServoProcessValues VisualServoProcessValuesMsg;
 
