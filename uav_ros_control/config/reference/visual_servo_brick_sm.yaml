@@ -5,9 +5,10 @@ visual_servo:
     min_error: 0.03
     min_yaw_error: 0.05
     touchdown_height: 1
-    touchdown_delta: 0.85
-    touchdown_duration: 2
-    descent_speed: 0.3
+    touchdown_delta: 0.92
+    touchdown_duration: 1
+    after_touchdown_height: 3
+    descent_speed: 0.6
 
     offset_x_1: 0
     offset_x_2: 0

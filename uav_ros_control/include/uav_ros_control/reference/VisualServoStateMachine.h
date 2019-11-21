@@ -28,6 +28,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_TOUCHDOWN_DURATION    "visual_servo/state_machine/touchdown_duration"
 #define PARAM_RATE                  "visual_servo/state_machine/rate"
 #define PARAM_DESCENT_SPEED         "visual_servo/state_machine/descent_speed"
+#define PARAM_AFTER_TD_HEIGHT       "visual_servo/state_machine/after_touchdown_height"
 #define PARAM_OFF1_X                "visual_servo/state_machine/offset_x_1"
 #define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
 #define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
@@ -108,13 +109,13 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || _currOdom.pose.pose.position.z < 2 || _nContours == 0)
+    if (!request.data || _currOdom.pose.pose.position.z < _afterTouchdownHeight || _nContours == 0)
     {
         if (!request.data)
             ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
-        else if (_currOdom.pose.pose.position.z < 2)
+        else if (_currOdom.pose.pose.position.z < _afterTouchdownHeight)
             ROS_FATAL("VSSM::brickPickupServiceCb - current height [%.2fm] below minimum [%.2fm]", 
-                _currOdom.pose.pose.position.z, 2);
+                _currOdom.pose.pose.position.z, _afterTouchdownHeight);
         else if (_nContours == 0)
             ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
 
@@ -178,6 +179,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _offset_y_1 = configMsg.y_offset_1;
     _offset_y_2 = configMsg.y_offset_2;
     _descentSpeed = configMsg.descent_speed;
+    _afterTouchdownHeight = configMsg.after_touchdown_height;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -192,6 +194,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
     config.descent_speed = _descentSpeed;
+    config.after_touchdown_height = _afterTouchdownHeight;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
@@ -207,7 +210,8 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_OFF2_X, _offset_x_2)
         && nh.getParam(PARAM_OFF1_Y, _offset_y_1)
         && nh.getParam(PARAM_OFF2_Y, _offset_y_2)
-        && nh.getParam(PARAM_RATE, _rate);
+        && nh.getParam(PARAM_RATE, _rate)
+        && nh.getParam(PARAM_AFTER_TD_HEIGHT, _afterTouchdownHeight);
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum target error: %.2f", _minTargetError);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
@@ -215,6 +219,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
     ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
+    ROS_INFO("After touchdown height: %.2f", _afterTouchdownHeight);
     ROS_INFO("X offsets: %.2f, %.2f", _offset_x_1, _offset_x_2);
     ROS_INFO("Y offsets: %.2f, %.2f", _offset_y_1, _offset_y_2);
     if (!initialized)
@@ -271,15 +276,20 @@ void updateState()
     {
         ROS_INFO("VSSM::updateStatus - Brick pickup requested");
         _currHeightReference = _currOdom.pose.pose.position.z;
+        _descentTransitionCounter = 0;
         _currentState = VisualServoState::BRICK_ALIGNMENT;
         ROS_INFO("VSSM::updateStatus - BRICK_ALIGNMENT state activated with height: %2f.", _currHeightReference);
         return;
     }
 
-    // If brick alignemnt is activated and target error is withing range start descent
+    // Update the transition counter
     if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
         sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError && 
-        abs(_currYawError) < _minYawError)
+        abs(_currYawError) < _minYawError) _descentTransitionCounter++;
+
+    // If brick alignemnt is activated and target error is withing range start descent
+    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
+        _descentTransitionCounter > 100)
     {
         _currentState = VisualServoState::DESCENT;
         ROS_INFO("VSSM::updateStatus - DESCENT state activated");
@@ -300,8 +310,8 @@ void updateState()
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _touchdownTime >= _touchdownDuration && //TODO: Parameter here
-        _currHeightReference >= 2 * _touchdownHeight) // TOD: Parameter here
+        _touchdownTime >= _touchdownDuration && 
+        _currHeightReference >= _afterTouchdownHeight) 
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
         turnOffVisualServo();
@@ -364,6 +374,7 @@ void publishVisualServoSetpoint(double dt)
     _currVisualServoFeed.header.stamp = ros::Time::now();
     _pubVisualServoFeed.publish(_currVisualServoFeed);
 
+    // Publish currrent state
     std_msgs::Int32 stateMsg;
     stateMsg.data = _currentState;
     _pubVssmState.publish(stateMsg);
@@ -476,8 +487,9 @@ private:
 
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
-    double _currHeightReference, _descentSpeed; 
+    double _currHeightReference, _descentSpeed, _afterTouchdownHeight; 
     double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2;
+    int _descentTransitionCounter = 0;
 
     /* Define Dynamic Reconfigure parameters */
     boost::recursive_mutex _vssmConfigMutex;
