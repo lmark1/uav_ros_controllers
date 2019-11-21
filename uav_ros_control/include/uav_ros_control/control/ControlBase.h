@@ -88,6 +88,9 @@ namespace uav_controller
 		 */
 		const trajectory_msgs::MultiDOFJointTrajectoryPoint& getCurrentReference(); 
 
+		void overridePitchTarget(const double newPitch);
+		void overrideRollTarget(const double newRoll);
+		void overrideYawTarget(const double newYaw);
 	private:
 
 		/**

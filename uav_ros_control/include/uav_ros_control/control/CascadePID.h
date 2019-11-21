@@ -36,15 +36,8 @@ namespace uav_controller
 		 * @oaram dt - Discretization time
 		 */
 		void calculateAttThrustSp(double dt);
-
-	private:
 		
 		/**
-		 * Yaw reference callback function.
-		 */
-		void yawRefCb(const std_msgs::Float64ConstPtr&);
-
-        /**
 		 * Reset all position PIDs.
 		 */
 		void resetPositionPID();
@@ -53,6 +46,13 @@ namespace uav_controller
 		 * Reset all velociy PIDs.
 		 */
 		void resetVelocityPID();
+
+	private:
+		
+		/**
+		 * Yaw reference callback function.
+		 */
+		void yawRefCb(const std_msgs::Float64ConstPtr&);
 
         /**
 		 * Do all the parameter initialization here.
