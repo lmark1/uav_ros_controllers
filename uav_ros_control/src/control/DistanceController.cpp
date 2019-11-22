@@ -20,9 +20,7 @@ dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
 	_distSp 					(-1),
 	_inspectionRequestFailed 	(false),
 	_planeYaw 					(0),
-	_sequenceStep 				(0),
 	_currState 					(DistanceControlState::MANUAL),
-	_currSeq 					(Sequence::NONE),
 	uav_controller::CascadePID  (nh)
 {
 	// Initialize Class parameters
@@ -43,7 +41,6 @@ dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
 	_pubDistanceSp = nh.advertise<std_msgs::Float64>("plane/distance_sp", 1);
 	_pubDistanceVelocitySp = nh.advertise<std_msgs::Float64>("plane/distance_vel_sp", 1); 
 	_pubCarrotDistance = nh.advertise<std_msgs::Float64>("carrot/distance", 1);
-	_pubSequenceEnabled = nh.advertise<std_msgs::Bool>("sequence/enabled", 1);
 
 	// Setup dynamic reconfigure server
 	uav_ros_control::DistanceControlParametersConfig distConfig;
@@ -88,40 +85,6 @@ void dist_control::DistanceControl::normalCb(
 		_planeYaw += M_PI;
 
 	_planeYaw = util::wrapMinMax(_planeYaw, -M_PI, M_PI);
-}
-
-void dist_control::DistanceControl::detectSequenceChange()
-{
-	// Reset carrot position when changing sequence direction
-	if (inInspectionState() && (
-			leftSeqEnbled() && _currSeq == Sequence::RIGHT ||
-			rightSeqEnabled() && _currSeq == Sequence::LEFT ))
-	{
-		ROS_DEBUG("Inspection sequence changed - reset carrot.");
-		/* 
-		setCarrotPosition(
-			getCurrPosition()[0],
-			getCurrPosition()[1],
-			getCurrPosition()[2]); */
-		_currSeq = _currSeq == Sequence::LEFT ? Sequence::RIGHT : Sequence::LEFT;
-	}
-
-	// Determine current sequence
-	if (inInspectionState() && leftSeqEnbled())
-	{	
-		ROS_INFO("DistanceControl::detectSequenceChange - Left sequence activated.");
-		_currSeq = Sequence::LEFT;
-	}
-	else if (inInspectionState() && rightSeqEnabled())
-	{
-		ROS_INFO("DistanceControl::detectSequenceChange - Right sequence activated.");
-		_currSeq = Sequence::RIGHT;
-	}
-	else 
-	{
-		ROS_INFO("DistanceControl::detectSequenceChange - sequence deactivated");
-		_currSeq = Sequence::NONE;
-	}
 }
 
 void dist_control::DistanceControl::detectStateChange()
@@ -173,7 +136,6 @@ void dist_control::DistanceControl::detectStateChange()
 void dist_control::DistanceControl::deactivateInspection()
 {
 	_currState = DistanceControlState::MANUAL;
-	_currSeq = Sequence::NONE;
 
 	// Reset all PIDs
 	_distancePID->resetIntegrator();
@@ -238,47 +200,6 @@ void dist_control::DistanceControl::publishDistSp()
 	std_msgs::Float64 newMessage;
 	newMessage.data = _distSp;
 	_pubDistanceSp.publish(newMessage);
-}
-
-void dist_control::DistanceControl::publishSequenceState()
-{	
-	std_msgs::Bool newMessage;
-	if (_currSeq == Sequence::NONE || !inInspectionState())
-		newMessage.data = false;
-	else 
-		newMessage.data = true;
-	_pubSequenceEnabled.publish(newMessage);
-}
-
-void dist_control::DistanceControl::publishAttSp()
-{	
-	/*
-	// REAL - setpoint while in inspection mode
-	if (_mode == DistanceControlMode::REAL && inInspectionState())
-	{
-		publishAttitudeReal(getAttThrustSp(), 0, MASK_IGNORE_RPY_RATE);
-		return;
-	}
-
-	// REAL - setpoint while not in inspction mode
-	if (_mode == DistanceControlMode::REAL && !inInspectionState())
-	{		
-		publishAttitudeReal();
-		return;
-	}
-
-	// SIM - setpoint while in simulation mode
-	if (_mode == DistanceControlMode::SIMULATION)
-	{
-		publishAttitudeSim(getThrustScale());
-		return;
-	}
-	*/
-}
-
-dist_control::Sequence dist_control::DistanceControl::getSequence()
-{
-	return _currSeq;
 }
 
 bool dist_control::DistanceControl::inInspectionState()
@@ -363,39 +284,7 @@ void dist_control::DistanceControl::setDistReconfigureParams(
 
 bool dist_control::DistanceControl::inspectionEnabled()
 {
-	return false;
-	/*
-	if (_mode == DistanceControlMode::SIMULATION)
-		return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 1
-			|| leftSeqEnbled()
-			|| rightSeqEnabled();
-	else
-		return getJoyButtons()[_inspectIndices->INSPECTION_MODE] == 0
-			|| leftSeqEnbled()
-			|| rightSeqEnabled();
-			*/
-}
-
-bool dist_control::DistanceControl::leftSeqEnbled()
-{
-	return false;
-	/*
-	if (_mode == DistanceControlMode::SIMULATION)
-		return getJoyButtons()[_inspectIndices->LEFT_SEQUENCE] == 1;
-	else
-		return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] > 0.5;
-		*/
-}
-
-bool dist_control::DistanceControl::rightSeqEnabled()
-{
-	return false;
-	/*
-	if (_mode == DistanceControlMode::SIMULATION)
-		return getJoyButtons()[_inspectIndices->RIGHT_SEQUENCE] == 1;
-	else
-		return getJoyAxes()[_inspectIndices->RIGHT_SEQUENCE] < -0.5;
-		*/
+	return _inspectionEnabled;
 }
 
 void dist_control::DistanceControl::publishDistanceInfo()
@@ -403,7 +292,6 @@ void dist_control::DistanceControl::publishDistanceInfo()
 	publishState();
 	publishDistSp();
 	publishDistVelSp();
-	publishSequenceState();
 }
 
 void dist_control::runDefault(

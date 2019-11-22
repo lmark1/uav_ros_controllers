@@ -38,24 +38,6 @@ namespace dist_control
 		INSPECTION
 	};
 
-	enum Sequence
-	{
-		/**
-		 * Left sequence flight activated.
-		 */
-		LEFT,
-
-		/**
-		 * Right sequence flight activated.
-		 */
-		RIGHT,
-
-		/**
-		 * No sequence flight activated.
-		 */
-		NONE
-	};
-
 class DistanceControl : public uav_controller::CascadePID {
 
 	public:
@@ -77,12 +59,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		void detectStateChange();
 
 		/**
-		 * Check for any change in desired seqnce of inspection and perform all
-		 * necessary changes.
-		 */
-		void detectSequenceChange();
-
-		/**
 		 * Calculate target attitude setpoint while in inspection mode.
 		 * During Inspection mode UAV is controlled using "Carrot commands" i.e. 
 		 * position control.
@@ -102,16 +78,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		 * Return true if in inspection state, otherwise false.
 		 */
 		bool inInspectionState();
-
-		/**
-		 * Return the currently active sequence.
-		 */
-		Sequence getSequence();
-
-		/**
-		 * Checks if sequence target is reached.
-		 */
-		bool seqTargetReached();
 
 		/**
 		 * Perform distance control. Set attitude setpoint according to the 
@@ -142,11 +108,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		void normalCb(const geometry_msgs::PoseStampedConstPtr& message);
 
 		/**
-		 * Sequence step callback. Step is applied when in sequence mode.
-		 */
-		void seqStepCb(const std_msgs::Float64ConstPtr& message);
-
-		/**
 		 * Publish various distance control algorithm information.
 		 */
 		void publishDistanceInfo();
@@ -167,11 +128,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		 * Publish distance velocity setpoint as a Float64 ROS message.
 		 */
 		void publishDistVelSp();
-
-		/**
-		 * Publish true if in sequence state, otherwise false.
-		 */
-		void publishSequenceState();
 		
 		/**
 		 * Publish distance to carrot.
@@ -189,16 +145,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		 * Initialize parameters.
 		 */
 		void initializeParameters(ros::NodeHandle& nh);
-
-		/**
-		 * From the current Joy message determine if left sequence is enabled.
-		 */
-		bool leftSeqEnbled();
-
-		/**
-		 * From the current Joy message determine if right sequence is enabled.
-		 */
-		bool rightSeqEnabled();
 
 		/**
 		 * From the current Joy message determine if inspection if not.
@@ -228,9 +174,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		/** Current control state */
 		DistanceControlState _currState;
 
-		/** Current sequence */
-		Sequence _currSeq;
-
 		/** Distance PID controller */
 		std::unique_ptr<PID> _distancePID;
 
@@ -257,9 +200,6 @@ class DistanceControl : public uav_controller::CascadePID {
 
 		/** Yaw of the plane normal with respect to UAV base frame. */
 		double _planeYaw;
-
-		/** Current sequence step. */
-		double _sequenceStep;
 
 		/** Define all ROS subscribers. **/
 		ros::Subscriber _subDistance;
