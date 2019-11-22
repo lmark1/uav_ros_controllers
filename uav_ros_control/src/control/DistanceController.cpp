@@ -18,6 +18,7 @@ dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
 	_distanceVelocityMeasured 	(0),
 	_distVelSp 					(0),
 	_distSp 					(-1),
+	_distSpOffset				(0),
 	_inspectionRequestFailed 	(false),
 	_planeYaw 					(0),
 	_currState 					(DistanceControlState::MANUAL),
@@ -33,8 +34,8 @@ dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
 		&dist_control::DistanceControl::distanceVelCb, this);
 	_subPlaneNormal = nh.subscribe("plane/normal", 1,
 		&dist_control::DistanceControl::normalCb, this);
-	_subSequenceStep = nh.subscribe("sequence/step", 1,
-		&dist_control::DistanceControl::seqStepCb, this);
+	_subDistSpOffset = nh.subscribe("plane/distance_sp/offset", 1, 
+		&dist_control::DistanceControl::distanceSpOffsetCb, this);
 
 	// Setup all publishers
 	_pubControlState = nh.advertise<std_msgs::Int32>("control_state", 1);
@@ -65,9 +66,10 @@ void dist_control::DistanceControl::distanceVelCb(const std_msgs::Float64ConstPt
 	_distanceVelocityMeasured = message->data;
 }
 
-void dist_control::DistanceControl::seqStepCb(const std_msgs::Float64ConstPtr& message)
-{
-	_sequenceStep = message->data;
+
+void dist_control::DistanceControl::distanceSpOffsetCb(const std_msgs::Float64ConstPtr& message)
+{	
+	_distSpOffset = message->data;
 }
 
 void dist_control::DistanceControl::normalCb(
@@ -164,11 +166,7 @@ void dist_control::DistanceControl::doDistanceControl(double dt)
 	calculateAttThrustSp(dt);
 
 	// update distance setpoint
-	
-	/* 
-	_distSp -= nonlinear_filters::deadzone(
-		getXOffsetManual(), - DIST_SP_DEADZONE, DIST_SP_DEADZONE); 
-	*/
+	_distSp -= nonlinear_filters::deadzone(_distSpOffset, - DIST_SP_DEADZONE, DIST_SP_DEADZONE); 
 
 	// Calculate pitch setpoint using measured distance
 	_distVelSp = _distancePID->compute(_distSp, _distanceMeasured, dt);

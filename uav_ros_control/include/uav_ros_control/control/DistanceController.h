@@ -90,6 +90,11 @@ class DistanceControl : public uav_controller::CascadePID {
 		void distanceCb(const std_msgs::Float64ConstPtr& message);
 
 		/**
+		 * Distance setpoint offset callback
+		 */
+		void distanceSpOffsetCb(const std_msgs::Float64ConstPtr& message);
+
+		/**
 		 * Distance velocity callback function.
 		 */
 		void distanceVelCb(const std_msgs::Float64ConstPtr& message);
@@ -187,6 +192,9 @@ class DistanceControl : public uav_controller::CascadePID {
 		/** Distance setpoint value */
 		double _distSp;
 
+		/** Distance setpoint offset value*/
+		double _distSpOffset;
+		
 		/** Distance velocity setpoint value. */
 		double _distVelSp;
 
@@ -197,14 +205,13 @@ class DistanceControl : public uav_controller::CascadePID {
 		ros::Subscriber _subDistance;
 		ros::Subscriber _subDistanceVelocity;
 		ros::Subscriber _subPlaneNormal;
-		ros::Subscriber _subSequenceStep;
+		ros::Subscriber _subDistSpOffset;
 
 		/** Define all ROS publishers. **/
 		ros::Publisher _pubControlState;
 		ros::Publisher _pubDistanceSp;
 		ros::Publisher _pubDistanceVelocitySp;
 		ros::Publisher _pubCarrotDistance;
-		ros::Publisher _pubSequenceEnabled;
 
 		/** Define Dynamic Reconfigure parameters **/
 		boost::recursive_mutex _distConfigMutex;
