@@ -10,7 +10,6 @@
 
 #include <uav_ros_control/control/CascadePID.h>
 #include <uav_ros_control/reference/JoyStructure.h>
-#include <uav_ros_control/control/CascadePID.h>
 #include <uav_ros_control/DistanceControlParametersConfig.h>
 
 // ROS Includes
@@ -66,13 +65,6 @@ class DistanceControl : public uav_controller::CascadePID {
 		 * @param dt - Given discretization time.
 		 */
 		void calculateInspectionSetpoint(double dt);
-
-		/**
-		 * Publish attitude setpoint on the given topic.
-		 * If in simulation mode, publisher is expected to be Vector3.
-		 * If in real mode, publisher is expected to be mavros_msgs::AttitudeTarget.
-		 */
-		void publishAttSp();
 
 		/**
 		 * Return true if in inspection state, otherwise false.
@@ -224,17 +216,15 @@ class DistanceControl : public uav_controller::CascadePID {
 			_distParamCallback;
 	};
 
-
 	/**
-	 * Run default Carrot Control algorithm.
-	 * TODO: This does not work - fix
+	 * Run default Distance Control algorithm
 	 * 
 	 * @param cc - Reference to CarrotControl object
 	 * @param nh - Given NodeHandle
 	 * @param simMode - true if simulation mode is enabled, otherwise false
 	 */
 	void runDefault(
-		dist_control::DistanceControl& cc, ros::NodeHandle& nh, bool simMode);
+		dist_control::DistanceControl& cc, ros::NodeHandle& nh);
 
 }
 

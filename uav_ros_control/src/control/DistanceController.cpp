@@ -115,12 +115,6 @@ void dist_control::DistanceControl::detectStateChange()
 				_distanceMeasured);
 		_distSp = _distanceMeasured;
 		_currState = DistanceControlState::INSPECTION;
-
-		/*
-		setCarrotPosition(
-			getCurrPosition()[0],
-			getCurrPosition()[1],
-			getCurrPosition()[2]); */
 		return;
 	}
 
@@ -142,12 +136,6 @@ void dist_control::DistanceControl::deactivateInspection()
 	_distanceVelPID->resetIntegrator();
 	resetPositionPID();
 	resetVelocityPID();
-
-	// Reset Carrot position
-	/* setCarrotPosition(
-		getCurrPosition()[0],
-		getCurrPosition()[1],
-		getCurrPosition()[2]); */
 	ROS_WARN("Inspection mode deactivated successfully.");
 }
 
@@ -185,12 +173,8 @@ void dist_control::DistanceControl::doDistanceControl(double dt)
 	// Calculate pitch setpoint using measured distance
 	_distVelSp = _distancePID->compute(_distSp, _distanceMeasured, dt);
 	double pitch = - _distanceVelPID->compute(_distVelSp, _distanceVelocityMeasured, dt);
+	double yaw = getCurrentYaw() - _planeYaw; 		// TODO: Minus ili plus
 
-	// If in simulation mode treat as YAW RATE, otherwise treat as YAW
-	double yaw;
-	yaw = getCurrentYaw() - _planeYaw; 		// TODO: Minus ili plus
-
-	// TODO: Implement this functionality
 	overridePitchTarget(pitch);
 	overrideYawTarget(yaw);
 }
@@ -295,7 +279,7 @@ void dist_control::DistanceControl::publishDistanceInfo()
 }
 
 void dist_control::runDefault(
-	dist_control::DistanceControl& dc, ros::NodeHandle& nh, bool simMode)
+	dist_control::DistanceControl& dc, ros::NodeHandle& nh)
 {
 	// Setup loop rate
 	double rate = 25;
@@ -315,24 +299,17 @@ void dist_control::runDefault(
 		ros::spinOnce();
 
 		dc.detectStateChange();
-		dc.detectSequenceChange();
 		
-		// Do regular "Manual" Inspection when sequence is not set
-		if (dc.inInspectionState() && 
-			dc.getSequence() == dist_control::Sequence::NONE)
-			dc.calculateInspectionSetpoint(dt);
-
-		// Do "Sequence" Inpsection when sequence is set
-		else if (dc.inInspectionState() &&
-			dc.getSequence() != dist_control::Sequence::NONE);
-			//dc.calculateSequenceSetpoint(dt);			
+		// Do  Inspection 
+		if (dc.inInspectionState())
+			dc.calculateInspectionSetpoint(dt);	
 
 		// If not in inspection state go to attitude control
 		else
 			dc.calculateAttThrustSp(dt);
 			
 		// Publish attitude setpoint
-		dc.publishAttSp();
+		dc.publishAttitudeTarget(uav_controller::MASK_IGNORE_RP_RATE);
 
 		// Publish other information
 		dc.publishDistanceInfo();
