@@ -6,12 +6,11 @@
 #include <std_msgs/Bool.h>
 #include <array>
 
-#define DIST_PID_PARAMS "/control/distance"
-#define DISTVEL_PID_PARAMS "/control/distance_vel"
+#define DIST_PID_PARAMS "control/distance"
+#define DISTVEL_PID_PARAMS "control/distance_vel"
 #define DIST_SP_DEADZONE 0.01
 
 dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
-	_inspectIndices 			{new joy_struct::InspectionIndices},
 	_distancePID 				{new PID("Distance")},
 	_distanceVelPID 			{new PID("Distance vel")},
 	_distanceMeasured 			(-1),
@@ -38,10 +37,14 @@ dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
 		&dist_control::DistanceControl::distanceSpOffsetCb, this);
 
 	// Setup all publishers
-	_pubControlState = nh.advertise<std_msgs::Int32>("control_state", 1);
+	_pubControlState = nh.advertise<std_msgs::Int32>("plane/control_state", 1);
 	_pubDistanceSp = nh.advertise<std_msgs::Float64>("plane/distance_sp", 1);
 	_pubDistanceVelocitySp = nh.advertise<std_msgs::Float64>("plane/distance_vel_sp", 1); 
-	_pubCarrotDistance = nh.advertise<std_msgs::Float64>("carrot/distance", 1);
+	
+	_serviceEnableInspection = nh.advertiseService(
+			"plane/inspection_mode",
+			&dist_control::DistanceControl::enableInspectionCb,
+			this);
 
 	// Setup dynamic reconfigure server
 	uav_ros_control::DistanceControlParametersConfig distConfig;
@@ -54,6 +57,41 @@ dist_control::DistanceControl::DistanceControl(ros::NodeHandle& nh) :
 
 dist_control::DistanceControl::~DistanceControl() {
 	// TODO Auto-generated destructor stub
+}
+
+bool dist_control::DistanceControl::enableInspectionCb(std_srvs::SetBool::Request& request, 
+			std_srvs::SetBool::Response& response)
+{
+	// If user wants to disable inspection
+	if (!request.data)
+	{
+		ROS_WARN("DistanceControl - deactivation request recieved");
+		deactivateInspection();
+		response.message = "Deactivation request successful";
+		response.success = false;
+		return true;
+	}
+
+	// User wants to activate inspection
+	_inspectionEnabled = true;
+	detectStateChange();
+
+	// Report if state was successfully changed
+	if (inInspectionState())
+	{
+		ROS_INFO("DistanceControl - enabled");
+		response.message = "Successfully entered inspection state";
+		response.success = true;
+	}
+	else
+	{
+		ROS_FATAL("DistanceControl - unable to enter inspection");
+		response.message = "Unable to enter inspection state";
+		response.success = false;
+		_inspectionEnabled = false;
+	}
+
+	return true;
 }
 
 void dist_control::DistanceControl::distanceCb(const std_msgs::Float64ConstPtr& message)
@@ -132,6 +170,7 @@ void dist_control::DistanceControl::detectStateChange()
 void dist_control::DistanceControl::deactivateInspection()
 {
 	_currState = DistanceControlState::MANUAL;
+	_inspectionEnabled = false;
 
 	// Reset all PIDs
 	_distancePID->resetIntegrator();
@@ -214,17 +253,6 @@ void dist_control::DistanceControl::initializeParameters(ros::NodeHandle& nh)
 
 	_distancePID->initializeParameters(nh, DIST_PID_PARAMS);
 	_distanceVelPID->initializeParameters(nh, DISTVEL_PID_PARAMS);
-	
-	bool initialized = 
-		nh.getParam("/joy/detection_state", _inspectIndices->INSPECTION_MODE) &&
-		nh.getParam("/joy/left_seq", _inspectIndices->LEFT_SEQUENCE) &&
-		nh.getParam("/joy/right_seq", _inspectIndices->RIGHT_SEQUENCE);
-	ROS_INFO_STREAM(*_inspectIndices);
-	if (!initialized)
-	{
-		ROS_FATAL("DistanceControl::initializeParameters() - inspection index not set.");
-		throw std::runtime_error("DistanceControl parameters are not properly set.");
-	}
 }
 
 void dist_control::DistanceControl::distParamCb(
@@ -280,16 +308,10 @@ void dist_control::runDefault(
 	dist_control::DistanceControl& dc, ros::NodeHandle& nh)
 {
 	// Setup loop rate
-	double rate = 25;
-	bool initialized = nh.getParam("/sequence/rate", rate);
+	double rate = 50;
 	ros::Rate loopRate(rate);
 	double dt = 1.0 / rate;
 	ROS_INFO("dist_control::runDeafult() - Setting rate to %.2f", rate);
-	if (!initialized)
-	{
-		ROS_FATAL("Failed to initialized loop parameters.");
-		throw std::runtime_error("Failed to initialize loop parametrs");
-	}
 	
 	// Start the main loop
 	while (ros::ok())

@@ -14,6 +14,7 @@
 
 // ROS Includes
 #include <ros/ros.h>
+#include <std_srvs/SetBool.h>
 
 #include <iostream>
 #include <array>
@@ -130,7 +131,12 @@ class DistanceControl : public uav_controller::CascadePID {
 		 * Publish distance to carrot.
 		 */
 		void publishDistanceToCarrot();
-
+		
+		/** 
+		 * Inspection enable service callback.
+		 */
+		bool enableInspectionCb(std_srvs::SetBool::Request& request, 
+			std_srvs::SetBool::Response& response);
 
 		/**
 		 * Set reconfigure parameters in the given config object.
@@ -177,9 +183,9 @@ class DistanceControl : public uav_controller::CascadePID {
 		/** Distance velocity PID controller */
 		std::unique_ptr<PID> _distanceVelPID;
 		
-		/** Inspection indices for ROS Joy messages */
-		std::unique_ptr<joy_struct::InspectionIndices> _inspectIndices;
-		
+		/** User enabled the inspection */
+		bool _inspectionEnabled;
+
 		/** True if inspection state was requested and denied, false otherwise. */
 		bool _inspectionRequestFailed;
 
@@ -212,6 +218,9 @@ class DistanceControl : public uav_controller::CascadePID {
 		ros::Publisher _pubDistanceSp;
 		ros::Publisher _pubDistanceVelocitySp;
 		ros::Publisher _pubCarrotDistance;
+
+		/** Define all the services */
+		ros::ServiceServer _serviceEnableInspection;
 
 		/** Define Dynamic Reconfigure parameters **/
 		boost::recursive_mutex _distConfigMutex;
