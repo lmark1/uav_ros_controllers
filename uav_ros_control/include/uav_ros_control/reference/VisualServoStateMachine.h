@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Bool.h>
@@ -27,6 +28,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_TOUCHDOWN_DURATION    "visual_servo/state_machine/touchdown_duration"
 #define PARAM_RATE                  "visual_servo/state_machine/rate"
 #define PARAM_DESCENT_SPEED         "visual_servo/state_machine/descent_speed"
+#define PARAM_AFTER_TD_HEIGHT       "visual_servo/state_machine/after_touchdown_height"
 #define PARAM_OFF1_X                "visual_servo/state_machine/offset_x_1"
 #define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
 #define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
@@ -53,6 +55,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.advertise<uav_ros_control_msgs::VisualServoProcessValues>("visual_servo/process_value", 1);
     _pubOffsetX = nh.advertise<std_msgs::Float32>("visual_servo/offset_x", 1);
     _pubOffsetY = nh.advertise<std_msgs::Float32>("visual_servo/offset_y", 1);
+    _pubVssmState = nh.advertise<std_msgs::Int32>("visual_servo_sm/state", 1);
 
     // Define Subscribers
     _subOdom =
@@ -63,11 +66,11 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("visual_servo/target_error_y", 1, &uav_reference::VisualServoStateMachine::targetErrorYCb, this);
     _subYawError = 
         nh.subscribe("visual_servo/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
-    _subVSStatus = 
-        nh.subscribe("visual_servo/status", 1, &uav_reference::VisualServoStateMachine::statusCb, this);
     _subBrickDist = 
         nh.subscribe("brick/distance", 1, &uav_reference::VisualServoStateMachine::brickDistCb, this);
-
+    _subNContours =
+        nh.subscribe("n_contours", 1, &uav_reference::VisualServoStateMachine::nContoursCb, this);
+  
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
 	setVSSMParameters(vssmConfig);
@@ -94,10 +97,28 @@ void brickDistCb(const std_msgs::Float32ConstPtr& msg)
     _relativeBrickDistance = msg->data;
 }
 
+void nContoursCb(const std_msgs::Int32ConstPtr& msg)
+{
+    _nContours = msg->data;
+    if (msg->data == 0 && _currentState != VisualServoState::TOUCHDOWN && 
+        _currentState !=VisualServoState::OFF)
+    {
+        turnOffVisualServo();
+    }
+}
+
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || _currOdom.pose.pose.position.z < 2)
+    if (!request.data || _currOdom.pose.pose.position.z < _afterTouchdownHeight || _nContours == 0)
     {
+        if (!request.data)
+            ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
+        else if (_currOdom.pose.pose.position.z < _afterTouchdownHeight)
+            ROS_FATAL("VSSM::brickPickupServiceCb - current height [%.2fm] below minimum [%.2fm]", 
+                _currOdom.pose.pose.position.z, _afterTouchdownHeight);
+        else if (_nContours == 0)
+            ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
+
         turnOffVisualServo();
         _brickPickupActivated = false;
         response.success = false;
@@ -111,16 +132,6 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup is already active.");
         response.success = false;
         response.message = "Brick pickup is already active";
-        return true;
-    }
-
-    // If VS is already active for some reason ...
-    if (_vsStatus)
-    {
-        ROS_INFO("Visual servo is already active.");
-        _brickPickupActivated = true;
-        response.message = true;
-        response.message = "Visual servo was already active - brick pickup activated";
         return true;
     }
 
@@ -144,7 +155,6 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         response.success = true;
         response.message = "Visual servo enabled - brick pickup activated.";
         _brickPickupActivated = true;
-        _vsStatus = true;
         return true;
     }
     
@@ -169,6 +179,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _offset_y_1 = configMsg.y_offset_1;
     _offset_y_2 = configMsg.y_offset_2;
     _descentSpeed = configMsg.descent_speed;
+    _afterTouchdownHeight = configMsg.after_touchdown_height;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -183,6 +194,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
     config.descent_speed = _descentSpeed;
+    config.after_touchdown_height = _afterTouchdownHeight;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
@@ -198,7 +210,8 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_OFF2_X, _offset_x_2)
         && nh.getParam(PARAM_OFF1_Y, _offset_y_1)
         && nh.getParam(PARAM_OFF2_Y, _offset_y_2)
-        && nh.getParam(PARAM_RATE, _rate);
+        && nh.getParam(PARAM_RATE, _rate)
+        && nh.getParam(PARAM_AFTER_TD_HEIGHT, _afterTouchdownHeight);
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum target error: %.2f", _minTargetError);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
@@ -206,6 +219,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
     ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
+    ROS_INFO("After touchdown height: %.2f", _afterTouchdownHeight);
     ROS_INFO("X offsets: %.2f, %.2f", _offset_x_1, _offset_x_2);
     ROS_INFO("Y offsets: %.2f, %.2f", _offset_y_1, _offset_y_2);
     if (!initialized)
@@ -217,15 +231,6 @@ void initializeParameters(ros::NodeHandle& nh)
 
 void turnOffVisualServo()
 {
-    if (!_vsStatus)
-    {
-        _currentState = VisualServoState::OFF;
-        ROS_INFO("VSSM::updateStatus - OFF state activated. ");
-        _brickPickupActivated = false;
-        ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
-        return;
-    }
-
     // Attempt to turn off visual servo
     std_srvs::SetBool::Request req;
     std_srvs::SetBool::Response resp;
@@ -256,7 +261,7 @@ void turnOffVisualServo()
 void updateState()
 {
     // If visual servo is inactive, deactivate state machine
-    if (_currentState != VisualServoState::OFF && (!_brickPickupActivated || !_vsStatus))
+    if (_currentState != VisualServoState::OFF && !_brickPickupActivated)
     {
         ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
         _currentState = VisualServoState::OFF;
@@ -271,15 +276,20 @@ void updateState()
     {
         ROS_INFO("VSSM::updateStatus - Brick pickup requested");
         _currHeightReference = _currOdom.pose.pose.position.z;
+        _descentTransitionCounter = 0;
         _currentState = VisualServoState::BRICK_ALIGNMENT;
         ROS_INFO("VSSM::updateStatus - BRICK_ALIGNMENT state activated with height: %2f.", _currHeightReference);
         return;
     }
 
-    // If brick alignemnt is activated and target error is withing range start descent
+    // Update the transition counter
     if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
         sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError && 
-        abs(_currYawError) < _minYawError)
+        abs(_currYawError) < _minYawError) _descentTransitionCounter++;
+
+    // If brick alignemnt is activated and target error is withing range start descent
+    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
+        _descentTransitionCounter > 100)
     {
         _currentState = VisualServoState::DESCENT;
         ROS_INFO("VSSM::updateStatus - DESCENT state activated");
@@ -300,8 +310,8 @@ void updateState()
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _touchdownTime >= 10 && //TODO: Parameter here
-        _currHeightReference >= 3) // TOD: Parameter here
+        _touchdownTime >= _touchdownDuration && 
+        _currHeightReference >= _afterTouchdownHeight) 
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
         turnOffVisualServo();
@@ -363,6 +373,11 @@ void publishVisualServoSetpoint(double dt)
 
     _currVisualServoFeed.header.stamp = ros::Time::now();
     _pubVisualServoFeed.publish(_currVisualServoFeed);
+
+    // Publish currrent state
+    std_msgs::Int32 stateMsg;
+    stateMsg.data = _currentState;
+    _pubVssmState.publish(stateMsg);
 }
 
 void publishOffsets()
@@ -386,11 +401,6 @@ void publishOffsets()
     std_msgs::Float32 offsetYMsg;
     offsetYMsg.data = offset_y;
     _pubOffsetY.publish(offsetYMsg);
-}
-
-void statusCb(const std_msgs::BoolConstPtr& msg)
-{
-    _vsStatus = msg->data;
 }
 
 void odomCb(const nav_msgs::OdometryConstPtr& msg)
@@ -448,6 +458,7 @@ private:
     ros::Subscriber _subOffsetY;
     ros::Publisher _pubOffsetX;
     ros::Publisher _pubOffsetY;
+    ros::Publisher _pubVssmState;
 
     /* Pose publisher */
     ros::Publisher _pubVisualServoFeed;
@@ -467,17 +478,18 @@ private:
     double _currYawError = 1e5;
     double _minYawError;
 
-    /* VS status subscriber */
-    ros::Subscriber _subVSStatus;
-    bool _vsStatus = false;
-
     ros::Subscriber _subBrickDist;
     double _relativeBrickDistance = INVALID_DISTANCE;
-    
+
+    /* Contour subscriber */
+    ros::Subscriber _subNContours;
+    int _nContours;
+
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
-    double _currHeightReference, _descentSpeed; 
+    double _currHeightReference, _descentSpeed, _afterTouchdownHeight; 
     double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2;
+    int _descentTransitionCounter = 0;
 
     /* Define Dynamic Reconfigure parameters */
     boost::recursive_mutex _vssmConfigMutex;

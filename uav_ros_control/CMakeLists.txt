@@ -15,6 +15,7 @@ find_package(cmake_modules REQUIRED)
 
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
+	config/control/DistanceControlParameters.cfg
 	config/reference/VisualServoParameters.cfg
 	config/reference/VisualServoStateMachineParameters.cfg
 )
@@ -65,6 +66,10 @@ target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
 target_link_libraries(pid_cascade_node control_lib)
+
+# Distance control node
+add_executable(distance_control_node nodes/control/DistanceControlNode.cpp)
+target_link_libraries(distance_control_node control_lib nfilt)
 
 install(DIRECTORY include/${PROJECT_NAME}/
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

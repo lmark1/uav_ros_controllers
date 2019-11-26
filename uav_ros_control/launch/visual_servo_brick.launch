@@ -11,6 +11,10 @@
 
     <group ns="$(arg namespace)">
         
+         <!-- Visual servo state machine parameters -->
+        <rosparam command="load"
+            file="$(find uav_ros_control)/config/reference/visual_servo_brick.yaml" />
+        
         <!-- Visual servo node -->
         <node
             pkg="uav_ros_control"
@@ -19,13 +23,12 @@
             output="screen">
 
             <!-- Topic remapping -->
-            <remap from="x_error" to="red_color_filter/yaw_err"/>
-            <remap from="y_error" to="red_color_filter/pitch_err"/>
+            <remap from="x_error" to="red_color_filter/patch_yaw_err"/>
+            <remap from="y_error" to="red_color_filter/patch_pitch_err"/>
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="imu" to="/mavros/imu/data"/>
             <remap from="yaw_error" to="red_color_filter/orientation_err"/>
-            <remap from="n_contours" to="red_color_filter/nContours"/>
-            
+
             <!-- State machine topics -->
             <remap from="x_offset" to="$(arg x_offset)"/>
             <remap from="y_offset" to="$(arg y_offset)"/>
@@ -37,7 +40,7 @@
 
         <!-- Visual servo state machine parameters -->
         <rosparam command="load"
-            file="$(find uav_ros_control)/config/reference/visual_servo_sm.yaml" />
+            file="$(find uav_ros_control)/config/reference/visual_servo_brick_sm.yaml" />
         
         <!-- Visual Servo state machine node -->
         <node
@@ -48,6 +51,7 @@
 
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="visual_servo/status" to="$(arg status)"/>
+            <remap from="n_contours" to="red_color_filter/nContours"/>
             <remap from="visual_servo/yaw_error" to="red_color_filter/orientation_err"/>
             <remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/>
         </node>

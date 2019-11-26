@@ -55,6 +55,8 @@
 namespace uav_reference {
 
 VisualServo::VisualServo(ros::NodeHandle& nh) {
+  initializeParameters(nh);
+  ros::Duration(2.0).sleep();
 
   // Define Publishers
   _pubXError = nh.advertise<std_msgs::Float32>("visual_servo/x_error", 1);
@@ -68,7 +70,6 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendliness
   _pubUavRollDebug = nh.advertise<std_msgs::Float32>("debug/uav_roll", 1);
   _pubUavPitchDebug = nh.advertise<std_msgs::Float32>("debug/uav_pitch", 1);
-
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
 
@@ -79,19 +80,21 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("x_error", 1, &uav_reference::VisualServo::xErrorCb, this);
   _subYError =
       nh.subscribe("y_error", 1, &uav_reference::VisualServo::yErrorCb, this);
+  _subZError = 
+      nh.subscribe("z_error", 1, &uav_reference::VisualServo::zErrorCb, this);
   _subYawError =
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
-  _subNContours =
-      nh.subscribe("n_contours", 1, &uav_reference::VisualServo::nContoursCb, this);
   _subXOffset =
       nh.subscribe("x_offset", 1, &uav_reference::VisualServo::xOffsetCb, this);
   _subYOffset =
       nh.subscribe("y_offset", 1, &uav_reference::VisualServo::yOffsetCb, this);
+  _subZOffset =
+      nh.subscribe("z_offset", 1, &uav_reference::VisualServo::zOffsetCb, this);
+            
   _subVisualServoProcessValuesMsg =
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
   // Setup dynamic reconfigure
-
   _VSParamCallback = boost::bind(&VisualServo::visualServoParamsCb, this, _1, _2);
   _VSConfigServer.setCallback(_VSParamCallback);
 
@@ -100,30 +103,104 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       &uav_reference::VisualServo::startVisualServoServiceCb,
       this);
 
-
   _new_point.transforms = std::vector<geometry_msgs::Transform>(1);
   _new_point.velocities = std::vector<geometry_msgs::Twist>(1);
   _new_point.accelerations = std::vector<geometry_msgs::Twist>(1);
-
-  _x_frozen = false;
-  _y_frozen = false;
-  _yaw_frozen = false;
 }
 
 VisualServo::~VisualServo() {}
 
+void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
+{
+  ROS_WARN("CascadePID::initializeParameters()");
+
+  bool x_armed = false, y_armed = false, z_armed = false, yaw_armed = false;
+  bool initialized = nh.getParam("visual_servo/camera_fov", _camera_fov) &&
+    nh.getParam("visual_servo/compensate_roll_and_pitch", _compensate_roll_and_pitch) && 
+    nh.getParam("visual_servo/pid_x/x_armed", x_armed) &&
+    nh.getParam("visual_servo/pid_y/y_armed", y_armed) &&
+    nh.getParam("visual_servo/pid_z/z_armed", z_armed) &&
+    nh.getParam("visual_servo/pid_yaw/yaw_armed", yaw_armed) &&
+    nh.getParam("visual_servo/pid_x/deadzone_x", _deadzone_x) &&
+    nh.getParam("visual_servo/pid_y/deadzone_y", _deadzone_y) &&
+    nh.getParam("visual_servo/pid_z/deadzone_z", _deadzone_z) &&
+    nh.getParam("visual_servo/pid_yaw/deadzone_yaw", _deadzone_yaw);
+  
+  ROS_INFO_COND(_compensate_roll_and_pitch, "VS - Roll and pitch compensation is active");
+  ROS_INFO("VS - camera FOV %.2f", _camera_fov);
+  ROS_INFO("VS - deadzones x,y,z,yaw = [%.3f, %.3f, %.3f, %.3f]", 
+    _deadzone_x, _deadzone_y, _deadzone_z, _deadzone_yaw);
+  
+  if (x_armed)
+    _x_axis_PID.initializeParameters(nh, "visual_servo/pid_x");
+  if (y_armed)
+    _y_axis_PID.initializeParameters(nh, "visual_servo/pid_y");
+  if (z_armed)
+    _z_axis_PID.initializeParameters(nh, "visual_servo/pid_z");
+  if (yaw_armed)
+    _yaw_PID.initializeParameters(nh, "visual_servo/pid_yaw");
+
+    if (!initialized)
+    {
+      ROS_FATAL("VisualServo::initalizeParameters() - failed to initialize parameters");
+		  throw std::runtime_error("VisualServo parameters not properly initialized.");
+    }
+
+  uav_ros_control::VisualServoParametersConfig cfg;
+  _VSConfigServer.getConfigDefault(cfg);
+
+  cfg.x_armed = x_armed;
+  if (x_armed)
+  {
+    cfg.k_p_x = _x_axis_PID.get_kp();
+    cfg.k_i_x = _x_axis_PID.get_ki();
+    cfg.k_d_x = _x_axis_PID.get_kd();  
+    cfg.saturation_x = _x_axis_PID.get_lim_high();
+    cfg.deadzone_x = _deadzone_x;
+  }
+
+  cfg.y_armed = y_armed;  
+  if (y_armed)
+  {
+    cfg.k_p_y = _y_axis_PID.get_kp();
+    cfg.k_i_y = _y_axis_PID.get_ki();
+    cfg.k_d_y = _y_axis_PID.get_kd();  
+    cfg.saturation_y = _y_axis_PID.get_lim_high();
+    cfg.deadzone_y = _deadzone_y;
+  }
+
+  cfg.z_armed = z_armed;  
+  if (z_armed)
+  {
+    cfg.k_p_z = _z_axis_PID.get_kp();
+    cfg.k_i_z = _z_axis_PID.get_ki();
+    cfg.k_d_z = _z_axis_PID.get_kd();  
+    cfg.saturation_z = _z_axis_PID.get_lim_high();
+    cfg.deadzone_z = _deadzone_z;
+  }
+
+  cfg.yaw_armed = yaw_armed;  
+  if (yaw_armed)
+  {
+    cfg.k_p_yaw = _yaw_PID.get_kp();
+    cfg.k_i_yaw = _yaw_PID.get_ki();
+    cfg.k_d_yaw = _yaw_PID.get_kd();  
+    cfg.saturation_yaw = _yaw_PID.get_lim_high();
+    cfg.deadzone_yaw = _deadzone_yaw;
+  }
+
+  cfg.camera_fov = _camera_fov;
+  cfg.compensate_roll_and_pitch = _compensate_roll_and_pitch;
+  _VSConfigServer.updateConfig(cfg);
+}
+
+
 bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Request &request,
                                                            std_srvs::SetBool::Response &response) {
   if (request.data) {
-    if (_n_contours) {
-      if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
-      _visualServoEnabled = true;
-      response.message = "Visual servo enabled.";
-    }
-    else {
-      ROS_ERROR("The color filter reports no contours. Cannot enable visual servo.");
-      response.message = "The color filter reports no contours. Cannot enable visual servo.";
-    }
+    if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
+    _visualServoEnabled = true;
+    response.message = "Visual servo enabled.";
   }
   else {
     if(isVisualServoEnabled()) ROS_INFO("UAV VisualServo - disabling visual servo.");
@@ -145,62 +222,52 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
 
-  if (configMsg.groups.general_parameters.enable) {
-      _setBoolRequest.data = true;
-      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
-  }
-  else {
-      _setBoolRequest.data = false;
-      startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
-  }
+  _deadzone_x = configMsg.deadzone_x;
+  _deadzone_y = configMsg.deadzone_y;
+  _deadzone_yaw  = configMsg.deadzone_yaw;
+  _deadzone_z = configMsg.deadzone_z;
+   
+  _x_axis_PID.set_kp(configMsg.k_p_x);
+  _x_axis_PID.set_ki(configMsg.k_i_x);
+  _x_axis_PID.set_kd(configMsg.k_d_x);
+  _x_axis_PID.set_lim_high(configMsg.saturation_x);
+  _x_axis_PID.set_lim_low(-configMsg.saturation_x);
 
-  _deadzone_x = configMsg.groups.x_axis.deadzone_x;
-
-  _deadzone_y = configMsg.groups.y_axis.deadzone_y;
-
-  _deadzone_yaw  = configMsg.groups.yaw_control.deadzone_yaw;
-
-  _x_axis_PID.set_kp(configMsg.groups.x_axis.k_p_x);
-  _x_axis_PID.set_ki(configMsg.groups.x_axis.k_i_x);
-  _x_axis_PID.set_kd(configMsg.groups.x_axis.k_d_x);
-  _x_axis_PID.set_lim_high(configMsg.groups.x_axis.saturation_x);
-  _x_axis_PID.set_lim_low(-configMsg.groups.x_axis.saturation_x);
-
-  if (!configMsg.groups.x_axis.x_armed) {
+  if (!configMsg.x_armed) {
     _x_axis_PID.set_kp(0);
     _x_axis_PID.set_ki(0);
     _x_axis_PID.set_kd(0);
     _x_axis_PID.resetIntegrator();
   }
 
-  _y_axis_PID.set_kp(configMsg.groups.y_axis.k_p_y);
-  _y_axis_PID.set_ki(configMsg.groups.y_axis.k_i_y);
-  _y_axis_PID.set_kd(configMsg.groups.y_axis.k_d_y);
-  _y_axis_PID.set_lim_high(configMsg.groups.y_axis.saturation_y);
-  _y_axis_PID.set_lim_low(-configMsg.groups.y_axis.saturation_y);
+  _y_axis_PID.set_kp(configMsg.k_p_y);
+  _y_axis_PID.set_ki(configMsg.k_i_y);
+  _y_axis_PID.set_kd(configMsg.k_d_y);
+  _y_axis_PID.set_lim_high(configMsg.saturation_y);
+  _y_axis_PID.set_lim_low(-configMsg.saturation_y);
 
-  if (!configMsg.groups.y_axis.y_armed) {
+  if (!configMsg.y_armed) {
     _y_axis_PID.set_kp(0);
     _y_axis_PID.set_ki(0);
     _y_axis_PID.set_kd(0);
     _y_axis_PID.resetIntegrator();
   }
 
-  _yaw_PID.set_kp(configMsg.groups.yaw_control.k_p_yaw);
-  _yaw_PID.set_ki(configMsg.groups.yaw_control.k_i_yaw);
-  _yaw_PID.set_kd(configMsg.groups.yaw_control.k_d_yaw);
-  _yaw_PID.set_lim_high(configMsg.groups.yaw_control.saturation_yaw);
-  _yaw_PID.set_lim_low(-configMsg.groups.yaw_control.saturation_yaw);
+  _yaw_PID.set_kp(configMsg.k_p_yaw);
+  _yaw_PID.set_ki(configMsg.k_i_yaw);
+  _yaw_PID.set_kd(configMsg.k_d_yaw);
+  _yaw_PID.set_lim_high(configMsg.saturation_yaw);
+  _yaw_PID.set_lim_low(-configMsg.saturation_yaw);
 
-  if (!configMsg.groups.yaw_control.yaw_armed) {
+  if (!configMsg.yaw_armed) {
     _yaw_PID.set_kp(0);
     _yaw_PID.set_ki(0);
     _yaw_PID.set_kd(0);
     _yaw_PID.resetIntegrator();
   }
 
-  _compensate_roll_and_pitch = configMsg.groups.general_parameters.compensate_roll_and_pitch;
-  _camera_fov = configMsg.groups.general_parameters.camera_fov * M_PI / 180.0;
+  _compensate_roll_and_pitch = configMsg.compensate_roll_and_pitch;
+  _camera_fov = configMsg.camera_fov * M_PI / 180.0;
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
@@ -241,20 +308,14 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
   _pubYError.publish(_floatMsg);
 }
 
+void VisualServo::zErrorCb(const std_msgs::Float32& msg)
+{
+  _error_z = msg.data;
+}
+
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
   _error_yaw = -data.data;
   _pubYawErrorDebug.publish(data);
-}
-
-void VisualServo::nContoursCb(const std_msgs::Int32 &data) {
-  _n_contours = data.data;
-  if (!_n_contours){
-      if (isVisualServoEnabled()){
-          ROS_ERROR("Lost sight of object!");
-          _setBoolRequest.data = false;
-          startVisualServoServiceCb(_setBoolRequest, _setBoolResponse);
-      }
-  }
 }
 
 void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues &msg) {
@@ -290,6 +351,10 @@ void VisualServo::xOffsetCb(const std_msgs::Float32 &msg) {
 
 void VisualServo::yOffsetCb(const std_msgs::Float32 &msg){
     _offset_y = msg.data;
+}
+
+void VisualServo::zOffsetCb(const std_msgs::Float32 &msg){
+    _offset_z = msg.data;
 }
 
 void VisualServo::updateSetpoint() {

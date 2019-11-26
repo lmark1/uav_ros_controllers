@@ -15,11 +15,11 @@ namespace uav_controller
 
 	/** Type mask used when publishing AttitudeTarget ROS messages. It will ignore
 	 * body roll, pitch and rate values. */
-	#define MASK_IGNORE_RPY_RATE 7
+	const int MASK_IGNORE_RPY_RATE = 7;
 	
     /** Type mask used when publishing AttitudeTarget ROS messages. It will ignore
 	 * body roll and pitch rate values. */
-	#define MASK_IGNORE_RP_RATE 3
+	const int MASK_IGNORE_RP_RATE = 3;
 
 	/**
 	 * This class is used for defining UAV odometry subscribers.
@@ -88,6 +88,9 @@ namespace uav_controller
 		 */
 		const trajectory_msgs::MultiDOFJointTrajectoryPoint& getCurrentReference(); 
 
+		void overridePitchTarget(const double newPitch);
+		void overrideRollTarget(const double newRoll);
+		void overrideYawTarget(const double newYaw);
 	private:
 
 		/**

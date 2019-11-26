@@ -142,6 +142,21 @@ void uav_controller::ControlBase::setAttitudeSp(
 	_attThrustSp[2] = yaw;
 }
 
+void uav_controller::ControlBase::overrideRollTarget(const double roll)
+{
+	_attThrustSp[0] = roll;
+}
+
+void uav_controller::ControlBase::overridePitchTarget(const double pitch)
+{
+	_attThrustSp[1] = pitch;
+}
+
+void uav_controller::ControlBase::overrideYawTarget(const double yaw)
+{
+	_attThrustSp[2] = yaw;
+}
+
 void uav_controller::ControlBase::publishEulerSp()
 {
 	geometry_msgs::Vector3 newMessage;
