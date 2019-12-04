@@ -64,8 +64,10 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("visual_servo/target_error_x", 1, &uav_reference::VisualServoStateMachine::targetErrorXCb, this);
     _subTargetErrorY =  
         nh.subscribe("visual_servo/target_error_y", 1, &uav_reference::VisualServoStateMachine::targetErrorYCb, this);
+    // Note from past Lovro : This is changed to debug/yaw_error because that holds actual information about the yaw_error
+    // TODO: Change this to make more sense
     _subYawError = 
-        nh.subscribe("visual_servo/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
+        nh.subscribe("debug/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
     _subBrickDist = 
         nh.subscribe("brick/distance", 1, &uav_reference::VisualServoStateMachine::brickDistCb, this);
     _subNContours =

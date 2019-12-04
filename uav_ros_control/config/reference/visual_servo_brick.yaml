@@ -2,6 +2,7 @@ visual_servo:
   
   camera_fov: 80
   compensate_roll_and_pitch: true
+  yaw_added_offset: 0
 
   pid_x:
     x_armed:  true
