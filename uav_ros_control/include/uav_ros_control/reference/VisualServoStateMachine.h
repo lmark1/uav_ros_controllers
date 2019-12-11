@@ -28,6 +28,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_TOUCHDOWN_DURATION    "visual_servo/state_machine/touchdown_duration"
 #define PARAM_RATE                  "visual_servo/state_machine/rate"
 #define PARAM_DESCENT_SPEED         "visual_servo/state_machine/descent_speed"
+#define PARAM_ASCENT_SPEED         "visual_servo/state_machine/ascent_speed"
 #define PARAM_AFTER_TD_HEIGHT       "visual_servo/state_machine/after_touchdown_height"
 #define PARAM_OFF1_X                "visual_servo/state_machine/offset_x_1"
 #define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
@@ -181,6 +182,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _offset_y_1 = configMsg.y_offset_1;
     _offset_y_2 = configMsg.y_offset_2;
     _descentSpeed = configMsg.descent_speed;
+    _ascentSpeed = configMsg.ascent_speed;
     _afterTouchdownHeight = configMsg.after_touchdown_height;
 }
 
@@ -196,6 +198,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
     config.descent_speed = _descentSpeed;
+    config.ascent_speed = _ascentSpeed;
     config.after_touchdown_height = _afterTouchdownHeight;
 }
 
@@ -208,6 +211,7 @@ void initializeParameters(ros::NodeHandle& nh)
 		&& nh.getParam(PARAM_TOUCHDOWN_DURATION, _touchdownDuration)
         && nh.getParam(PARAM_TOUCHDOWN_DELTA, _touchdownDelta)
         && nh.getParam(PARAM_DESCENT_SPEED, _descentSpeed)
+        && nh.getParam(PARAM_ASCENT_SPEED, _ascentSpeed)
         && nh.getParam(PARAM_OFF1_X, _offset_x_1)
         && nh.getParam(PARAM_OFF2_X, _offset_x_2)
         && nh.getParam(PARAM_OFF1_Y, _offset_y_1)
@@ -218,6 +222,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Minimum target error: %.2f", _minTargetError);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
+    ROS_INFO("Ascent speed: %.2f", _ascentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
     ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
@@ -278,29 +283,29 @@ void updateState()
     {
         ROS_INFO("VSSM::updateStatus - Brick pickup requested");
         _currHeightReference = _currOdom.pose.pose.position.z;
-        _descentTransitionCounter = 0;
+        _touchdownTransitionCounter = 0;
         _currentState = VisualServoState::BRICK_ALIGNMENT;
         ROS_INFO("VSSM::updateStatus - BRICK_ALIGNMENT state activated with height: %2f.", _currHeightReference);
         return;
     }
 
-    // Update the transition counter
-    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
-        sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError && 
-        abs(_currYawError) < _minYawError) _descentTransitionCounter++;
-
     // If brick alignemnt is activated and target error is withing range start descent
-    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
-        _descentTransitionCounter > 100)
+    if (_currentState == VisualServoState::BRICK_ALIGNMENT)
     {
         _currentState = VisualServoState::DESCENT;
         ROS_INFO("VSSM::updateStatus - DESCENT state activated");
         return;
     }
 
+    // Update the transition counter
+    if (_currentState == VisualServoState::DESCENT &&
+        abs(_relativeBrickDistance - _touchdownHeight) < 0.25 &&
+        sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError) _touchdownTransitionCounter++;
+
     // if height is below touchdown treshold start touchdown
     if (_currentState == VisualServoState::DESCENT &&
         isRelativeDistanceValid() && 
+        _touchdownTransitionCounter > 100 &&
         _relativeBrickDistance <= _touchdownHeight)
     {
         _currentState = VisualServoState::TOUCHDOWN;
@@ -354,9 +359,21 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::DESCENT : 
             _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
             _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
-            _currVisualServoFeed.z = _currHeightReference - _descentSpeed * dt;
+
+            if (isRelativeDistanceValid())
+                _currVisualServoFeed.z = _currHeightReference +
+                    nonlinear_filters::saturation(dt * (_touchdownHeight - _relativeBrickDistance),
+                        - _descentSpeed * dt, 
+                        _descentSpeed * dt); // Ride the distance
+            else 
+                _currVisualServoFeed.z = _currHeightReference - _descentSpeed * dt;
+
             _currHeightReference = _currVisualServoFeed.z;
-            _currVisualServoFeed.yaw = 0;
+            _currVisualServoFeed.yaw = util::calculateYaw(
+                _currOdom.pose.pose.orientation.x,
+                _currOdom.pose.pose.orientation.y,
+                _currOdom.pose.pose.orientation.z,
+                _currOdom.pose.pose.orientation.w);
             break;
         
         case VisualServoState::TOUCHDOWN : 
@@ -366,7 +383,7 @@ void publishVisualServoSetpoint(double dt)
             if (_touchdownTime < _touchdownDuration/2.0)
                 _currVisualServoFeed.z = _currHeightReference - dz;
             else
-                _currVisualServoFeed.z = _currHeightReference + _descentSpeed * dt / 2;
+                _currVisualServoFeed.z = _currHeightReference + _ascentSpeed * dt;
             _currHeightReference = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownTime +=dt;
@@ -489,9 +506,9 @@ private:
 
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime;
-    double _currHeightReference, _descentSpeed, _afterTouchdownHeight; 
+    double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
     double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2;
-    int _descentTransitionCounter = 0;
+    int _touchdownTransitionCounter = 0;
 
     /* Define Dynamic Reconfigure parameters */
     boost::recursive_mutex _vssmConfigMutex;

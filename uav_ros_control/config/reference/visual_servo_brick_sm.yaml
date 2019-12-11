@@ -9,6 +9,7 @@ visual_servo:
     touchdown_duration: 1
     after_touchdown_height: 3
     descent_speed: 0.6
+    ascent_speed: 0.6
 
     offset_x_1: 0
     offset_x_2: 0
