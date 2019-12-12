@@ -296,7 +296,9 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
   _error_x = data.data;
 
   if (_compensate_roll_and_pitch){
-      _error_x += tan(_uavRoll)/tan(_camera_fov);
+      double roll_compensation = tan(_uavRoll) / tan(_camera_fov);
+      double pitch_compensation = tan(_uavPitch) / tan(_camera_fov);
+      _error_x += -sin(_yaw_added_offset) * pitch_compensation + cos(_yaw_added_offset) * roll_compensation;
   }
 
   _floatMsg.data = _error_x - _offset_x;
@@ -307,7 +309,9 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
   _error_y = data.data;
 
   if(_compensate_roll_and_pitch) {
-      _error_y += tan(_uavPitch)/tan(_camera_fov);
+      double roll_compensation = tan(_uavRoll) / tan(_camera_fov);
+      double pitch_compensation = tan(_uavPitch) / tan(_camera_fov);
+      _error_y += cos(_yaw_added_offset) * pitch_compensation - sin(_yaw_added_offset) * roll_compensation;
   }
 
   _floatMsg.data = _error_y - _offset_y;
