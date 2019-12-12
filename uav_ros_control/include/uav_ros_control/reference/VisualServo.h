@@ -94,7 +94,7 @@ namespace uav_reference {
       double _error_x = 0, _error_y = 0, _error_z = 0, _error_yaw = 0, _offset_x = 0;
       double _offset_y = 0, _offset_z = 0,  _deadzone_x = 0, _deadzone_y = 0, _deadzone_z = 0, _deadzone_yaw = 0;
       double _uavYaw, _uavRoll, _uavPitch, _setpointYaw;
-      double _rate, _camera_fov;
+      double _rate, _camera_fov, _yaw_added_offset;
       double _qx, _qy, _qz, _qw;
 
       bool _visualServoEnabled = false,  _compensate_roll_and_pitch = false;

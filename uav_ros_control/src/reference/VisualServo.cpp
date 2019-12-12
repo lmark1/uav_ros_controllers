@@ -3,6 +3,8 @@
 //
 
 #include <uav_ros_control/reference/VisualServo.h>
+#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <math.h>
 #include <math.h>
 
 // Define all parameter paths here
@@ -124,12 +126,14 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
     nh.getParam("visual_servo/pid_x/deadzone_x", _deadzone_x) &&
     nh.getParam("visual_servo/pid_y/deadzone_y", _deadzone_y) &&
     nh.getParam("visual_servo/pid_z/deadzone_z", _deadzone_z) &&
-    nh.getParam("visual_servo/pid_yaw/deadzone_yaw", _deadzone_yaw);
+    nh.getParam("visual_servo/pid_yaw/deadzone_yaw", _deadzone_yaw) &&
+    nh.getParam("visual_servo/yaw_added_offset", _yaw_added_offset);
   
   ROS_INFO_COND(_compensate_roll_and_pitch, "VS - Roll and pitch compensation is active");
   ROS_INFO("VS - camera FOV %.2f", _camera_fov);
   ROS_INFO("VS - deadzones x,y,z,yaw = [%.3f, %.3f, %.3f, %.3f]", 
     _deadzone_x, _deadzone_y, _deadzone_z, _deadzone_yaw);
+  ROS_INFO("Yaw added offset: %.2f", _yaw_added_offset);
   
   if (x_armed)
     _x_axis_PID.initializeParameters(nh, "visual_servo/pid_x");
@@ -191,6 +195,7 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
 
   cfg.camera_fov = _camera_fov;
   cfg.compensate_roll_and_pitch = _compensate_roll_and_pitch;
+  cfg.yaw_added_offset = _yaw_added_offset;
   _VSConfigServer.updateConfig(cfg);
 }
 
@@ -268,6 +273,7 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
 
   _compensate_roll_and_pitch = configMsg.compensate_roll_and_pitch;
   _camera_fov = configMsg.camera_fov * M_PI / 180.0;
+  _yaw_added_offset = configMsg.yaw_added_offset;
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
@@ -314,8 +320,10 @@ void VisualServo::zErrorCb(const std_msgs::Float32& msg)
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
-  _error_yaw = -data.data;
-  _pubYawErrorDebug.publish(data);
+  _error_yaw = util::wrapMinMax(-data.data - _yaw_added_offset, -M_PI_2, M_PI_2);
+  std_msgs::Float32 m;
+  m.data = _error_yaw;
+  _pubYawErrorDebug.publish(m);
 }
 
 void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualServoProcessValues &msg) {
@@ -366,14 +374,13 @@ void VisualServo::updateSetpoint() {
   if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
   if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
   if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
-
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
 
-  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw);
-  _setpointPosition[0] -= move_left * sin(_uavYaw);
-  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw);
-  _setpointPosition[1] += move_left * cos(_uavYaw);
+  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _yaw_added_offset);
+  _setpointPosition[0] -= move_left * sin(_uavYaw + _yaw_added_offset);
+  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw + _yaw_added_offset);
+  _setpointPosition[1] += move_left * cos(_uavYaw + _yaw_added_offset);
   _setpointPosition[2] = _uavPos[2];
 
   _setpointYaw = _uavYaw + change_yaw;
@@ -420,8 +427,8 @@ void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
 
   while (ros::ok()) {
     ros::spinOnce();
+    visualServoRefObj.updateSetpoint();
     if (visualServoRefObj.isVisualServoEnabled()) {
-      visualServoRefObj.updateSetpoint();
       visualServoRefObj.publishNewSetpoint();
     }
     visualServoRefObj.publishStatus();

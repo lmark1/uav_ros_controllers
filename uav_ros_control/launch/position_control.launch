@@ -15,7 +15,7 @@
         <!-- Load PID parameters used with MSF feedback -->
         <group if="$(arg msf_callback_enable)">
             <rosparam command="load"
-                file="$(find uav_ros_control)/config/control/position_control_msf.params.yaml" />
+                file="$(find uav_ros_control)/config/control/position_control_msf_cartographer.params.yaml" />
         </group>
 
         <!-- Carrot-Mode reference generator node -->
