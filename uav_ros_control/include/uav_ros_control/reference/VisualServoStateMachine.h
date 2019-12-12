@@ -322,7 +322,7 @@ void updateState()
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _currHeightReference = _relativeBrickDistance;
+        //_currHeightReference = _relativeBrickDistance;
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
     }

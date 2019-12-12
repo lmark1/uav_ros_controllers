@@ -243,7 +243,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 		return;
 	}
 
-	// Detect enable button - falling edge 
+	// Detect enable button - falling edge
 	if (getJoyButtons()[_carrotEnabledIndex] == (1 - _carrotEnabledValue) && _carrotEnabled)
 	{
 		_carrotEnabled = false;
