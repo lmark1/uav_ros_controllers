@@ -1,13 +1,13 @@
 visual_servo:
   
-  camera_fov: 80
-  compensate_roll_and_pitch: true
+  camera_fov: 35
+  compensate_roll_and_pitch: false
   yaw_added_offset: -1.57
 
   pid_x:
     x_armed:  true
-    kp:  1
-    ki:  0.1
+    kp:  0.75
+    ki:  0
     kd:  0
     lim_low: -0.75
     lim_high: 0.75
@@ -15,8 +15,8 @@ visual_servo:
 
   pid_y:
     y_armed:  true
-    kp:  1
-    ki:  0.1
+    kp:  0.75
+    ki:  0
     kd:  0
     lim_low: -0.75
     lim_high: 0.75
