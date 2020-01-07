@@ -1,7 +1,9 @@
 visual_servo:
   
-  camera_fov: 40
+  camera_h_fov: 40
+  camera_v_fov: 30
   compensate_roll_and_pitch: false
+  compensate_camera_nonlinearity: false
   yaw_added_offset: -1.57
 
   pid_x:
