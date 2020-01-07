@@ -1,4 +1,4 @@
-\visual_servo:
+visual_servo:
   state_machine:
     
     rate: 50

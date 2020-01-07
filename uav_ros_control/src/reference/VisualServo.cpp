@@ -205,6 +205,9 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Re
   if (request.data) {
     if (!isVisualServoEnabled()) ROS_INFO("UAV VisualServo - enabling visual servo.");
     _visualServoEnabled = true;
+    _yaw_PID.resetIntegrator();
+    _x_axis_PID.resetIntegrator();
+    _y_axis_PID.resetIntegrator();
     response.message = "Visual servo enabled.";
   }
   else {
