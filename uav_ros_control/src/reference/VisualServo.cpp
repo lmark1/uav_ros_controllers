@@ -311,7 +311,7 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
   }
 
   if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
-      _error_x *= _uavPos[2] * tan(_camera_h_fov);
+      _error_x *= _brickDistance * tan(_camera_h_fov);
   }
 
   _floatMsg.data = _error_x - _offset_x;
@@ -328,7 +328,7 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
   }
 
   if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
-        _error_y *= _uavPos[2] * tan(_camera_v_fov);
+        _error_y *= _brickDistance * tan(_camera_v_fov);
   }
 
   _floatMsg.data = _error_y - _offset_y;
