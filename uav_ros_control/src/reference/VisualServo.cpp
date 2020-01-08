@@ -280,6 +280,7 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   }
 
   _compensate_roll_and_pitch = configMsg.compensate_roll_and_pitch;
+  _compensate_camera_nonlinearity = configMsg.compensate_camera_nonlinearity;
   _camera_h_fov = configMsg.camera_h_fov * M_PI / 180.0;
   _camera_v_fov = configMsg.camera_v_fov * M_PI / 180.0;
   _yaw_added_offset = configMsg.yaw_added_offset;
