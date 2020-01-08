@@ -31,10 +31,8 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_ASCENT_SPEED         "visual_servo/state_machine/ascent_speed"
 #define PARAM_DET_COUNTER           "visual_servo/state_machine/detection_counter"
 #define PARAM_AFTER_TD_HEIGHT       "visual_servo/state_machine/after_touchdown_height"
-#define PARAM_OFF1_X                "visual_servo/state_machine/offset_x_1"
-#define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
-#define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
-#define PARAM_OFF2_Y                "visual_servo/state_machine/offset_y_2"
+#define PARAM_OFF_X                "visual_servo/state_machine/offset_x"
+#define PARAM_OFF_Y                "visual_servo/state_machine/offset_y"
 #define INVALID_DISTANCE -1
 
 enum VisualServoState {
@@ -175,10 +173,8 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _touchdownHeight = configMsg.touchdown_height;
     _touchdownDelta = configMsg.touchdown_delta;
     _touchdownDuration = configMsg.touchdown_duration;
-    _offset_x_1 = configMsg.x_offset_1;
-    _offset_x_2 = configMsg.x_offset_2;
-    _offset_y_1 = configMsg.y_offset_1;
-    _offset_y_2 = configMsg.y_offset_2;
+    _offset_x = configMsg.x_offset;
+    _offset_y = configMsg.y_offset;
     _descentSpeed = configMsg.descent_speed;
     _afterTouchdownHeight = configMsg.after_touchdown_height;
     _descentCounterMax = configMsg.detection_counter;
@@ -189,10 +185,8 @@ void setVSSMParameters(vssm_param_t& config)
 {
     config.min_error = _minTargetError;
     config.min_yaw_error = _minYawError;
-    config.x_offset_1 = _offset_x_1;
-    config.x_offset_2 = _offset_x_2;
-    config.y_offset_1 = _offset_y_1;
-    config.y_offset_2 = _offset_y_2;
+    config.x_offset = _offset_x;
+    config.y_offset = _offset_y;
     config.touchdown_delta = _touchdownDelta;
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
@@ -212,10 +206,8 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_TOUCHDOWN_DELTA, _touchdownDelta)
         && nh.getParam(PARAM_DESCENT_SPEED, _descentSpeed)
         && nh.getParam(PARAM_ASCENT_SPEED, _ascentSpeed)
-        && nh.getParam(PARAM_OFF1_X, _offset_x_1)
-        && nh.getParam(PARAM_OFF2_X, _offset_x_2)
-        && nh.getParam(PARAM_OFF1_Y, _offset_y_1)
-        && nh.getParam(PARAM_OFF2_Y, _offset_y_2)
+        && nh.getParam(PARAM_OFF_X, _offset_x)
+        && nh.getParam(PARAM_OFF_Y, _offset_y)
         && nh.getParam(PARAM_RATE, _rate)
         && nh.getParam(PARAM_AFTER_TD_HEIGHT, _afterTouchdownHeight)
         && nh.getParam(PARAM_DET_COUNTER, _descentCounterMax);
@@ -229,8 +221,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
     ROS_INFO("After touchdown height: %.2f", _afterTouchdownHeight);
     ROS_INFO("Detection counter: %d", _descentTransitionCounter);
-    ROS_INFO("X offsets: %.2f, %.2f", _offset_x_1, _offset_x_2);
-    ROS_INFO("Y offsets: %.2f, %.2f", _offset_y_1, _offset_y_2);
+    ROS_INFO("Offsets: [%.2f, %.2f]", _offset_x, _offset_y);
     if (!initialized)
 	{
 		ROS_FATAL("VisualServoStateMachine::initializeParameters() - failed to initialize parameters");
@@ -385,24 +376,12 @@ void publishVisualServoSetpoint(double dt)
 
 void publishOffsets()
 {
-    //double offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
-    //double offset_x = (_offset_x_2 - _offset_x_1) * _currOdom.pose.pose.position.z + offset_x_0;
-    
-    // the offset should have the same sign as the offsets at 2 and 1
-    //if (offset_x * _offset_x_1 < 0 ) offset_x = 0;
-
     std_msgs::Float32 offsetXMsg;
-    offsetXMsg.data = _offset_x_1;
+    offsetXMsg.data = _offset_x;
     _pubOffsetX.publish(offsetXMsg);
 
-    //double offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
-    //double offset_y = (_offset_y_2 - _offset_y_1) * _currOdom.pose.pose.position.z + offset_y_0;
-
-    // the offset should have the same sign as the offsets at 2 and 1
-    //if (offset_y * _offset_y_1 < 0 ) offset_y = 0;
-
     std_msgs::Float32 offsetYMsg;
-    offsetYMsg.data = _offset_y_1;
+    offsetYMsg.data = _offset_y;
     _pubOffsetY.publish(offsetYMsg);
 }
 
@@ -491,7 +470,7 @@ private:
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime, _descentCounterMax;
     double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
-    double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2;
+    double _offset_x, _offset_y;
     int _descentTransitionCounter = 0;
 
     /* Define Dynamic Reconfigure parameters */

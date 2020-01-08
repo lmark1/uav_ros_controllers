@@ -11,9 +11,5 @@ visual_servo:
     descent_speed: 0.1
     ascent_speed: 0.5
     detection_counter: 25
-
-    offset_x_1: 0.03
-    offset_x_2: 0.03
-
-    offset_y_1: 0.11
-    offset_y_2: 0.11
+    offset_x: 0.03
+    offset_y: 0.11
