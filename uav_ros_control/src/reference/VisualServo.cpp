@@ -354,12 +354,18 @@ void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualS
     if (!_x_frozen) {
         _uavPos[0] = msg.x;
     }
+    else {
+        _uavPos[0] = _setpointPosition[0];
+    }
 
     if (msg.y == 0.0) {
         _y_frozen = true;
     }
     if (!_y_frozen) {
         _uavPos[1] = msg.y;
+    }
+    else {
+        _uavPos[1] = _setpointPosition[1];
     }
 
     if (msg.yaw == 0.0) {
@@ -368,6 +374,10 @@ void VisualServo::VisualServoProcessValuesCb(const uav_ros_control_msgs::VisualS
     if (!_yaw_frozen) {
         _uavYaw = msg.yaw;
     }
+    else {
+        _uavYaw = _setpointYaw;
+    }
+    
     _floatMsg.data = _uavYaw;
     _pubUavYawDebug.publish(_floatMsg);
 
