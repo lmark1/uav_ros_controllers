@@ -365,7 +365,7 @@ void publishVisualServoSetpoint(double dt)
             _currVisualServoFeed.y = 0;
             double dz = 2 * _touchdownDelta / _touchdownDuration * dt;
             if (_touchdownTime < _touchdownDuration/2.0)
-                _currVisualServoFeed.z = _currHeightReference - _descentSpeed * dt;
+                _currVisualServoFeed.z = _currHeightReference - dz;
             else
                 _currVisualServoFeed.z = _currHeightReference + _ascentSpeed * dt;
             _currHeightReference = _currVisualServoFeed.z;

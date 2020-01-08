@@ -310,6 +310,10 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
       _error_x += -sin(_yaw_added_offset) * pitch_compensation + cos(_yaw_added_offset) * roll_compensation;
   }
 
+  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
+      _error_x *= _uavPos[2] * tan(_camera_h_fov);
+  }
+
   _floatMsg.data = _error_x - _offset_x;
   _pubXError.publish(_floatMsg);
 }
@@ -321,6 +325,10 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
       double roll_compensation = tan(_uavRoll) / tan(_camera_h_fov);
       double pitch_compensation = tan(_uavPitch) / tan(_camera_v_fov);
       _error_y += cos(_yaw_added_offset) * pitch_compensation - sin(_yaw_added_offset) * roll_compensation;
+  }
+
+  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
+        _error_y *= _uavPos[2] * tan(_camera_v_fov);
   }
 
   _floatMsg.data = _error_y - _offset_y;
@@ -392,11 +400,6 @@ void VisualServo::updateSetpoint() {
   if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
   if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
   if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
-
-  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
-      move_left *= _uavPos[2] * tan(_camera_h_fov);
-      move_forward *= _uavPos[2] * tan(_camera_v_fov);
-  }
 
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
