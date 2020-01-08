@@ -365,7 +365,7 @@ void publishVisualServoSetpoint(double dt)
             _currVisualServoFeed.y = 0;
             double dz = 2 * _touchdownDelta / _touchdownDuration * dt;
             if (_touchdownTime < _touchdownDuration/2.0)
-                _currVisualServoFeed.z = _currHeightReference - dz;
+                _currVisualServoFeed.z = _currHeightReference - _descentSpeed * dt;
             else
                 _currVisualServoFeed.z = _currHeightReference + _ascentSpeed * dt;
             _currHeightReference = _currVisualServoFeed.z;
@@ -385,24 +385,24 @@ void publishVisualServoSetpoint(double dt)
 
 void publishOffsets()
 {
-    double offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
-    double offset_x = (_offset_x_2 - _offset_x_1) * _currOdom.pose.pose.position.z + offset_x_0;
+    //double offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
+    //double offset_x = (_offset_x_2 - _offset_x_1) * _currOdom.pose.pose.position.z + offset_x_0;
     
     // the offset should have the same sign as the offsets at 2 and 1
-    if (offset_x * _offset_x_1 < 0 ) offset_x = 0;
+    //if (offset_x * _offset_x_1 < 0 ) offset_x = 0;
 
     std_msgs::Float32 offsetXMsg;
-    offsetXMsg.data = offset_x;
+    offsetXMsg.data = _offset_x_1;
     _pubOffsetX.publish(offsetXMsg);
 
-    double offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
-    double offset_y = (_offset_y_2 - _offset_y_1) * _currOdom.pose.pose.position.z + offset_y_0;
+    //double offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
+    //double offset_y = (_offset_y_2 - _offset_y_1) * _currOdom.pose.pose.position.z + offset_y_0;
 
     // the offset should have the same sign as the offsets at 2 and 1
-    if (offset_y * _offset_y_1 < 0 ) offset_y = 0;
+    //if (offset_y * _offset_y_1 < 0 ) offset_y = 0;
 
     std_msgs::Float32 offsetYMsg;
-    offsetYMsg.data = offset_y;
+    offsetYMsg.data = _offset_y_1;
     _pubOffsetY.publish(offsetYMsg);
 }
 

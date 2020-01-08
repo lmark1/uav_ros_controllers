@@ -35,6 +35,7 @@
             <remap from="visual_servo/x_error" to="$(arg x_target_error)"/>
             <remap from="visual_servo/y_error" to="$(arg y_target_error)"/>
             <remap from="VisualServoProcessValueTopic" to="$(arg process_value)"/>
+            <remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/>
 
         </node>
 

@@ -91,7 +91,9 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("y_offset", 1, &uav_reference::VisualServo::yOffsetCb, this);
   _subZOffset =
       nh.subscribe("z_offset", 1, &uav_reference::VisualServo::zOffsetCb, this);
-            
+  _subBrickDist = 
+      nh.subscribe("brick/distance", 1, &uav_reference::VisualServo::brickHeightCb, this);
+
   _subVisualServoProcessValuesMsg =
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
@@ -376,6 +378,11 @@ void VisualServo::zOffsetCb(const std_msgs::Float32 &msg){
     _offset_z = msg.data;
 }
 
+void VisualServo::brickHeightCb(const std_msgs::Float32& msg)
+{
+    _brickDistance = msg.data;
+}
+
 void VisualServo::updateSetpoint() {
 
   double move_forward = 0.0;
@@ -386,7 +393,7 @@ void VisualServo::updateSetpoint() {
   if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
   if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
 
-  if (_compensate_camera_nonlinearity) {
+  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
       move_left *= _uavPos[2] * tan(_camera_h_fov);
       move_forward *= _uavPos[2] * tan(_camera_v_fov);
   }

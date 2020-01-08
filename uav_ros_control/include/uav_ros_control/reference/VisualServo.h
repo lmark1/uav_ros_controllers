@@ -84,6 +84,7 @@ namespace uav_reference {
       void xOffsetCb(const std_msgs::Float32&);
       void yOffsetCb(const std_msgs::Float32&);
       void zOffsetCb(const std_msgs::Float32&);
+      void brickHeightCb(const std_msgs::Float32&);
 
       // X and Y axes of the image coordinate frame.
       PID _x_axis_PID{"x-axis"}, _y_axis_PID{"y-axis"}, _z_axis_PID{"z-axis"}, _yaw_PID{"yaw"};
@@ -96,7 +97,8 @@ namespace uav_reference {
       double _uavYaw, _uavRoll, _uavPitch, _setpointYaw;
       double _rate, _camera_h_fov, _camera_v_fov, _yaw_added_offset;
       double _qx, _qy, _qz, _qw;
-
+      double _brickDistance;
+      
       bool _visualServoEnabled = false,  _compensate_roll_and_pitch = false;
       bool _x_frozen = false, _y_frozen = false, _yaw_frozen = false;
       bool _compensate_camera_nonlinearity = false;
@@ -126,6 +128,7 @@ namespace uav_reference {
       ros::Subscriber _subXError, _subYError, _subZError, _subYawError, _subNContours;
       ros::Subscriber _subVisualServoProcessValuesMsg;
       ros::Subscriber _subXOffset, _subYOffset, _subZOffset;
+      ros::Subscriber _subBrickDist;
 
       uav_ros_control_msgs::VisualServoProcessValues VisualServoProcessValuesMsg;
 
