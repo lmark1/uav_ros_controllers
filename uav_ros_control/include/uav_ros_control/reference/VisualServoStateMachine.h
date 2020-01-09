@@ -31,10 +31,8 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_ASCENT_SPEED         "visual_servo/state_machine/ascent_speed"
 #define PARAM_DET_COUNTER           "visual_servo/state_machine/detection_counter"
 #define PARAM_AFTER_TD_HEIGHT       "visual_servo/state_machine/after_touchdown_height"
-#define PARAM_OFF1_X                "visual_servo/state_machine/offset_x_1"
-#define PARAM_OFF2_X                "visual_servo/state_machine/offset_x_2"
-#define PARAM_OFF1_Y                "visual_servo/state_machine/offset_y_1"
-#define PARAM_OFF2_Y                "visual_servo/state_machine/offset_y_2"
+#define PARAM_OFF_X                "visual_servo/state_machine/offset_x"
+#define PARAM_OFF_Y                "visual_servo/state_machine/offset_y"
 #define INVALID_DISTANCE -1
 
 enum VisualServoState {
@@ -113,13 +111,10 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || _currOdom.pose.pose.position.z < _afterTouchdownHeight || _nContours == 0)
+    if (!request.data || _nContours == 0)
     {
         if (!request.data)
             ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
-        else if (_currOdom.pose.pose.position.z < _afterTouchdownHeight)
-            ROS_FATAL("VSSM::brickPickupServiceCb - current height [%.2fm] below minimum [%.2fm]", 
-                _currOdom.pose.pose.position.z, _afterTouchdownHeight);
         else if (_nContours == 0)
             ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
 
@@ -178,31 +173,27 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _touchdownHeight = configMsg.touchdown_height;
     _touchdownDelta = configMsg.touchdown_delta;
     _touchdownDuration = configMsg.touchdown_duration;
-    _offset_x_1 = configMsg.x_offset_1;
-    _offset_x_2 = configMsg.x_offset_2;
-    _offset_y_1 = configMsg.y_offset_1;
-    _offset_y_2 = configMsg.y_offset_2;
+    _offset_x = configMsg.x_offset;
+    _offset_y = configMsg.y_offset;
     _descentSpeed = configMsg.descent_speed;
-    _ascentSpeed = configMsg.ascent_speed;
     _afterTouchdownHeight = configMsg.after_touchdown_height;
-    _touchdownDetectionCounter = configMsg.detection_counter;
+    _descentCounterMax = configMsg.detection_counter;
+    _ascentSpeed = configMsg.ascent_speed;
 }
 
 void setVSSMParameters(vssm_param_t& config)
 {
     config.min_error = _minTargetError;
     config.min_yaw_error = _minYawError;
-    config.x_offset_1 = _offset_x_1;
-    config.x_offset_2 = _offset_x_2;
-    config.y_offset_1 = _offset_y_1;
-    config.y_offset_2 = _offset_y_2;
+    config.x_offset = _offset_x;
+    config.y_offset = _offset_y;
     config.touchdown_delta = _touchdownDelta;
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
     config.descent_speed = _descentSpeed;
-    config.ascent_speed = _ascentSpeed;
     config.after_touchdown_height = _afterTouchdownHeight;
-    config.detection_counter = _touchdownDetectionCounter;
+    config.detection_counter = _descentCounterMax;
+    config.ascent_speed = _ascentSpeed;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
@@ -215,26 +206,22 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_TOUCHDOWN_DELTA, _touchdownDelta)
         && nh.getParam(PARAM_DESCENT_SPEED, _descentSpeed)
         && nh.getParam(PARAM_ASCENT_SPEED, _ascentSpeed)
-        && nh.getParam(PARAM_OFF1_X, _offset_x_1)
-        && nh.getParam(PARAM_OFF2_X, _offset_x_2)
-        && nh.getParam(PARAM_OFF1_Y, _offset_y_1)
-        && nh.getParam(PARAM_OFF2_Y, _offset_y_2)
+        && nh.getParam(PARAM_OFF_X, _offset_x)
+        && nh.getParam(PARAM_OFF_Y, _offset_y)
         && nh.getParam(PARAM_RATE, _rate)
         && nh.getParam(PARAM_AFTER_TD_HEIGHT, _afterTouchdownHeight)
-        && nh.getParam(PARAM_DET_COUNTER, _touchdownDetectionCounter);
+        && nh.getParam(PARAM_DET_COUNTER, _descentCounterMax);
 
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum target error: %.2f", _minTargetError);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
-    ROS_INFO("Ascent speed: %.2f", _ascentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
     ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
     ROS_INFO("After touchdown height: %.2f", _afterTouchdownHeight);
-    ROS_INFO("Detection counter: %d", _touchdownTransitionCounter);
-    ROS_INFO("X offsets: %.2f, %.2f", _offset_x_1, _offset_x_2);
-    ROS_INFO("Y offsets: %.2f, %.2f", _offset_y_1, _offset_y_2);
+    ROS_INFO("Detection counter: %d", _descentTransitionCounter);
+    ROS_INFO("Offsets: [%.2f, %.2f]", _offset_x, _offset_y);
     if (!initialized)
 	{
 		ROS_FATAL("VisualServoStateMachine::initializeParameters() - failed to initialize parameters");
@@ -289,36 +276,30 @@ void updateState()
     {
         ROS_INFO("VSSM::updateStatus - Brick pickup requested");
         _currHeightReference = _currOdom.pose.pose.position.z;
-        _touchdownTransitionCounter = 0;
+        _descentTransitionCounter = 0;
         _currentState = VisualServoState::BRICK_ALIGNMENT;
         ROS_INFO("VSSM::updateStatus - BRICK_ALIGNMENT state activated with height: %2f.", _currHeightReference);
         return;
     }
 
+    // Update the transition counter
+    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
+        sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError && 
+        abs(_currYawError) < _minYawError) _descentTransitionCounter++;
+
     // If brick alignemnt is activated and target error is withing range start descent
-    if (_currentState == VisualServoState::BRICK_ALIGNMENT)
+    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
+        _descentTransitionCounter > _descentCounterMax)
     {
-        _lockYaw = false;
         _currentState = VisualServoState::DESCENT;
         ROS_INFO("VSSM::updateStatus - DESCENT state activated");
         return;
     }
 
-    if (!_lockYaw &&
-        _currentState == VisualServoState::DESCENT &&
-        fabs(_currYawError) < _minYawError)
-        _lockYaw = true;
-
-    // Update the transition counter
-    if (_currentState == VisualServoState::DESCENT &&
-        fabs(_relativeBrickDistance - _touchdownHeight) < 0.1 &&
-        sqrt(pow(_currTargetErrorX, 2) + pow(_currTargetErrorY, 2)) < _minTargetError) _touchdownTransitionCounter++;
-
     // if height is below touchdown treshold start touchdown
     if (_currentState == VisualServoState::DESCENT &&
         isRelativeDistanceValid() && 
-        _touchdownTransitionCounter > _touchdownDetectionCounter &&
-        fabs(_relativeBrickDistance - _touchdownHeight) < 0.05)
+        _relativeBrickDistance <= _touchdownHeight)
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
@@ -344,50 +325,30 @@ bool isRelativeDistanceValid()
 
 void publishVisualServoSetpoint(double dt)
 {
+    // Set VisualServoFeed to odometry
+    _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
+    _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
+    _currVisualServoFeed.z = _currOdom.pose.pose.position.z;
+    _currVisualServoFeed.yaw = util::calculateYaw(
+        _currOdom.pose.pose.orientation.x,
+        _currOdom.pose.pose.orientation.y,
+        _currOdom.pose.pose.orientation.z,
+        _currOdom.pose.pose.orientation.w);
+        
     switch (_currentState)
     {
         case VisualServoState::OFF :
-            _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
-            _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
-            _currVisualServoFeed.z = _currOdom.pose.pose.position.z;
-            _currVisualServoFeed.yaw = util::calculateYaw(
-                _currOdom.pose.pose.orientation.x,
-                _currOdom.pose.pose.orientation.y,
-                _currOdom.pose.pose.orientation.z,
-                _currOdom.pose.pose.orientation.w);
+            // pass
             break;
         
         case VisualServoState::BRICK_ALIGNMENT : 
-            _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
-            _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
             _currVisualServoFeed.z = _currHeightReference;
-            _currVisualServoFeed.yaw = util::calculateYaw(
-                _currOdom.pose.pose.orientation.x,
-                _currOdom.pose.pose.orientation.y,
-                _currOdom.pose.pose.orientation.z,
-                _currOdom.pose.pose.orientation.w);
             break;
         
         case VisualServoState::DESCENT : 
-            _currVisualServoFeed.x = _currOdom.pose.pose.position.x;
-            _currVisualServoFeed.y = _currOdom.pose.pose.position.y;
-
-            if (isRelativeDistanceValid())
-                _currVisualServoFeed.z = _currHeightReference +
-                    nonlinear_filters::saturation(0.01 * (_touchdownHeight - _relativeBrickDistance),
-                        - _descentSpeed * dt, 
-                        _descentSpeed * dt); // Ride the distance
-            else 
-                _currVisualServoFeed.z = _currHeightReference - _descentSpeed * dt;
+            _currVisualServoFeed.z = _currHeightReference - _descentSpeed * dt;
             _currHeightReference = _currVisualServoFeed.z;
-
-            _currVisualServoFeed.yaw = util::calculateYaw(
-                    _currOdom.pose.pose.orientation.x,
-                    _currOdom.pose.pose.orientation.y,
-                    _currOdom.pose.pose.orientation.z,
-                    _currOdom.pose.pose.orientation.w);
-            if (_lockYaw) 
-                _currVisualServoFeed.yaw = 0;
+            _currVisualServoFeed.yaw = 0;
             break;
         
         case VisualServoState::TOUCHDOWN : 
@@ -415,24 +376,12 @@ void publishVisualServoSetpoint(double dt)
 
 void publishOffsets()
 {
-    double offset_x_0 = _offset_x_1 + (_offset_x_1 - _offset_x_2);
-    double offset_x = (_offset_x_2 - _offset_x_1) * _currOdom.pose.pose.position.z + offset_x_0;
-    
-    // the offset should have the same sign as the offsets at 2 and 1
-    if (offset_x * _offset_x_1 < 0 ) offset_x = 0;
-
     std_msgs::Float32 offsetXMsg;
-    offsetXMsg.data = offset_x;
+    offsetXMsg.data = _offset_x;
     _pubOffsetX.publish(offsetXMsg);
 
-    double offset_y_0 = _offset_y_1 + (_offset_y_1 - _offset_y_2);
-    double offset_y = (_offset_y_2 - _offset_y_1) * _currOdom.pose.pose.position.z + offset_y_0;
-
-    // the offset should have the same sign as the offsets at 2 and 1
-    if (offset_y * _offset_y_1 < 0 ) offset_y = 0;
-
     std_msgs::Float32 offsetYMsg;
-    offsetYMsg.data = offset_y;
+    offsetYMsg.data = _offset_y;
     _pubOffsetY.publish(offsetYMsg);
 }
 
@@ -519,11 +468,10 @@ private:
     int _nContours;
 
     /* Touchdown mode parameters */
-    double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime, _touchdownDetectionCounter;
+    double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime, _descentCounterMax;
     double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
-    double _offset_x_1, _offset_x_2, _offset_y_1, _offset_y_2;
-    bool _lockYaw = false;
-    int _touchdownTransitionCounter = 0;
+    double _offset_x, _offset_y;
+    int _descentTransitionCounter = 0;
 
     /* Define Dynamic Reconfigure parameters */
     boost::recursive_mutex _vssmConfigMutex;
