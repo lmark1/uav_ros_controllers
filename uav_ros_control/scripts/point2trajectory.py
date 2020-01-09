@@ -19,10 +19,9 @@ class TrajectoryPacker():
         rospy.Subscriber('carrot/status', String, self.status_cb)
         self.pub_odom = True
         self.old_odom = Odometry()
-	self.status = "OFF"
+        self.status = "OFF"
         self.traj_pub = rospy.Publisher('trajectory', MultiDOFJointTrajectory, queue_size=1)
-	self.dummy_pub = rospy.Publisher('dummy/velocity', Vector3Stamped, queue_size=1)
-
+	
     def ref_sub(self, msg):
         traj = MultiDOFJointTrajectory()
         traj.points = []
@@ -51,22 +50,6 @@ class TrajectoryPacker():
 
     def odom_sub(self, msg):
         self.odom_msg = msg
-	
-	dx = msg.pose.pose.position.x - self.old_odom.pose.pose.position.x
-	dy = msg.pose.pose.position.y - self.old_odom.pose.pose.position.y
-	dz = msg.pose.pose.position.z - self.old_odom.pose.pose.position.z
-	qx = msg.pose.pose.orientation.x
-	qy = msg.pose.pose.orientation.y
-	qz = msg.pose.pose.orientation.z
-	qw = msg.pose.pose.orientation.w
-	yaw = atan2(2 * (qw * qz + qx * qy), qw * qw + qx * qx - qy * qy - qz * qz)
-	newMsg = Vector3Stamped()
-	newMsg.vector.x = (cos(yaw) * dx + sin(yaw) * dy) / 0.02
-	newMsg.vector.y = (cos(yaw) * dy - sin(yaw) * dx ) / 0.02
-	newMsg.vector.z = yaw
-	newMsg.header.stamp = rospy.Time.now()
-	self.dummy_pub.publish(newMsg)
-	self.old_odom = msg
 
 if __name__ == "__main__":
     rospy.init_node('point_to_trajectory')
