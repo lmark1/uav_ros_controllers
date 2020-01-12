@@ -93,6 +93,8 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.subscribe("z_offset", 1, &uav_reference::VisualServo::zOffsetCb, this);
   _subBrickDist = 
       nh.subscribe("brick/distance", 1, &uav_reference::VisualServo::brickHeightCb, this);
+  _subPatchCentroid =
+      nh.subscribe("brick/patch_centroid", 1, &uav_reference::VisualServo::patchCentroidCb, this);
 
   _subVisualServoProcessValuesMsg =
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
@@ -311,7 +313,7 @@ void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
       _error_x += -sin(_yaw_added_offset) * pitch_compensation + cos(_yaw_added_offset) * roll_compensation;
   }
 
-  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
+  if (_compensate_camera_nonlinearity && _brickDistance > 0) {
       _error_x *= _brickDistance * tan(_camera_h_fov);
   }
 
@@ -328,7 +330,7 @@ void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
       _error_y += cos(_yaw_added_offset) * pitch_compensation - sin(_yaw_added_offset) * roll_compensation;
   }
 
-  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
+  if (_compensate_camera_nonlinearity && _brickDistance > 0) {
         _error_y *= _brickDistance * tan(_camera_v_fov);
   }
 
@@ -402,23 +404,50 @@ void VisualServo::brickHeightCb(const std_msgs::Float32& msg)
     _brickDistance = msg.data;
 }
 
+void VisualServo::patchCentroidCb(const geometry_msgs::Point &msg)
+{
+    _patchCentroid = msg;
+
+    // Todo transform the point from the camera reference frame into the UAV reference frame.
+
+    if (_compensate_roll_and_pitch)
+    {
+        // Todo
+    }
+
+    _brickDistance = msg.z;
+}
+
 void VisualServo::updateSetpoint() {
 
   double move_forward = 0.0;
   double move_left = 0.0;
   double change_yaw = 0.0;
 
-  if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
-  if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
+  if (_subPatchCentroid.getNumPublishers() > 0 and false) // Todo centroid servoing isn't ready yet
+  {
+      // x and y are in the UAV reference frame
+      if(!_x_frozen) move_forward = _x_axis_PID.compute(0, _patchCentroid.x, 1 / _rate);
+      if(!_y_frozen) move_left = _y_axis_PID.compute(0, _patchCentroid.y, 1 / _rate);
+      _setpointPosition[0] = _uavPos[0] + move_forward;
+      _setpointPosition[1] = _uavPos[1] + move_left;
+  }
+  else
+  {
+      // x and y are in the image reference frame
+      if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
+      if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
+      _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _yaw_added_offset);
+      _setpointPosition[0] -= move_left * sin(_uavYaw + _yaw_added_offset);
+      _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw + _yaw_added_offset);
+      _setpointPosition[1] += move_left * cos(_uavYaw + _yaw_added_offset);
+  }
+
   if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
 
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
 
-  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _yaw_added_offset);
-  _setpointPosition[0] -= move_left * sin(_uavYaw + _yaw_added_offset);
-  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw + _yaw_added_offset);
-  _setpointPosition[1] += move_left * cos(_uavYaw + _yaw_added_offset);
   _setpointPosition[2] = _uavPos[2];
 
   _setpointYaw = _uavYaw + change_yaw;

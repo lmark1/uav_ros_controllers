@@ -72,7 +72,9 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("brick/distance", 1, &uav_reference::VisualServoStateMachine::brickDistCb, this);
     _subNContours =
         nh.subscribe("n_contours", 1, &uav_reference::VisualServoStateMachine::nContoursCb, this);
-  
+    _subPatchCentroid =
+        nh.subscribe("brick/patch_centroid", 1, &uav_reference::VisualServoStateMachine::patchCentroidCb, this);
+
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
 	setVSSMParameters(vssmConfig);
@@ -107,6 +109,12 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     {
         turnOffVisualServo();
     }
+}
+
+void patchCentroidCb(const geometry_msgs::Point& msg)
+{
+    _relativeBrickDistance = msg.z;
+    // Todo take the camera's placement into account
 }
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
@@ -461,6 +469,7 @@ private:
     double _minYawError;
 
     ros::Subscriber _subBrickDist;
+    ros::Subscriber _subPatchCentroid;
     double _relativeBrickDistance = INVALID_DISTANCE;
 
     /* Contour subscriber */
