@@ -24,8 +24,6 @@
             output="screen">
 
             <!-- Topic remapping -->
-            <remap from="x_error" to="red_color_filter/patch_yaw_err"/>
-            <remap from="y_error" to="red_color_filter/patch_pitch_err"/>
             <remap from="odometry" to="$(arg odom)"/>
             <remap from="imu" to="/mavros/imu/data"/>
             <remap from="yaw_error" to="red_color_filter/orientation_err"/>
@@ -37,7 +35,7 @@
             <remap from="visual_servo/y_error" to="$(arg y_target_error)"/>
             <remap from="VisualServoProcessValueTopic" to="$(arg process_value)"/>
             <!--remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/-->
-            <remap from="brick/patch_centroid" to="$(arg patch_centroid)"/>
+            <remap from="centroid_point" to="pointcloud_filter/pc_filter/patch_centroid/filtered" />
 
         </node>
 
@@ -57,7 +55,7 @@
             <remap from="n_contours" to="red_color_filter/nContours"/>
             <remap from="visual_servo/yaw_error" to="red_color_filter/orientation_err"/>
             <!--remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/-->
-            <remap from="brick/patch_centroid" to="$(arg patch_centroid)"/>
+            <remap from="centroid_point" to="pointcloud_filter/pc_filter/patch_centroid/filtered" />
         </node>
     </group>
 </launch>
