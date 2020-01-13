@@ -19,7 +19,7 @@ class TrajectoryPacker():
         rospy.Subscriber('carrot/status', String, self.status_cb)
         self.pub_odom = True
         self.old_odom = Odometry()
-        self.status = "OFF"
+	    self.status = "OFF"
         self.traj_pub = rospy.Publisher('trajectory', MultiDOFJointTrajectory, queue_size=1)
 	
     def ref_sub(self, msg):

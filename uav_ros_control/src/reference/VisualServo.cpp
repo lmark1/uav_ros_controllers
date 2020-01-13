@@ -5,53 +5,7 @@
 #include <uav_ros_control/reference/VisualServo.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
 #include <math.h>
-
-// Define all parameter paths here
-#define VS_P_GAIN_X_PARAM          "reference/p_gain_x"
-#define VS_I_GAIN_X_PARAM          "reference/i_gain_x"
-#define VS_D_GAIN_X_PARAM          "reference/d_gain_x"
-#define VS_I_CLAMP_X_PARAM         "reference/i_clamp_x"
-#define VS_OFFSET_X_1_PARAM        "reference/offset_x_1"
-#define VS_OFFSET_X_2_PARAM        "reference/offset_x_2"
-#define VS_DEADZONE_X_PARAM        "reference/deadzone_x"
-#define VS_LANDING_RANGE_X_PARAM   "reference/landing_range_x"
-
-#define VS_P_GAIN_Y_PARAM          "reference/p_gain_y"
-#define VS_I_GAIN_Y_PARAM          "reference/p_gain_y"
-#define VS_D_GAIN_Y_PARAM          "reference/d_gain_y"
-#define VS_I_CLAMP_Y_PARAM         "reference/i_clamp_y"
-#define VS_OFFSET_Y_1_PARAM        "reference/offset_y_1"
-#define VS_OFFSET_Y_2_PARAM        "reference/offset_y_2"
-#define VS_DEADZONE_Y_PARAM        "reference/deadzone_y"
-#define VS_LANDING_RANGE_Y_PARAM   "reference/landing_range_y"
-
-#define VS_P_GAIN_Z_PARAM          "reference/p_gain_z"
-#define VS_I_GAIN_Z_PARAM          "reference/p_gain_z"
-#define VS_D_GAIN_Z_PARAM          "reference/d_gain_z"
-#define VS_I_CLAMP_Z_PARAM         "reference/i_clamp_z"
-#define VS_OFFSET_Z_1_PARAM        "reference/offset_z_1"
-#define VS_OFFSET_Z_2_PARAM        "reference/offset_z_2"
-#define VS_DEADZONE_Z_PARAM        "reference/deadzone_z"
-#define VS_LANDING_RANGE_Z_PARAM   "reference/landing_range_z"
-
-#define VS_P_GAIN_YAW_PARAM        "reference/p_gain_yaw"
-#define VS_I_GAIN_YAW_PARAM        "reference/i_gain_yaw"
-#define VS_I_CLAMP_YAW_PARAM       "reference/i_clamp_yaw"
-#define VS_I_DEADZONE_YAW_PARAM    "reference/i_deadzone_yaw"
-#define VS_D_GAIN_YAW_PARAM        "reference/d_gain_yaw"
-#define VS_LANDING_RANGE_YAW_PARAM "reference/lending_range_yaw"
-
-#define VS_P_GAIN_DIST_PARAM       "reference/p_gain_dist"
-#define VS_I_GAIN_DIST_PARAM       "reference/i_gain_dist"
-#define VS_D_GAIN_DIST_PARAM       "reference/d_gain_dist"
-#define VS_I_CLAMP_DIST_PARAM      "reference/i_clamp_dist"
-#define VS_DEADZONE_DIST_PARAM     "reference/deadzone_dist"
-
-#define VS_MOVE_SATURATION_PARAM   "reference/move_saturation"
-#define VS_YAW_DIFFERENCE_PARAM    "reference/yaw_difference"
-
-#define VS_LANDING_SPEED_PARAM     "reference/landing_speed"
-#define VS_IS_BRICK_LAYING_PARAM   "reference/is_brick_laying"
+#include <tf/LinearMath/Transform.h>
 
 namespace uav_reference {
 
@@ -66,34 +20,22 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubMoveLeft = nh.advertise<std_msgs::Float32>("move_left", 1);
   _pubChangeYaw = nh.advertise<std_msgs::Float32>("change_yaw", 1);
   _pubMoveForward = nh.advertise<std_msgs::Float32>("move_forward", 1);
-  _pubUavYawDebug = nh.advertise<std_msgs::Float32>("debug/Uav_yaw", 1);
+  _pubUavYawDebug = nh.advertise<std_msgs::Float32>("debug/uav_yaw", 1);
   _pubYawErrorDebug = nh.advertise<std_msgs::Float32>("debug/yaw_error", 1);
   _pubChangeYawDebug = nh.advertise<std_msgs::Float32>("debug/yaw_change", 1); // Advertised again for user friendliness
   _pubUavRollDebug = nh.advertise<std_msgs::Float32>("debug/uav_roll", 1);
   _pubUavPitchDebug = nh.advertise<std_msgs::Float32>("debug/uav_pitch", 1);
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
+  _pubTransformedTarget = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed", 1);
 
   // Define Subscribers
   _subOdom =
       nh.subscribe("odometry", 1, &uav_reference::VisualServo::odomCb, this);
-  _subXError =
-      nh.subscribe("x_error", 1, &uav_reference::VisualServo::xErrorCb, this);
-  _subYError =
-      nh.subscribe("y_error", 1, &uav_reference::VisualServo::yErrorCb, this);
-  _subZError = 
-      nh.subscribe("z_error", 1, &uav_reference::VisualServo::zErrorCb, this);
   _subYawError =
       nh.subscribe("yaw_error", 1, &uav_reference::VisualServo::yawErrorCb, this);
-  _subXOffset =
-      nh.subscribe("x_offset", 1, &uav_reference::VisualServo::xOffsetCb, this);
-  _subYOffset =
-      nh.subscribe("y_offset", 1, &uav_reference::VisualServo::yOffsetCb, this);
-  _subZOffset =
-      nh.subscribe("z_offset", 1, &uav_reference::VisualServo::zOffsetCb, this);
-  _subBrickDist = 
-      nh.subscribe("brick/distance", 1, &uav_reference::VisualServo::brickHeightCb, this);
-
+  _subPatchCentroid =
+      nh.subscribe("centroid_point", 1, &uav_reference::VisualServo::targetCentroidCb, this);
   _subVisualServoProcessValuesMsg =
       nh.subscribe("VisualServoProcessValueTopic", 1, &uav_reference::VisualServo::VisualServoProcessValuesCb, this);
 
@@ -118,25 +60,33 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
   ROS_WARN("CascadePID::initializeParameters()");
 
   bool x_armed = false, y_armed = false, z_armed = false, yaw_armed = false;
-  bool initialized = nh.getParam("visual_servo/camera_h_fov", _camera_h_fov) &&
-                     nh.getParam("visual_servo/camera_v_fov", _camera_v_fov) &&
-                     nh.getParam("visual_servo/compensate_camera_nonlinearity",_compensate_camera_nonlinearity) &&
-                     nh.getParam("visual_servo/compensate_roll_and_pitch", _compensate_roll_and_pitch) &&
-                     nh.getParam("visual_servo/pid_x/x_armed", x_armed) &&
-                     nh.getParam("visual_servo/pid_y/y_armed", y_armed) &&
-                     nh.getParam("visual_servo/pid_z/z_armed", z_armed) &&
-                     nh.getParam("visual_servo/pid_yaw/yaw_armed", yaw_armed) &&
-                     nh.getParam("visual_servo/pid_x/deadzone_x", _deadzone_x) &&
-                     nh.getParam("visual_servo/pid_y/deadzone_y", _deadzone_y) &&
-                     nh.getParam("visual_servo/pid_z/deadzone_z", _deadzone_z) &&
-                     nh.getParam("visual_servo/pid_yaw/deadzone_yaw", _deadzone_yaw) &&
-                     nh.getParam("visual_servo/yaw_added_offset", _yaw_added_offset);
+  bool initialized = 
+    nh.getParam("visual_servo/compensate_roll_and_pitch", _compensate_roll_and_pitch) &&
+    nh.getParam("visual_servo/pid_x/x_armed", x_armed) &&
+    nh.getParam("visual_servo/pid_y/y_armed", y_armed) &&
+    nh.getParam("visual_servo/pid_z/z_armed", z_armed) &&
+    nh.getParam("visual_servo/pid_yaw/yaw_armed", yaw_armed) &&
+    nh.getParam("visual_servo/pid_x/deadzone_x", _deadzone_x) &&
+    nh.getParam("visual_servo/pid_y/deadzone_y", _deadzone_y) &&
+    nh.getParam("visual_servo/pid_z/deadzone_z", _deadzone_z) &&
+    nh.getParam("visual_servo/pid_yaw/deadzone_yaw", _deadzone_yaw) &&
+
+    nh.getParam("visual_servo/camera/position/x", _cameraPose.position.x) &&
+    nh.getParam("visual_servo/camera/position/y", _cameraPose.position.y) &&
+    nh.getParam("visual_servo/camera/position/z", _cameraPose.position.z) &&
+
+    nh.getParam("visual_servo/camera/orientation/x", _cameraPose.orientation.x) &&
+    nh.getParam("visual_servo/camera/orientation/y", _cameraPose.orientation.y) &&
+    nh.getParam("visual_servo/camera/orientation/z", _cameraPose.orientation.z) &&
+    nh.getParam("visual_servo/camera/orientation/w", _cameraPose.orientation.w);
   
   ROS_INFO_COND(_compensate_roll_and_pitch, "VS - Roll and pitch compensation is active");
-  ROS_INFO("VS - camera h FOV %.2f", _camera_h_fov);
   ROS_INFO("VS - deadzones x,y,z,yaw = [%.3f, %.3f, %.3f, %.3f]", 
     _deadzone_x, _deadzone_y, _deadzone_z, _deadzone_yaw);
-  ROS_INFO("Yaw added offset: %.2f", _yaw_added_offset);
+  ROS_INFO("VS - Camera Pose [%.3f, %.3f, %.3f] - [%.3f, %.3f, %.3f, %.3f]",
+    _cameraPose.position.x, _cameraPose.position.y, _cameraPose.position.z,
+    _cameraPose.orientation.x, _cameraPose.orientation.y, 
+    _cameraPose.orientation.z, _cameraPose.orientation.w);
   
   if (x_armed)
     _x_axis_PID.initializeParameters(nh, "visual_servo/pid_x");
@@ -196,11 +146,15 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
     cfg.deadzone_yaw = _deadzone_yaw;
   }
 
-  cfg.camera_h_fov = _camera_h_fov;
-  cfg.camera_v_fov = _camera_v_fov;
-  cfg.compensate_camera_nonlinearity = _compensate_camera_nonlinearity;
   cfg.compensate_roll_and_pitch = _compensate_roll_and_pitch;
-  cfg.yaw_added_offset = _yaw_added_offset;
+  cfg.camera_x = _cameraPose.position.x;
+  cfg.camera_y = _cameraPose.position.y;
+  cfg.camera_z = _cameraPose.position.z;
+  cfg.camera_qx = _cameraPose.orientation.x;
+  cfg.camera_qy = _cameraPose.orientation.y;
+  cfg.camera_qz = _cameraPose.orientation.z;
+  cfg.camera_qw = _cameraPose.orientation.w;
+  
   _VSConfigServer.updateConfig(cfg);
 }
 
@@ -234,7 +188,6 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Re
 void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConfig &configMsg,
                                                      uint32_t level) {
   ROS_WARN("VisualServo::parametersCallback");
-
   _deadzone_x = configMsg.deadzone_x;
   _deadzone_y = configMsg.deadzone_y;
   _deadzone_yaw  = configMsg.deadzone_yaw;
@@ -280,14 +233,17 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   }
 
   _compensate_roll_and_pitch = configMsg.compensate_roll_and_pitch;
-  _compensate_camera_nonlinearity = configMsg.compensate_camera_nonlinearity;
-  _camera_h_fov = configMsg.camera_h_fov * M_PI / 180.0;
-  _camera_v_fov = configMsg.camera_v_fov * M_PI / 180.0;
-  _yaw_added_offset = configMsg.yaw_added_offset;
+  _cameraPose.position.x = configMsg.camera_x;
+  _cameraPose.position.y = configMsg.camera_y;
+  _cameraPose.position.z = configMsg.camera_z;
+  _cameraPose.orientation.x = configMsg.camera_qx;
+  _cameraPose.orientation.y = configMsg.camera_qy;
+  _cameraPose.orientation.z = configMsg.camera_qz;
+  _cameraPose.orientation.w = configMsg.camera_qw;  
 }
 
 void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
-
+    _uavOdom = *odom;
     _qx = odom->pose.pose.orientation.x;
     _qy = odom->pose.pose.orientation.y;
     _qz = odom->pose.pose.orientation.z;
@@ -302,47 +258,9 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
     _pubUavPitchDebug.publish(_floatMsg);
 }
 
-void VisualServo::xErrorCb(const std_msgs::Float32 &data) {
-  _error_x = data.data;
-
-  if (_compensate_roll_and_pitch){
-      double roll_compensation = tan(_uavRoll) / tan(_camera_h_fov);
-      double pitch_compensation = tan(_uavPitch) / tan(_camera_v_fov);
-      _error_x += -sin(_yaw_added_offset) * pitch_compensation + cos(_yaw_added_offset) * roll_compensation;
-  }
-
-  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
-      _error_x *= _brickDistance * tan(_camera_h_fov);
-  }
-
-  _floatMsg.data = _error_x - _offset_x;
-  _pubXError.publish(_floatMsg);
-}
-
-void VisualServo::yErrorCb(const std_msgs::Float32 &data) {
-  _error_y = data.data;
-
-  if(_compensate_roll_and_pitch) {
-      double roll_compensation = tan(_uavRoll) / tan(_camera_h_fov);
-      double pitch_compensation = tan(_uavPitch) / tan(_camera_v_fov);
-      _error_y += cos(_yaw_added_offset) * pitch_compensation - sin(_yaw_added_offset) * roll_compensation;
-  }
-
-  if (_compensate_camera_nonlinearity && _brickDistance >= 0) {
-        _error_y *= _brickDistance * tan(_camera_v_fov);
-  }
-
-  _floatMsg.data = _error_y - _offset_y;
-  _pubYError.publish(_floatMsg);
-}
-
-void VisualServo::zErrorCb(const std_msgs::Float32& msg)
-{
-  _error_z = msg.data;
-}
-
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
-  _error_yaw = util::wrapMinMax(-data.data - _yaw_added_offset, -M_PI_2, M_PI_2);
+  // TODO: - DO NOT HARD CODE HERE
+  _error_yaw = util::wrapMinMax(-data.data - 1.57, -M_PI_2, M_PI_2); 
   std_msgs::Float32 m;
   m.data = _error_yaw;
   _pubYawErrorDebug.publish(m);
@@ -397,9 +315,55 @@ void VisualServo::zOffsetCb(const std_msgs::Float32 &msg){
     _offset_z = msg.data;
 }
 
-void VisualServo::brickHeightCb(const std_msgs::Float32& msg)
+void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
 {
-    _brickDistance = msg.data;
+    _targetCentroid = msg;
+    tf::Vector3 transformedTarget (
+      _targetCentroid.point.x, _targetCentroid.point.y, _targetCentroid.point.z);
+
+    // Todo transform the point from the camera reference frame into the UAV reference frame.
+    if (_compensate_roll_and_pitch
+        && _targetCentroid.point.x != -1
+        && _targetCentroid.point.y != -1
+        && _targetCentroid.point.z != -1)
+    {
+        tf::Transform uav_to_camera;
+        uav_to_camera.setOrigin(tf::Vector3(
+          _cameraPose.position.x,
+          _cameraPose.position.y,
+          _cameraPose.position.z));
+        uav_to_camera.setRotation(tf::Quaternion(
+          _cameraPose.orientation.x,
+          _cameraPose.orientation.y,
+          _cameraPose.orientation.z,
+          _cameraPose.orientation.w
+        ));
+        transformedTarget = uav_to_camera.inverse() * transformedTarget;
+
+        tf::Transform compensate_attitude;
+        compensate_attitude.setRotation(tf::Quaternion(
+          _uavOdom.pose.pose.orientation.x,
+          _uavOdom.pose.pose.orientation.y,
+          _uavOdom.pose.pose.orientation.z,
+          _uavOdom.pose.pose.orientation.w
+        ));
+        compensate_attitude.setOrigin(tf::Vector3(
+          _uavOdom.pose.pose.position.x,
+          _uavOdom.pose.pose.position.y,
+          _uavOdom.pose.pose.position.z
+        ));
+        transformedTarget = compensate_attitude * transformedTarget;
+    } 
+
+    geometry_msgs::Vector3 dummyMsg;
+    dummyMsg.x = transformedTarget.getX();
+    dummyMsg.y = transformedTarget.getY();
+    dummyMsg.z = transformedTarget.getZ();
+    _pubTransformedTarget.publish(dummyMsg);
+
+    _targetCentroid.point.x = transformedTarget.getX();
+    _targetCentroid.point.y = transformedTarget.getY();
+    _targetCentroid.point.z = transformedTarget.getZ();
 }
 
 void VisualServo::updateSetpoint() {
@@ -408,21 +372,23 @@ void VisualServo::updateSetpoint() {
   double move_left = 0.0;
   double change_yaw = 0.0;
 
-  if (!_x_frozen) move_left = _x_axis_PID.compute(_offset_x, _error_x, 1 / _rate);
-  if (!_y_frozen) move_forward  = _y_axis_PID.compute(_offset_y, _error_y, 1 / _rate);
+  // x and y are in the UAV reference frame
+  if(!_x_frozen) move_forward = _x_axis_PID.compute(_targetCentroid.point.x, _uavOdom.pose.pose.position.x, 1 / _rate);
+  if(!_y_frozen) move_left = _y_axis_PID.compute(_targetCentroid.point.y, _uavOdom.pose.pose.position.y, 1 / _rate);
   if (!_yaw_frozen) change_yaw = _yaw_PID.compute(0, _error_yaw, 1 / _rate);
+
+  if (_targetCentroid.point.x != -1 
+      && _targetCentroid.point.y != -1
+      && _targetCentroid.point.z != -1) {
+    _setpointPosition[0] = _uavPos[0] + move_forward;
+    _setpointPosition[1] = _uavPos[1] + move_left;
+  }
+  _setpointPosition[2] = _uavPos[2];
+  _setpointYaw = _uavYaw + change_yaw;
 
   _floatMsg.data = change_yaw;
   _pubChangeYawDebug.publish(_floatMsg);
-
-  _setpointPosition[0] = _uavPos[0] + move_forward * cos(_uavYaw + _yaw_added_offset);
-  _setpointPosition[0] -= move_left * sin(_uavYaw + _yaw_added_offset);
-  _setpointPosition[1] = _uavPos[1] + move_forward * sin(_uavYaw + _yaw_added_offset);
-  _setpointPosition[1] += move_left * cos(_uavYaw + _yaw_added_offset);
-  _setpointPosition[2] = _uavPos[2];
-
-  _setpointYaw = _uavYaw + change_yaw;
-
+  
   _moveLeftMsg.data = move_left;
   _changeYawMsg.data = change_yaw;
   _moveForwardMsg.data = move_forward;
