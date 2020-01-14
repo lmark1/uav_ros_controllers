@@ -62,6 +62,7 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
   bool x_armed = false, y_armed = false, z_armed = false, yaw_armed = false;
   bool initialized = 
     nh.getParam("visual_servo/compensate_roll_and_pitch", _compensate_roll_and_pitch) &&
+    nh.getParam("visual_servo/yaw_added_offset", _yawAddedOffset) &&
     nh.getParam("visual_servo/pid_x/x_armed", x_armed) &&
     nh.getParam("visual_servo/pid_y/y_armed", y_armed) &&
     nh.getParam("visual_servo/pid_z/z_armed", z_armed) &&
@@ -81,6 +82,7 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
     nh.getParam("visual_servo/camera/orientation/w", _cameraPose.orientation.w);
   
   ROS_INFO_COND(_compensate_roll_and_pitch, "VS - Roll and pitch compensation is active");
+  ROS_INFO("VS - yaw offset %.3f", _yawAddedOffset);
   ROS_INFO("VS - deadzones x,y,z,yaw = [%.3f, %.3f, %.3f, %.3f]", 
     _deadzone_x, _deadzone_y, _deadzone_z, _deadzone_yaw);
   ROS_INFO("VS - Camera Pose [%.3f, %.3f, %.3f] - [%.3f, %.3f, %.3f, %.3f]",
@@ -147,6 +149,7 @@ void uav_reference::VisualServo::initializeParameters(ros::NodeHandle& nh)
   }
 
   cfg.compensate_roll_and_pitch = _compensate_roll_and_pitch;
+  cfg.yaw_added_offset = _yawAddedOffset;
   cfg.camera_x = _cameraPose.position.x;
   cfg.camera_y = _cameraPose.position.y;
   cfg.camera_z = _cameraPose.position.z;
@@ -233,6 +236,7 @@ void VisualServo::visualServoParamsCb(uav_ros_control::VisualServoParametersConf
   }
 
   _compensate_roll_and_pitch = configMsg.compensate_roll_and_pitch;
+  _yawAddedOffset = configMsg.yaw_added_offset;
   _cameraPose.position.x = configMsg.camera_x;
   _cameraPose.position.y = configMsg.camera_y;
   _cameraPose.position.z = configMsg.camera_z;
@@ -259,8 +263,7 @@ void VisualServo::odomCb(const nav_msgs::OdometryConstPtr& odom) {
 }
 
 void VisualServo::yawErrorCb(const std_msgs::Float32 &data) {
-  // TODO: - DO NOT HARD CODE HERE
-  _error_yaw = util::wrapMinMax(-data.data - 1.57, -M_PI_2, M_PI_2); 
+  _error_yaw = util::wrapMinMax(-data.data - _yawAddedOffset, -M_PI_2, M_PI_2); 
   std_msgs::Float32 m;
   m.data = _error_yaw;
   _pubYawErrorDebug.publish(m);
