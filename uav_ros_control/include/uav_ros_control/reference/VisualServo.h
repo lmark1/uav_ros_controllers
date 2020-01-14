@@ -89,7 +89,7 @@ namespace uav_reference {
       nav_msgs::Odometry _uavOdom;
       double _error_x = 0, _error_y = 0, _error_z = 0, _error_yaw = 0, _offset_x = 0;
       double _offset_y = 0, _offset_z = 0,  _deadzone_x = 0, _deadzone_y = 0, _deadzone_z = 0, _deadzone_yaw = 0;
-      double  _qx, _qy, _qz, _qw, _uavYaw, _uavRoll, _uavPitch, _setpointYaw;
+      double  _qx, _qy, _qz, _qw, _uavYaw, _uavRoll, _uavPitch, _setpointYaw, _yawAddedOffset;
       double _rate;
       
       bool _visualServoEnabled = false,  _compensate_roll_and_pitch = false;
