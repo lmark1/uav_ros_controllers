@@ -23,6 +23,8 @@ namespace uav_reference
 typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define VSSM_DYN_RECONF             "vs_state_machine"
 #define PARAM_MIN_ERROR             "visual_servo/state_machine/min_error"
+#define PARAM_MIN_TD_TAR_ERROR      "visual_servo/state_machine/min_touchdown_target_position_error"
+#define PARAM_MIN_TD_UAV_VEL_ERROR  "visual_servo/state_machine/min_touchdown_uav_velocity_error"
 #define PARAM_MIN_YAW_ERROR         "visual_servo/state_machine/min_yaw_error"
 #define PARAM_TOUCHDOWN_HEIGHT      "visual_servo/state_machine/touchdown_height"
 #define PARAM_TOUCHDOWN_DELTA       "visual_servo/state_machine/touchdown_delta"
@@ -38,6 +40,7 @@ enum VisualServoState {
     OFF,
     BRICK_ALIGNMENT,
     DESCENT,
+    TOUCHDOWN_ALIGNMENT,
     TOUCHDOWN
 };
 
@@ -100,7 +103,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 void patchCentroidCb(const geometry_msgs::PointStamped& msg)
 {
     _relativeBrickDistance = msg.point.z;
-    _currPosError = sqrt( pow(msg.point.x, 2) + pow(msg.point.y, 2));
+    _currTargetError = sqrt( pow(msg.point.x, 2) + pow(msg.point.y, 2));
 }
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
@@ -189,7 +192,10 @@ void setVSSMParameters(vssm_param_t& config)
 void initializeParameters(ros::NodeHandle& nh)
 {
     ROS_INFO("VisualServoStateMachine::initializeParameters()");
-    bool initialized = nh.getParam(PARAM_MIN_YAW_ERROR, _minYawError)
+    bool initialized = 
+        nh.getParam(PARAM_MIN_YAW_ERROR, _minYawError)
+        && nh.getParam(PARAM_MIN_TD_TAR_ERROR, _minTouchdownTargetPositionError)
+        && nh.getParam(PARAM_MIN_TD_UAV_VEL_ERROR, _minTouchdownUavVelocityError)
         && nh.getParam(PARAM_MIN_ERROR, _minTargetError)
 		&& nh.getParam(PARAM_TOUCHDOWN_HEIGHT, _touchdownHeight)
 		&& nh.getParam(PARAM_TOUCHDOWN_DURATION, _touchdownDuration)
@@ -202,6 +208,9 @@ void initializeParameters(ros::NodeHandle& nh)
 
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
+    ROS_INFO("Min target error %.2f", _minTargetError);
+    ROS_INFO("Touchdown position target error %.2f", _minTouchdownTargetPositionError);
+    ROS_INFO("Touchdown uav velocity error %.2f", _minTouchdownUavVelocityError);
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
@@ -270,7 +279,7 @@ void updateState()
 
     // Update the transition counter
     if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
-        _currPosError < _minTargetError &&
+        _currTargetError < _minTargetError &&
         fabs(_currYawError) < _minYawError) {
         _descentTransitionCounter++;
     }
@@ -284,14 +293,26 @@ void updateState()
         return;
     }
 
-    // if height is below touchdown treshold start touchdown
-    if (_currentState == VisualServoState::DESCENT &&
-        isRelativeDistanceValid() && 
+    // When brick alignment passes touchdown height, start alignmennt.
+    if (_currentState == VisualServoState::DESCENT && 
+        isRelativeDistanceValid() &&
         _relativeBrickDistance <= _touchdownHeight)
+    {
+        _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
+        _currHeightReference = _currOdom.pose.pose.position.z;
+        ROS_INFO("VSSM::updateStatus - TOUCHDOWN_ALIGNMENT state activated");
+        return;
+    }
+
+    // if height is below touchdown treshold start touchdown
+    if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
+        isRelativeDistanceValid() && 
+        isUavVelcityInThreshold() &&
+        _currTargetError < _minTouchdownTargetPositionError)
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        //_currHeightReference = _relativeBrickDistance;
+        _touchdownDelta = _relativeBrickDistance; // TODO: Provjeriti ovo
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
     }
@@ -305,6 +326,14 @@ void updateState()
         turnOffVisualServo();
     }
 }   
+
+bool isUavVelcityInThreshold()
+{
+    return sqrt(
+        pow(_currOdom.twist.twist.linear.x, 2)
+        + pow(_currOdom.twist.twist.linear.y, 2)
+        + pow(_currOdom.twist.twist.linear.z, 2)) < _minTouchdownUavVelocityError;
+}
 
 bool isRelativeDistanceValid()
 {
@@ -339,6 +368,11 @@ void publishVisualServoSetpoint(double dt)
             _currVisualServoFeed.yaw = 0;
             break;
         
+        case VisualServoState::TOUCHDOWN_ALIGNMENT :
+            _currVisualServoFeed.z = _currHeightReference;
+            _currVisualServoFeed.yaw = 0;
+            break;
+
         case VisualServoState::TOUCHDOWN : 
             _currVisualServoFeed.x = 0;
             _currVisualServoFeed.y = 0;
@@ -414,8 +448,8 @@ private:
 
     /* Yaw error subscriber */
     ros::Subscriber _subYawError;
-    double _currYawError = 1e5, _currPosError = 1e5;
-    double _minYawError, _minTargetError;
+    double _currYawError = 1e5, _currTargetError = 1e5, _currUavVelError = 1e5;
+    double _minYawError, _minTargetError, _minTouchdownTargetPositionError, _minTouchdownUavVelocityError;
 
     ros::Subscriber _subBrickDist;
     ros::Subscriber _subPatchCentroid;

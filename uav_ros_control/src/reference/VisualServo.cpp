@@ -28,6 +28,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
   _pubTransformedTarget = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed", 1);
+  _pubUavTarget = nh.advertise<geometry_msgs::PointStamped>("uav/target_centroid", 1);
 
   // Define Subscribers
   _subOdom =
