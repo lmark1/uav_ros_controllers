@@ -344,6 +344,14 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
         ));
         transformedTarget = uav_to_camera.inverse() * transformedTarget;
 
+        // Publish the uav target
+        geometry_msgs::PointStamped pointMsg;
+        pointMsg.header.stamp = ros::Time::now();
+        pointMsg.point.x = transformedTarget.getX();
+        pointMsg.point.y = transformedTarget.getY();
+        pointMsg.point.z = transformedTarget.getZ();
+        _pubUavTarget.publish(pointMsg);
+
         tf::Transform compensate_attitude;
         compensate_attitude.setRotation(tf::Quaternion(
           _uavOdom.pose.pose.orientation.x,

@@ -102,7 +102,8 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 
 void patchCentroidCb(const geometry_msgs::PointStamped& msg)
 {
-    _relativeBrickDistance = msg.point.z;
+    // Minus here because distance is wrt. the UAV base frame
+    _relativeBrickDistance = - msg.point.z;
     _currTargetError = sqrt( pow(msg.point.x, 2) + pow(msg.point.y, 2));
 }
 
@@ -174,6 +175,8 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _afterTouchdownHeight = configMsg.after_touchdown_height;
     _descentCounterMax = configMsg.detection_counter;
     _ascentSpeed = configMsg.ascent_speed;
+    _minTouchdownTargetPositionError = configMsg.min_touchdown_target_position_error;
+    _minTouchdownUavVelocityError = configMsg.min_touchdown_uav_velocity_error;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -187,6 +190,8 @@ void setVSSMParameters(vssm_param_t& config)
     config.after_touchdown_height = _afterTouchdownHeight;
     config.detection_counter = _descentCounterMax;
     config.ascent_speed = _ascentSpeed;
+    config.min_touchdown_target_position_error = _minTouchdownTargetPositionError;
+    config.min_touchdown_uav_velocity_error = _minTouchdownUavVelocityError;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
