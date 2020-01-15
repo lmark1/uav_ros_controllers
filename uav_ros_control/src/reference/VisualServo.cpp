@@ -28,8 +28,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
   _pubTransformedTarget = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed", 1);
-  _pubUavTarget = nh.advertise<geometry_msgs::PointStamped>("uav/target_centroid", 1);
-
+  
   // Define Subscribers
   _subOdom =
       nh.subscribe("odometry", 1, &uav_reference::VisualServo::odomCb, this);
@@ -343,14 +342,6 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
           _cameraPose.orientation.w
         ));
         transformedTarget = uav_to_camera.inverse() * transformedTarget;
-
-        // Publish the uav target
-        geometry_msgs::PointStamped pointMsg;
-        pointMsg.header.stamp = ros::Time::now();
-        pointMsg.point.x = transformedTarget.getX();
-        pointMsg.point.y = transformedTarget.getY();
-        pointMsg.point.z = transformedTarget.getZ();
-        _pubUavTarget.publish(pointMsg);
 
         tf::Transform compensate_attitude;
         compensate_attitude.setRotation(tf::Quaternion(

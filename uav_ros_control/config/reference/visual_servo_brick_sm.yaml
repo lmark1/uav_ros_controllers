@@ -3,10 +3,10 @@ visual_servo:
     
     rate: 50
     min_error: 0.5
-    min_touchdown_target_position_error: 0.5
-    min_touchdown_uav_velocity_error: 0.5
+    min_touchdown_target_position_error: 0.1
+    min_touchdown_uav_velocity_error: 0.3
     min_yaw_error: 0.05
-    touchdown_height: 0.5
+    touchdown_height: 1
     touchdown_delta: 0.425
     touchdown_duration: 2
     after_touchdown_height: 3.1

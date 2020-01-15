@@ -110,7 +110,7 @@ namespace uav_reference {
       // Topics for debugging
       ros::Publisher _pubUavYawDebug, _pubChangeYawDebug, _pubYawErrorDebug;
       ros::Publisher _pubUavRollDebug, _pubUavPitchDebug;
-      ros::Publisher _pubTransformedTarget, _pubUavTarget;
+      ros::Publisher _pubTransformedTarget;
       std_msgs::Float32 _floatMsg;
 
       // Brick errors publisher

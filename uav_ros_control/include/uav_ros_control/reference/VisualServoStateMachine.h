@@ -67,7 +67,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     _subNContours =
         nh.subscribe("n_contours", 1, &uav_reference::VisualServoStateMachine::nContoursCb, this);
     _subPatchCentroid =
-        nh.subscribe("centroid_point", 1, &uav_reference::VisualServoStateMachine::patchCentroidCb, this);
+        nh.subscribe("global_centroid_point", 1, &uav_reference::VisualServoStateMachine::globalCentroidPointCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -100,11 +100,19 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     }
 }
 
-void patchCentroidCb(const geometry_msgs::PointStamped& msg)
+void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 {
     // Minus here because distance is wrt. the UAV base frame
-    _relativeBrickDistance = - msg.point.z;
-    _currTargetError = sqrt( pow(msg.point.x, 2) + pow(msg.point.y, 2));
+    _currTargetError = sqrt( 
+        pow(msg.x - _currOdom.pose.pose.position.x, 2) 
+        + pow(msg.y - _currOdom.pose.pose.position.y, 2));
+
+    if (msg.z == INVALID_DISTANCE) {
+        _relativeBrickDistance = INVALID_DISTANCE;
+    }
+    else {
+        _relativeBrickDistance = _currOdom.pose.pose.position.z - msg.z;
+    }
 }
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
@@ -260,9 +268,12 @@ void turnOffVisualServo()
 
 void updateState()
 {
-    // If visual servo is inactive, deactivate state machine
-    if (_currentState != VisualServoState::OFF && !_brickPickupActivated)
+    if (_currentState != VisualServoState::OFF && !_brickPickupActivated ||  // If visual servo is 
+        _currentState == VisualServoState::DESCENT && !isRelativeDistanceValid() ||
+        _currentState == VisualServoState::BRICK_ALIGNMENT && !isRelativeDistanceValid() ||
+        _currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && !isRelativeDistanceValid())
     {
+        // deactivate state machine
         ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
         _currentState = VisualServoState::OFF;
         _brickPickupActivated = false;
@@ -342,7 +353,7 @@ bool isUavVelcityInThreshold()
 
 bool isRelativeDistanceValid()
 {
-    return _relativeBrickDistance > 0;
+    return _relativeBrickDistance != INVALID_DISTANCE;
 }
 
 void publishVisualServoSetpoint(double dt)
@@ -456,7 +467,7 @@ private:
     double _currYawError = 1e5, _currTargetError = 1e5, _currUavVelError = 1e5;
     double _minYawError, _minTargetError, _minTouchdownTargetPositionError, _minTouchdownUavVelocityError;
 
-    ros::Subscriber _subBrickDist;
+    ros::Subscriber _subCentroidDist;
     ros::Subscriber _subPatchCentroid;
     double _relativeBrickDistance = INVALID_DISTANCE;
 
