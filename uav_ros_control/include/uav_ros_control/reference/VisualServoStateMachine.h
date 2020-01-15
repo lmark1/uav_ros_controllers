@@ -27,7 +27,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_MIN_TD_UAV_VEL_ERROR  "visual_servo/state_machine/min_touchdown_uav_velocity_error"
 #define PARAM_MIN_YAW_ERROR         "visual_servo/state_machine/min_yaw_error"
 #define PARAM_TOUCHDOWN_HEIGHT      "visual_servo/state_machine/touchdown_height"
-#define PARAM_TOUCHDOWN_DELTA       "visual_servo/state_machine/touchdown_delta"
+#define PARAM_MAGNET_OFFSET         "visual_servo/state_machine/magnet_offset"
 #define PARAM_TOUCHDOWN_DURATION    "visual_servo/state_machine/touchdown_duration"
 #define PARAM_RATE                  "visual_servo/state_machine/rate"
 #define PARAM_DESCENT_SPEED         "visual_servo/state_machine/descent_speed"
@@ -102,11 +102,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 
 void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 {
-    // Minus here because distance is wrt. the UAV base frame
-    _currTargetError = sqrt( 
-        pow(msg.x - _currOdom.pose.pose.position.x, 2) 
-        + pow(msg.y - _currOdom.pose.pose.position.y, 2));
-
+    _globalCentroid = msg;
     if (msg.z == INVALID_DISTANCE) {
         _relativeBrickDistance = INVALID_DISTANCE;
     }
@@ -177,7 +173,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _minTargetError = configMsg.min_error;
     _minYawError = configMsg.min_yaw_error;
     _touchdownHeight = configMsg.touchdown_height;
-    _touchdownDelta = configMsg.touchdown_delta;
+    _magnetOffset = configMsg.magnet_offset;
     _touchdownDuration = configMsg.touchdown_duration;
     _descentSpeed = configMsg.descent_speed;
     _afterTouchdownHeight = configMsg.after_touchdown_height;
@@ -191,7 +187,7 @@ void setVSSMParameters(vssm_param_t& config)
 {
     config.min_error = _minTargetError;
     config.min_yaw_error = _minYawError;
-    config.touchdown_delta = _touchdownDelta;
+    config.magnet_offset = _magnetOffset;
     config.touchdown_duration = _touchdownDuration;
     config.touchdown_height = _touchdownHeight;
     config.descent_speed = _descentSpeed;
@@ -212,7 +208,7 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_MIN_ERROR, _minTargetError)
 		&& nh.getParam(PARAM_TOUCHDOWN_HEIGHT, _touchdownHeight)
 		&& nh.getParam(PARAM_TOUCHDOWN_DURATION, _touchdownDuration)
-        && nh.getParam(PARAM_TOUCHDOWN_DELTA, _touchdownDelta)
+        && nh.getParam(PARAM_MAGNET_OFFSET, _magnetOffset)
         && nh.getParam(PARAM_DESCENT_SPEED, _descentSpeed)
         && nh.getParam(PARAM_ASCENT_SPEED, _ascentSpeed)
         && nh.getParam(PARAM_RATE, _rate)
@@ -227,7 +223,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
-    ROS_INFO("Touchdown delta: %.2f", _touchdownDelta);
+    ROS_INFO("Magnet offset: %.2f", _magnetOffset);
     ROS_INFO("After touchdown height: %.2f", _afterTouchdownHeight);
     ROS_INFO("Detection counter: %d", _descentTransitionCounter);
     if (!initialized)
@@ -283,7 +279,9 @@ void updateState()
     }
 
     // If brick pickup is activate start brick alignment first
-    if (_currentState == VisualServoState::OFF && _brickPickupActivated)
+    if (_currentState == VisualServoState::OFF 
+        && _brickPickupActivated
+        && isRelativeDistanceValid())
     {
         ROS_INFO("VSSM::updateStatus - Brick pickup requested");
         _currHeightReference = _currOdom.pose.pose.position.z;
@@ -295,7 +293,7 @@ void updateState()
 
     // Update the transition counter
     if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
-        _currTargetError < _minTargetError &&
+        isTargetInThreshold(_minTargetError) &&
         fabs(_currYawError) < _minYawError) {
         _descentTransitionCounter++;
     }
@@ -324,11 +322,11 @@ void updateState()
     if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
         isRelativeDistanceValid() && 
         isUavVelcityInThreshold() &&
-        _currTargetError < _minTouchdownTargetPositionError)
+        isTargetInThreshold(_minTouchdownTargetPositionError))
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _touchdownDelta = _relativeBrickDistance; // TODO: Provjeriti ovo
+        _touchdownDelta = _relativeBrickDistance - _magnetOffset;
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
     }
@@ -349,6 +347,12 @@ bool isUavVelcityInThreshold()
         pow(_currOdom.twist.twist.linear.x, 2)
         + pow(_currOdom.twist.twist.linear.y, 2)
         + pow(_currOdom.twist.twist.linear.z, 2)) < _minTouchdownUavVelocityError;
+}
+
+bool isTargetInThreshold(double minError)
+{
+    return sqrt(pow(_currOdom.pose.pose.position.x - _globalCentroid.x, 2)) < minError 
+        && sqrt(pow(_currOdom.pose.pose.position.y - _globalCentroid.y, 2)) < minError; 
 }
 
 bool isRelativeDistanceValid()
@@ -464,11 +468,11 @@ private:
 
     /* Yaw error subscriber */
     ros::Subscriber _subYawError;
-    double _currYawError = 1e5, _currTargetError = 1e5, _currUavVelError = 1e5;
+    double _currYawError = 1e5, _currUavVelError = 1e5;
     double _minYawError, _minTargetError, _minTouchdownTargetPositionError, _minTouchdownUavVelocityError;
 
-    ros::Subscriber _subCentroidDist;
     ros::Subscriber _subPatchCentroid;
+    geometry_msgs::Vector3 _globalCentroid;    
     double _relativeBrickDistance = INVALID_DISTANCE;
 
     /* Contour subscriber */
@@ -476,7 +480,7 @@ private:
     int _nContours;
 
     /* Touchdown mode parameters */
-    double _touchdownHeight, _touchdownDelta, _touchdownDuration, _touchdownTime, _descentCounterMax;
+    double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, _touchdownDuration, _touchdownTime, _descentCounterMax;
     double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
     int _descentTransitionCounter = 0;
 
