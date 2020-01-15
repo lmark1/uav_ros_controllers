@@ -28,7 +28,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_MIN_YAW_ERROR         "visual_servo/state_machine/min_yaw_error"
 #define PARAM_TOUCHDOWN_HEIGHT      "visual_servo/state_machine/touchdown_height"
 #define PARAM_MAGNET_OFFSET         "visual_servo/state_machine/magnet_offset"
-#define PARAM_TOUCHDOWN_DURATION    "visual_servo/state_machine/touchdown_duration"
+#define PARAM_TOUCHDOWN_SPEED       "visual_servo/state_machine/touchdown_speed"
 #define PARAM_RATE                  "visual_servo/state_machine/rate"
 #define PARAM_DESCENT_SPEED         "visual_servo/state_machine/descent_speed"
 #define PARAM_ASCENT_SPEED         "visual_servo/state_machine/ascent_speed"
@@ -174,7 +174,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _minYawError = configMsg.min_yaw_error;
     _touchdownHeight = configMsg.touchdown_height;
     _magnetOffset = configMsg.magnet_offset;
-    _touchdownDuration = configMsg.touchdown_duration;
+    _touchdownSpeed = configMsg.touchdown_speed;
     _descentSpeed = configMsg.descent_speed;
     _afterTouchdownHeight = configMsg.after_touchdown_height;
     _descentCounterMax = configMsg.detection_counter;
@@ -188,7 +188,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.min_error = _minTargetError;
     config.min_yaw_error = _minYawError;
     config.magnet_offset = _magnetOffset;
-    config.touchdown_duration = _touchdownDuration;
+    config.touchdown_speed = _touchdownSpeed;
     config.touchdown_height = _touchdownHeight;
     config.descent_speed = _descentSpeed;
     config.after_touchdown_height = _afterTouchdownHeight;
@@ -207,7 +207,7 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_MIN_TD_UAV_VEL_ERROR, _minTouchdownUavVelocityError)
         && nh.getParam(PARAM_MIN_ERROR, _minTargetError)
 		&& nh.getParam(PARAM_TOUCHDOWN_HEIGHT, _touchdownHeight)
-		&& nh.getParam(PARAM_TOUCHDOWN_DURATION, _touchdownDuration)
+		&& nh.getParam(PARAM_TOUCHDOWN_SPEED, _touchdownSpeed)
         && nh.getParam(PARAM_MAGNET_OFFSET, _magnetOffset)
         && nh.getParam(PARAM_DESCENT_SPEED, _descentSpeed)
         && nh.getParam(PARAM_ASCENT_SPEED, _ascentSpeed)
@@ -222,7 +222,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Touchdown uav velocity error %.2f", _minTouchdownUavVelocityError);
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
-    ROS_INFO("Touchdown duration: %.2f", _touchdownDuration);
+    ROS_INFO("Touchdown speed: %.2f", _touchdownSpeed);
     ROS_INFO("Magnet offset: %.2f", _magnetOffset);
     ROS_INFO("After touchdown height: %.2f", _afterTouchdownHeight);
     ROS_INFO("Detection counter: %d", _descentTransitionCounter);
@@ -327,13 +327,13 @@ void updateState()
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
         _touchdownDelta = _relativeBrickDistance - _magnetOffset;
+        _touchdownDuration = _touchdownDelta / _touchdownSpeed;
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
     }
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _touchdownTime >= _touchdownDuration && 
         _currHeightReference >= _afterTouchdownHeight) 
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
@@ -396,9 +396,8 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN : 
             _currVisualServoFeed.x = 0;
             _currVisualServoFeed.y = 0;
-            double dz = 2 * _touchdownDelta / _touchdownDuration * dt;
-            if (_touchdownTime < _touchdownDuration/2.0)
-                _currVisualServoFeed.z = _currHeightReference - dz;
+            if (_touchdownTime < _touchdownDuration)
+                _currVisualServoFeed.z = _currHeightReference - _touchdownSpeed * dt;
             else
                 _currVisualServoFeed.z = _currHeightReference + _ascentSpeed * dt;
             _currHeightReference = _currVisualServoFeed.z;
@@ -480,7 +479,8 @@ private:
     int _nContours;
 
     /* Touchdown mode parameters */
-    double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, _touchdownDuration, _touchdownTime, _descentCounterMax;
+    double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, 
+        _touchdownDuration = 0, _touchdownTime, _descentCounterMax, _touchdownSpeed;
     double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
     int _descentTransitionCounter = 0;
 
