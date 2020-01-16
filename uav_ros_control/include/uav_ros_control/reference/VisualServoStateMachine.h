@@ -25,6 +25,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_MIN_ERROR             "visual_servo/state_machine/min_error"
 #define PARAM_MIN_TD_TAR_ERROR      "visual_servo/state_machine/min_touchdown_target_position_error"
 #define PARAM_MIN_TD_UAV_VEL_ERROR  "visual_servo/state_machine/min_touchdown_uav_velocity_error"
+#define PARAM_MIN_TD_ALIGN_DURATION "visual_servo/state_machine/min_touchdown_align_duration"
 #define PARAM_MIN_YAW_ERROR         "visual_servo/state_machine/min_yaw_error"
 #define PARAM_TOUCHDOWN_HEIGHT      "visual_servo/state_machine/touchdown_height"
 #define PARAM_MAGNET_OFFSET         "visual_servo/state_machine/magnet_offset"
@@ -182,6 +183,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _ascentSpeed = configMsg.ascent_speed;
     _minTouchdownTargetPositionError = configMsg.min_touchdown_target_position_error;
     _minTouchdownUavVelocityError = configMsg.min_touchdown_uav_velocity_error;
+    _minTouchdownAlignDuration = configMsg.min_touchdown_align_duration;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -197,6 +199,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.ascent_speed = _ascentSpeed;
     config.min_touchdown_target_position_error = _minTouchdownTargetPositionError;
     config.min_touchdown_uav_velocity_error = _minTouchdownUavVelocityError;
+    config.min_touchdown_align_duration = _minTouchdownAlignDuration;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
@@ -206,6 +209,7 @@ void initializeParameters(ros::NodeHandle& nh)
         nh.getParam(PARAM_MIN_YAW_ERROR, _minYawError)
         && nh.getParam(PARAM_MIN_TD_TAR_ERROR, _minTouchdownTargetPositionError)
         && nh.getParam(PARAM_MIN_TD_UAV_VEL_ERROR, _minTouchdownUavVelocityError)
+        && nh.getParam(PARAM_MIN_TD_ALIGN_DURATION, _minTouchdownAlignDuration)
         && nh.getParam(PARAM_MIN_ERROR, _minTargetError)
 		&& nh.getParam(PARAM_TOUCHDOWN_HEIGHT, _touchdownHeight)
 		&& nh.getParam(PARAM_TOUCHDOWN_SPEED, _touchdownSpeed)
@@ -221,6 +225,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Min target error %.2f", _minTargetError);
     ROS_INFO("Touchdown position target error %.2f", _minTouchdownTargetPositionError);
     ROS_INFO("Touchdown uav velocity error %.2f", _minTouchdownUavVelocityError);
+    ROS_INFO("Min touchdown alignment duration %.2f", _minTouchdownAlignDuration);
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown speed: %.2f", _touchdownSpeed);
@@ -315,16 +320,17 @@ void updateState()
     {
         _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
         _currHeightReference = _currOdom.pose.pose.position.z;
+        _touchdownAlignDuration = 0;
         ROS_INFO("VSSM::updateStatus - TOUCHDOWN_ALIGNMENT state activated");
         return;
     }
 
-    // TODO: Ne ici dalje prije nego sto prodje neko vrijeme - parametar
     // if height is below touchdown treshold start touchdown
     if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
         isRelativeDistanceValid() && 
         isUavVelcityInThreshold() &&
-        isTargetInThreshold(_minTouchdownTargetPositionError))
+        isTargetInThreshold(_minTouchdownTargetPositionError) &&
+        _touchdownAlignDuration > _minTouchdownAlignDuration)
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
@@ -393,18 +399,20 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currHeightReference;
             _currVisualServoFeed.yaw = 0;
+            _touchdownAlignDuration += dt;
             break;
 
         case VisualServoState::TOUCHDOWN : 
             _currVisualServoFeed.x = 0;
             _currVisualServoFeed.y = 0;
-            if (_touchdownTime < _touchdownDuration)
+            if (_touchdownTime < _touchdownDuration) {
                 _currVisualServoFeed.z = _currHeightReference - _touchdownSpeed * dt;
-            else
+            } else {
                 _currVisualServoFeed.z = _currHeightReference + _ascentSpeed * dt;
+            }
             _currHeightReference = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
-            _touchdownTime +=dt;
+            _touchdownTime += dt;
             break;
     }
 
@@ -470,7 +478,9 @@ private:
     /* Yaw error subscriber */
     ros::Subscriber _subYawError;
     double _currYawError = 1e5, _currUavVelError = 1e5;
-    double _minYawError, _minTargetError, _minTouchdownTargetPositionError, _minTouchdownUavVelocityError;
+    double _minYawError, _minTargetError,   
+        _minTouchdownTargetPositionError, _minTouchdownUavVelocityError,
+        _minTouchdownAlignDuration;
 
     ros::Subscriber _subPatchCentroid;
     geometry_msgs::Vector3 _globalCentroid;    
@@ -482,7 +492,8 @@ private:
 
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, 
-        _touchdownDuration = 0, _touchdownTime, _descentCounterMax, _touchdownSpeed;
+        _touchdownDuration = 0, _touchdownAlignDuration = 0, 
+        _touchdownTime, _descentCounterMax, _touchdownSpeed;
     double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
     int _descentTransitionCounter = 0;
 
