@@ -103,6 +103,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 {
     _globalCentroid = msg;
+    // TODO: provjeriti sa relativnom udaljenoscu
     if (msg.z == INVALID_DISTANCE) {
         _relativeBrickDistance = INVALID_DISTANCE;
     }
@@ -318,6 +319,7 @@ void updateState()
         return;
     }
 
+    // TODO: Ne ici dalje prije nego sto prodje neko vrijeme - parametar
     // if height is below touchdown treshold start touchdown
     if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
         isRelativeDistanceValid() && 
