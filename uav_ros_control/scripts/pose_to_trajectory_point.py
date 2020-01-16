@@ -9,10 +9,10 @@ from trajectory_msgs.msg import MultiDOFJointTrajectoryPoint
 class PoseToTrajectoryPoint:
 
     def __init__(self):
-        self.uav_trajectory_point_pub = rospy.Publisher('trajectory_point_ref', 
+        self.uav_trajectory_point_pub = rospy.Publisher('position_hold/trajectory', 
             MultiDOFJointTrajectoryPoint, queue_size=1)
 
-        rospy.Subscriber('pose_ref', Pose, self.poseCallback, queue_size=1)
+        rospy.Subscriber('position_hold/pose_ref', Pose, self.poseCallback, queue_size=1)
 
     def run(self):
         rospy.spin()
