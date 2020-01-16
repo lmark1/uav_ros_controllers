@@ -57,6 +57,8 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     _pubVisualServoFeed = 
         nh.advertise<uav_ros_control_msgs::VisualServoProcessValues>("visual_servo/process_value", 1);
     _pubVssmState = nh.advertise<std_msgs::Int32>("visual_servo_sm/state", 1);
+    _pubRelativeDistance_global = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/global", 1);
+    _pubRelativeDistance_local = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/local", 1);
 
     // Define Subscribers
     _subOdom =
@@ -67,8 +69,10 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("debug/yaw_error", 1, &uav_reference::VisualServoStateMachine::yawErrorCb, this); 
     _subNContours =
         nh.subscribe("n_contours", 1, &uav_reference::VisualServoStateMachine::nContoursCb, this);
-    _subPatchCentroid =
+    _subPatchCentroid_global =
         nh.subscribe("global_centroid_point", 1, &uav_reference::VisualServoStateMachine::globalCentroidPointCb, this);
+    _subPatchCentroid_local = 
+        nh.subscribe("local_centroid_point", 1, &uav_reference::VisualServoStateMachine::localCentroidPointCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -101,16 +105,28 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     }
 }
 
+void localCentroidPointCb(const geometry_msgs::Vector3& msg) 
+{
+    _relativeBrickDistance_local = - msg.z; // Minus sign here because Centroid is wrt. the UAV base frame
+    std_msgs::Float32 newMessage;
+    newMessage.data = _relativeBrickDistance_local;
+    _pubRelativeDistance_local.publish(newMessage);
+}
+
 void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 {
     _globalCentroid = msg;
     // TODO: provjeriti sa relativnom udaljenoscu
     if (msg.z == INVALID_DISTANCE) {
-        _relativeBrickDistance = INVALID_DISTANCE;
+        _relativeBrickDistance_global = INVALID_DISTANCE;
     }
     else {
-        _relativeBrickDistance = _currOdom.pose.pose.position.z - msg.z;
+        _relativeBrickDistance_global = _currOdom.pose.pose.position.z - msg.z;
     }
+
+    std_msgs::Float32 newMessage;
+    newMessage.data = _relativeBrickDistance_global;
+    _pubRelativeDistance_global.publish(newMessage);
 }
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
@@ -316,7 +332,7 @@ void updateState()
     // When brick alignment passes touchdown height, start alignmennt.
     if (_currentState == VisualServoState::DESCENT && 
         isRelativeDistanceValid() &&
-        _relativeBrickDistance <= _touchdownHeight)
+        _relativeBrickDistance_global <= _touchdownHeight) // TODO: Check here if _relativeBrickDistance_local is better
     {
         _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
         _currHeightReference = _currOdom.pose.pose.position.z;
@@ -334,7 +350,7 @@ void updateState()
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _touchdownDelta = _relativeBrickDistance - _magnetOffset;
+        _touchdownDelta = _relativeBrickDistance_global - _magnetOffset; // TODO: Check here if _relativeBrickDistance_local is better
         _touchdownDuration = _touchdownDelta / _touchdownSpeed;
         ROS_INFO("VSSM::UpdateStatus - TOUCHDOWN state activated");
         return;
@@ -365,7 +381,7 @@ bool isTargetInThreshold(double minError)
 
 bool isRelativeDistanceValid()
 {
-    return _relativeBrickDistance != INVALID_DISTANCE;
+    return _relativeBrickDistance_global != INVALID_DISTANCE;
 }
 
 void publishVisualServoSetpoint(double dt)
@@ -469,6 +485,8 @@ private:
 
     /* Pose publisher */
     ros::Publisher _pubVisualServoFeed;
+    ros::Publisher _pubRelativeDistance_global;
+    ros::Publisher _pubRelativeDistance_local;
     uav_ros_control_msgs::VisualServoProcessValues _currVisualServoFeed;
 
     /* Odometry subscriber */
@@ -482,9 +500,10 @@ private:
         _minTouchdownTargetPositionError, _minTouchdownUavVelocityError,
         _minTouchdownAlignDuration;
 
-    ros::Subscriber _subPatchCentroid;
+    ros::Subscriber _subPatchCentroid_global, _subPatchCentroid_local;
     geometry_msgs::Vector3 _globalCentroid;    
-    double _relativeBrickDistance = INVALID_DISTANCE;
+    double _relativeBrickDistance_global = INVALID_DISTANCE,
+        _relativeBrickDistance_local = INVALID_DISTANCE;
 
     /* Contour subscriber */
     ros::Subscriber _subNContours;
