@@ -432,7 +432,7 @@ void publishVisualServoSetpoint(double dt)
         
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
-                (_touchdownHeight - _relativeBrickDistance_local);
+                double(_descentCounterMax) / 100.0 * (_touchdownHeight - _relativeBrickDistance_local);
             _currVisualServoFeed.yaw = 0;
             _touchdownAlignDuration += dt;
             break;

@@ -15,4 +15,4 @@ visual_servo:
     after_touchdown_height: 4
     descent_speed: 0.2
     ascent_speed: 1
-    detection_counter: 100
+    detection_counter: 25
