@@ -386,14 +386,14 @@ bool isUavVelcityInThreshold()
 {
     return sqrt(pow(_currOdom.twist.twist.linear.x, 2)) < _minTouchdownUavVelocityError_xy
         && sqrt(pow(_currOdom.twist.twist.linear.y, 2)) < _minTouchdownUavVelocityError_xy
-        && sqrt(pow(_currOdom.twist.twist.linear.z, 2)) < _minTouchdownUavVelocityError_z; // TODO: Staviti ovdje drugi parametar
+        && sqrt(pow(_currOdom.twist.twist.linear.z, 2)) < _minTouchdownUavVelocityError_z;
 }
 
 bool isTargetInThreshold(const double minX, const double minY, const double minZ)
 {
     return sqrt(pow(_currOdom.pose.pose.position.x - _globalCentroid.x, 2)) < minX 
         && sqrt(pow(_currOdom.pose.pose.position.y - _globalCentroid.y, 2)) < minY
-        && abs(_relativeBrickDistance_local - _touchdownHeight) < minZ; // TODO: Staviti ovdje drugi parametar
+        && abs(_relativeBrickDistance_local - _touchdownHeight) < minZ;
 }
 
 bool isRelativeDistanceValid(const double checkDistance)
@@ -430,7 +430,8 @@ void publishVisualServoSetpoint(double dt)
             break;
         
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
-            _currVisualServoFeed.z = _currHeightReference;
+            _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
+                (_touchdownHeight - _relativeBrickDistance_local);
             _currVisualServoFeed.yaw = 0;
             _touchdownAlignDuration += dt;
             break;
