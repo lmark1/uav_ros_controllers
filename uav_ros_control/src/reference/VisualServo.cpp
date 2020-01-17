@@ -28,6 +28,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubNewSetpoint =
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
   _pubTransformedTarget = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed", 1);
+  _pubTransformedTarget_local = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed_local", 1);
   
   // Define Subscribers
   _subOdom =
@@ -324,6 +325,11 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
     tf::Vector3 transformedTarget (
       _targetCentroid.point.x, _targetCentroid.point.y, _targetCentroid.point.z);
 
+    geometry_msgs::Vector3 localCentroidMsg;
+    localCentroidMsg.x = -1; 
+    localCentroidMsg.y = -1;
+    localCentroidMsg.z = -1;
+
     // Todo transform the point from the camera reference frame into the UAV reference frame.
     if (_compensate_roll_and_pitch
         && _targetCentroid.point.x != -1
@@ -343,6 +349,11 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
         ));
         transformedTarget = uav_to_camera.inverse() * transformedTarget;
 
+        // Publish also the centroid vector wrt. the UAV base frame
+        localCentroidMsg.x = transformedTarget.getX();
+        localCentroidMsg.y = transformedTarget.getY();
+        localCentroidMsg.z = transformedTarget.getZ();
+
         tf::Transform compensate_attitude;
         compensate_attitude.setRotation(tf::Quaternion(
           _uavOdom.pose.pose.orientation.x,
@@ -358,11 +369,12 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
         transformedTarget = compensate_attitude * transformedTarget;
     } 
 
-    geometry_msgs::Vector3 dummyMsg;
-    dummyMsg.x = transformedTarget.getX();
-    dummyMsg.y = transformedTarget.getY();
-    dummyMsg.z = transformedTarget.getZ();
-    _pubTransformedTarget.publish(dummyMsg);
+    geometry_msgs::Vector3 globalCentroidMsg;
+    globalCentroidMsg.x = transformedTarget.getX();
+    globalCentroidMsg.y = transformedTarget.getY();
+    globalCentroidMsg.z = transformedTarget.getZ();
+    _pubTransformedTarget.publish(globalCentroidMsg);
+    _pubTransformedTarget_local.publish(localCentroidMsg);
 
     _targetCentroid.point.x = transformedTarget.getX();
     _targetCentroid.point.y = transformedTarget.getY();

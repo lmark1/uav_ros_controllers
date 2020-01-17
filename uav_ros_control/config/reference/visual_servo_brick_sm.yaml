@@ -5,6 +5,7 @@ visual_servo:
     min_error: 0.5
     min_touchdown_target_position_error: 0.1
     min_touchdown_uav_velocity_error: 0.3
+    min_touchdown_align_duration: 2
     min_yaw_error: 0.05
     touchdown_height: 1
     magnet_offset: 0.5
