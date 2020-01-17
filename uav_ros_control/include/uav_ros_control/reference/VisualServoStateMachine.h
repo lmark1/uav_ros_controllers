@@ -109,6 +109,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 
 void localCentroidPointCb(const geometry_msgs::Vector3& msg) 
 {
+    _localCentroid = msg;
     if (msg.z == INVALID_DISTANCE) {
         _relativeBrickDistance_local = INVALID_DISTANCE;
     } else {
@@ -391,8 +392,8 @@ bool isUavVelcityInThreshold()
 
 bool isTargetInThreshold(const double minX, const double minY, const double minZ)
 {
-    return sqrt(pow(_currOdom.pose.pose.position.x - _globalCentroid.x, 2)) < minX 
-        && sqrt(pow(_currOdom.pose.pose.position.y - _globalCentroid.y, 2)) < minY
+    return abs(_localCentroid.x) < minX 
+        && abs(_localCentroid.y) < minY
         && abs(_relativeBrickDistance_local - _touchdownHeight) < minZ;
 }
 
@@ -521,7 +522,7 @@ private:
         _minTouchdownAlignDuration;
 
     ros::Subscriber _subPatchCentroid_global, _subPatchCentroid_local;
-    geometry_msgs::Vector3 _globalCentroid;    
+    geometry_msgs::Vector3 _globalCentroid, _localCentroid;    
     double _relativeBrickDistance_global = INVALID_DISTANCE,
         _relativeBrickDistance_local = INVALID_DISTANCE;
 
