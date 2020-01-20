@@ -86,7 +86,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 
     // Setup brick pickup service callback
     _serviceBrickPickup = nh.advertiseService(
-			"brick_pickup",
+			"brick_pickup/local",
 			&uav_reference::VisualServoStateMachine::brickPickupServiceCb,
 			this);
 
