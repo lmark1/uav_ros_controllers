@@ -1,0 +1,3 @@
+brick_pickup:
+  rate: 5
+  dummy_param: 0.02

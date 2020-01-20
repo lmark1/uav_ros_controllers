@@ -5,9 +5,9 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	uav_ros_control_msgs
 	rospy
-    std_msgs
-    dynamic_reconfigure
-    sensor_msgs
+	std_msgs
+	dynamic_reconfigure
+	sensor_msgs
 	mav_msgs
 	tf)
 
@@ -18,6 +18,7 @@ generate_dynamic_reconfigure_options(
 	config/control/DistanceControlParameters.cfg
 	config/reference/VisualServoParameters.cfg
 	config/reference/VisualServoStateMachineParameters.cfg
+	config/reference/BrickPickupStateMachineParameters.cfg
 )
 
 catkin_package(
@@ -62,6 +63,10 @@ target_link_libraries(visual_servo_node reference_lib)
 # visual servo state machine
 add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
 target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
+
+# visual servo state machine
+add_executable(brick_pickup_sm nodes/reference/BrickPickupStateNode.cpp)
+target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt)
 
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
