@@ -12,6 +12,12 @@ add_message_files(
   VisualServoProcessValues.msg
 )
 
+add_service_files(
+    DIRECTORY srv
+    FILES
+    GeoBrickApproach.srv
+)
+
 generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(
