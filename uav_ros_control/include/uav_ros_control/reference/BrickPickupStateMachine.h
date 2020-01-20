@@ -1,9 +1,13 @@
+#ifndef VISUAL_SERVO_STATE_MACHINE_H
+#define VISUAL_SERVO_STATE_MACHINE_H
+
 #include <std_msgs/Int32.h>
 #include <ros/ros.h>
 #include <uav_ros_control/BrickPickupStateMachineParametersConfig.h>
 #include <uav_ros_control_msgs/GeoBrickApproach.h>
 #include <uav_ros_control/filters/Util.h>
-
+#include <iostream>
+#include <uav_ros_control/reference/Global2Local.h>
 using namespace ros_util;
 
 namespace uav_sm {
@@ -21,19 +25,16 @@ enum class VisualServoState {
 };
 
 struct BrickPickupStatus {
-  BrickPickupStatus() : BrickPickupStatus("default", 0, 0, 0) { }
-  BrickPickupStatus(
-    const std::string& t_brickColor, const double t_globalLat, const double t_globalLon,
-    const double t_globalAltRel, const BrickPickupStates t_status = BrickPickupStates::OFF) :
+  BrickPickupStatus() : BrickPickupStatus("default", Eigen::Vector3d(0, 0, 0)) { }
+  BrickPickupStatus(const std::string& t_brickColor, const Eigen::Vector3d& t_brickLocal, 
+    const BrickPickupStates t_status = BrickPickupStates::OFF) :
       m_brickColor(t_brickColor),
-      m_globalLat(t_globalLat),
-      m_globalLon(t_globalLon),
-      m_globalAltRel(t_globalAltRel),
-      m_status(t_status) { }
+      m_status(t_status), 
+      m_localBrick(t_brickLocal) { }
 
   BrickPickupStates m_status;
   std::string m_brickColor;
-  double m_globalLat, m_globalLon, m_globalAltRel;
+  Eigen::Vector3d m_localBrick;
 };
 
 typedef uav_ros_control::BrickPickupStateMachineParametersConfig PickupParams;
@@ -45,7 +46,8 @@ class BrickPickupStateMachine {
 
 public:
 BrickPickupStateMachine(ros::NodeHandle& t_nh) :
-    m_handlerVSSMState(t_nh, "visual_servo_sm/state") {
+    m_handlerVSSMState(t_nh, "visual_servo_sm/state"),
+    m_global2Local(t_nh) {
   initializeParameters(t_nh);
   
   m_serviceBrickPickup = t_nh.advertiseService(
@@ -59,8 +61,11 @@ BrickPickupStateMachine(ros::NodeHandle& t_nh) :
 }
 
 private:
-bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) {
+void run_once(const ros::TimerEvent& /* unused */) {
   
+}
+
+bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) {
   // If we want to disable the global brick pickup
   if (!request.enable) {
     ROS_FATAL("BPSM::brick_pickup_global_cb - brick_pickup/global disabled");
@@ -70,13 +75,15 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) {
   }
 
   // Enable global brick pickup
-  m_currentStatus = BrickPickupStatus(
-    request.brick_color, request.latitude, request.longitude, 
-    request.altitude_relative, BrickPickupStates::APPROACH);
-}
+  m_currentStatus = BrickPickupStatus(request.brick_color,
+    m_global2Local.toLocal(
+      request.latitude, request.longitude, request.altitude_relative, true), 
+    BrickPickupStates::APPROACH);
 
-void run_once(const ros::TimerEvent& /* unused */) {
-  
+  ROS_INFO("Current brick goal: [%.3f, %.3f, %.3f]", 
+    m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
+    m_currentStatus.m_localBrick.z());
+  return true;
 }
 
 inline const VisualServoState getCurrentVisualServoState() {
@@ -89,6 +96,7 @@ void initializeParameters(ros::NodeHandle& nh) {
   m_pickupConfig.reset(new ParamHandler<PickupParams>(initParams, "brick_pickup"));
 }
 
+Global2Local m_global2Local;
 BrickPickupStatus m_currentStatus;
 ros::ServiceServer m_serviceBrickPickup;
 ros::Timer m_runTimer;
@@ -96,3 +104,4 @@ TopicHandler<std_msgs::Int32> m_handlerVSSMState;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
 };
 }
+#endif

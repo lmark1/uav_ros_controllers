@@ -9,9 +9,24 @@ find_package(catkin REQUIRED COMPONENTS
 	dynamic_reconfigure
 	sensor_msgs
 	mav_msgs
-	tf)
+	tf
+	mavros
+	)
 
+
+list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
+find_package(GeographicLib REQUIRED)
 find_package(cmake_modules REQUIRED)
+
+## Find Eigen
+find_package(Eigen3)
+if(NOT EIGEN3_FOUND)
+  # Fallback to cmake_modules
+  find_package(cmake_modules REQUIRED)
+  find_package(Eigen REQUIRED)
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})
+endif()
 
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
@@ -28,7 +43,8 @@ catkin_package(
 
 include_directories(
 	include
-	${catkin_INCLUDE_DIRS})
+	${catkin_INCLUDE_DIRS}
+  ${GeographicLib_INCLUDE_DIRS})
 
 # PID controller library
 add_library(pid src/control/PID.cpp)
@@ -66,7 +82,7 @@ target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 
 # visual servo state machine
 add_executable(brick_pickup_sm nodes/reference/BrickPickupStateNode.cpp)
-target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt)
+target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt ${GeographicLib_LIBRARIES})
 
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
