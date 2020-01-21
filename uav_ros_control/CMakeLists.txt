@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
 	mav_msgs
 	tf
 	mavros
+	color_filter
 	)
 
 
