@@ -22,10 +22,10 @@ Eigen::Vector3d toLocal(const double lat, const double lon, const double alt, bo
             GeographicLib::Constants::WGS84_f());
 
     Eigen::Vector3d ecef_origin, 
-      map_origin(
-        m_homeHandler.getData().geo.latitude, 
-        m_homeHandler.getData().geo.longitude, 
-        m_homeHandler.getData().geo.altitude);
+    map_origin(
+      m_homeHandler.getData().geo.latitude, 
+      m_homeHandler.getData().geo.longitude, 
+      m_homeHandler.getData().geo.altitude);
     
     earth.Forward(
       map_origin.x(), map_origin.y(), map_origin.z(),
