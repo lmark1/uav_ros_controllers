@@ -32,10 +32,26 @@ enum class VisualServoState {
 struct BrickPickupStatus {
   BrickPickupStatus() : BrickPickupStatus("red", Eigen::Vector3d(0, 0, 0)) { }
   BrickPickupStatus(const std::string& t_brickColor, const Eigen::Vector3d& t_brickLocal, 
-    const BrickPickupStates t_status = BrickPickupStates::OFF) :
+    const BrickPickupStates t_status = BrickPickupStates::OFF) : // TODO: Set this to default OFF
       m_brickColor(t_brickColor),
       m_status(t_status), 
       m_localBrick(t_brickLocal) { }
+
+  bool isOff() {
+    return m_status == BrickPickupStates::OFF;
+  }
+
+  bool isSearching() {
+    return m_status == BrickPickupStates::SEARCH;
+  }
+
+  bool isApproaching() {
+    return m_status == BrickPickupStates::APPROACH;
+  }
+
+  bool isAttemptingPickup() {
+    return m_status == BrickPickupStates::ATTEMPT_PICKUP;
+  }
 
   BrickPickupStates m_status;
   std::string m_brickColor;
@@ -52,10 +68,14 @@ class BrickPickupStateMachine {
 public:
 BrickPickupStateMachine(ros::NodeHandle& t_nh) :
     m_handlerVSSMState(t_nh, "visual_servo_sm/state"),
-    m_handlerOdometry(t_nh, "odometry"),
+    m_handlerOdometry(t_nh, "/mavros/global_position/local"),
     m_global2Local(t_nh) {
   initialize_parameters(t_nh);
   
+  // Initialize publisher
+  m_pubPositionHold = t_nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
+    "position_hold/trajectory", 1);
+
   // Initialize service callers
   m_vssmCaller = t_nh.serviceClient
     <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/local");
@@ -68,22 +88,74 @@ BrickPickupStateMachine(ros::NodeHandle& t_nh) :
     &uav_sm::BrickPickupStateMachine::brick_pickup_global_cb,
     this);
   
+  // Iniitalize timers
   m_runTimer = t_nh.createTimer(
     ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/rate")), 
-    &uav_sm::BrickPickupStateMachine::run_once, this);
+    &uav_sm::BrickPickupStateMachine::update_state, this);
+  m_initFilterTimer = t_nh.createTimer(
+    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/color_init_rate")),
+    &uav_sm::BrickPickupStateMachine::init_filter, this);
+  m_publishTrajectoryTimer = t_nh.createTimer(
+    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/search_traj_rate")),
+    &uav_sm::BrickPickupStateMachine::publish_search_trajectory, this);
 }
 
 private:
-void run_once(const ros::TimerEvent& /* unused */) {
+void update_state(const ros::TimerEvent& /* unused */) {
   
+  if (m_currentStatus.isApproaching() && is_close_to_brick()) {
+    ROS_WARN("BrickPickup::update_state - SEARCH state activated");
+    m_currentStatus.m_status = BrickPickupStates::SEARCH;
+    m_searchTrajectory.clear();
+    return;
+  }
+
+  if (m_currentStatus.isSearching() && toggle_visual_servo_state_machine(true)) {
+    ROS_WARN("BrickPickup::update_state - ATTEMPT_PICKUP activated");
+    m_currentStatus.m_status = BrickPickupStates::ATTEMPT_PICKUP;
+    return;
+  }
+
+  if (m_currentStatus.isAttemptingPickup() 
+      && getCurrentVisualServoState() == VisualServoState::OFF) {
+    ROS_WARN("BrickPickup::update_state - VisualServoState is off, back to SEARCH.");
+    m_currentStatus.m_status = BrickPickupStates::SEARCH;
+    m_searchTrajectory.clear();
+    return;
+  }
 }
+
+void init_filter(const ros::TimerEvent& /* unused */) {
+  if (m_currentStatus.isSearching()) {
+    ROS_INFO("BrickPickup::init_filter - initializing color %s", 
+      m_currentStatus.m_brickColor.c_str());
+    filter_choose_color(m_currentStatus.m_brickColor);
+  }
+}
+
+void publish_search_trajectory(const ros::TimerEvent& /* unused */) {
+  if (!m_currentStatus.isSearching()) {
+    return;
+  }
+
+  if (m_searchTrajectory.empty()) {
+    ROS_INFO("publish_search_trajectory - generating search trajectory.");
+    m_searchTrajectory = uav_reference::traj_gen::generateCircleTrajectoryAroundPoint(
+      m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
+      m_currentStatus.m_localBrick.z());
+    ROS_INFO("publish_search_trajectory - search trajectory generated.");
+  }
+
+  m_pubPositionHold.publish(m_searchTrajectory.front());
+  m_searchTrajectory.pop_front();
+} 
 
 bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) {
   // If we want to disable the global brick pickup
   if (!request.enable) {
     ROS_FATAL("BPSM::brick_pickup_global_cb - brick_pickup/global disabled");
     response.status = false;
-    //m_currentState == BrickPickupStates::OFF;
+    m_currentStatus.m_status = BrickPickupStates::OFF;
     return true;
   }
 
@@ -96,6 +168,11 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) {
   ROS_INFO("Current brick goal: [%.3f, %.3f, %.3f]", 
     m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
     m_currentStatus.m_localBrick.z());
+
+  // Publish point to the UAV
+  m_pubPositionHold.publish(uav_reference::traj_gen::toTrajectoryPointMsg(
+    m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
+    m_currentStatus.m_localBrick.z()));
   return true;
 }
 
@@ -110,6 +187,7 @@ void initialize_parameters(ros::NodeHandle& nh) {
 }
 
 bool toggle_visual_servo_state_machine(bool t_enable = true) {
+  ROS_INFO("Toggling!!11");
   std_srvs::SetBool::Request req;
   std_srvs::SetBool::Response resp;
   req.data = t_enable;
@@ -118,9 +196,8 @@ bool toggle_visual_servo_state_machine(bool t_enable = true) {
     ROS_FATAL("BrickPickup - unable to activate VSSM");
     return false;
   }
-
-  // At this point VSSM is successfully toggled, so return true
-  return true;
+  ROS_INFO_COND(resp.success, "BrickPickup - VSSM activated");
+  return resp.success;
 }
 
 bool filter_choose_color(const std::string& t_color) {
@@ -137,7 +214,17 @@ bool filter_choose_color(const std::string& t_color) {
   return true;
 }
 
-ros::Timer m_runTimer;
+bool is_close_to_brick() {
+  return uav_reference::traj_gen::isCloseToReference(
+    uav_reference::traj_gen::toTrajectoryPointMsg(
+      m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
+      m_currentStatus.m_localBrick.z()),
+    m_handlerOdometry.getData(), 2);
+}
+
+std::list<trajectory_msgs::MultiDOFJointTrajectoryPoint> m_searchTrajectory;
+ros::Publisher m_pubPositionHold;
+ros::Timer m_runTimer, m_initFilterTimer, m_publishTrajectoryTimer;
 Global2Local m_global2Local;
 BrickPickupStatus m_currentStatus;
 ros::ServiceServer m_serviceBrickPickup;
