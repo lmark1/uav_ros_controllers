@@ -6,6 +6,6 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     std::shared_ptr<uav_sm::BrickPickupStateMachine> vssmObj{new uav_sm::BrickPickupStateMachine(nh)};
-    ros::MultiThreadedSpinner spinner(4); // Use 4 threads
+    ros::MultiThreadedSpinner spinner(2); // Use 4 threads
     spinner.spin(); // spin() will not return until the node has been shutdown
 }
