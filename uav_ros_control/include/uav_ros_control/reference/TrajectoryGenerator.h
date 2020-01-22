@@ -49,7 +49,6 @@ static std::list<double> inRange(const double from, const double to, const int n
   for (int i = 0; i < numberOfPOints; i ++) {
     points.push_back(i * step + from);
   }
-  std::cout << "Points size: " << points.size() << std::endl;
   return points;
 }
 
@@ -68,7 +67,6 @@ static std::list<trajectory_msgs::MultiDOFJointTrajectoryPoint> generateLinearTr
     itY++;
     itZ++;
   }
-  std::cout << "Traj size: " << points.size() << std::endl;
   return points;
 }
 
