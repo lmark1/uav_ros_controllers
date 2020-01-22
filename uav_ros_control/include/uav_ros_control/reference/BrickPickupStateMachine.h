@@ -22,7 +22,8 @@ enum class BrickPickupStates {
   OFF,
   APPROACH,
   SEARCH,
-  ATTEMPT_PICKUP
+  ATTEMPT_PICKUP, 
+  DROPOFF
 };
 
 enum class VisualServoState {
@@ -52,6 +53,10 @@ struct BrickPickupStatus {
 
   bool isAttemptingPickup() {
     return m_status == BrickPickupStates::ATTEMPT_PICKUP;
+  }
+
+  bool isDropOff() {
+    return m_status == BrickPickupStates::DROPOFF;
   }
 
   BrickPickupStates m_status;
@@ -131,14 +136,21 @@ void update_state(const ros::TimerEvent& /* unused */) {
 
     m_uavTrajectory.clear(); 
     if (is_brick_picked_up()) {
-      ROS_INFO("BrickPickup::update_state - brick is picked up, OFF state activated.");
-      m_currentStatus.m_status = BrickPickupStates::OFF;
+      ROS_INFO("BrickPickup::update_state - brick is picked up, DROPOFF state activated.");
+      m_currentStatus.m_status = BrickPickupStates::DROPOFF;
       
     } else {
       ROS_FATAL("BrickPickup::update_state - brick is not picked up, APPROACH state activated");
       m_currentStatus.m_status = BrickPickupStates::APPROACH;
     }
     return;
+  }
+
+  if (m_currentStatus.isDropOff() 
+      && !is_brick_picked_up()) {
+    ROS_WARN("BrickPickup::update_state - DROPOFF finished, SEARCH state activated");
+    m_currentStatus.m_status = BrickPickupStates::SEARCH;
+    m_uavTrajectory.clear();
   }
 }
 
@@ -151,13 +163,13 @@ void init_filter(const ros::TimerEvent& /* unused */) {
 }
 
 void publish_trajectory(const ros::TimerEvent& /* unused */) {
-  if (m_currentStatus.isSearching()) {
-    
+  
+  if (m_currentStatus.isSearching()) {    
     if ( m_uavTrajectory.empty()) {
       ROS_WARN("publish_trajectory - generating search trajectory.");
       m_uavTrajectory = uav_reference::traj_gen::generateCircleTrajectoryAroundPoint(
         m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
-        m_currentStatus.m_localBrick.z());
+        m_currentStatus.m_localBrick.z(), 200);
     }
 
     m_pubPositionHold.publish(m_uavTrajectory.front());
@@ -165,12 +177,11 @@ void publish_trajectory(const ros::TimerEvent& /* unused */) {
    }
 
   if (m_currentStatus.isApproaching() && !is_close_to_brick()) {
-    
     if (m_uavTrajectory.empty()) {
       ROS_WARN("publish_trajectory - generating approach trajectory.");
       m_uavTrajectory = uav_reference::traj_gen::generateLinearTrajctory(
         m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
-        m_currentStatus.m_localBrick.z(), m_handlerOdometry.getData()); 
+        m_currentStatus.m_localBrick.z(), m_handlerOdometry.getData(), 500); 
     }
     
     m_pubPositionHold.publish(m_uavTrajectory.front());

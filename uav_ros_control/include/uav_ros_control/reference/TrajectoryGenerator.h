@@ -36,7 +36,7 @@ generateCircleTrajectoryAroundPoint(const double t_x, const double t_y, const do
 }
 
 static bool isCloseToReference(const trajectory_msgs::MultiDOFJointTrajectoryPoint& ref,
-    const nav_msgs::Odometry& odom, const double tol = 1e-2) {
+    const nav_msgs::Odometry& odom, const double tol = 1e-3) {
   return sqrt(
     pow(ref.transforms[0].translation.x - odom.pose.pose.position.x, 2) + 
     pow(ref.transforms[0].translation.y - odom.pose.pose.position.y, 2) + 
