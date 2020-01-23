@@ -61,6 +61,8 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     _pubVssmState = nh.advertise<std_msgs::Int32>("visual_servo_sm/state", 1);
     _pubRelativeDistance_global = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/global", 1);
     _pubRelativeDistance_local = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/local", 1);
+    _pubVelError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/velocity_error", 1);
+    _pubTargetError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/pos_error", 1);
 
     // Define Subscribers
     _subOdom =
@@ -357,13 +359,14 @@ void updateState()
     }
 
     // if height is below touchdown treshold start touchdown
-    if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
-        isRelativeDistanceValid(_relativeBrickDistance_local) && 
-        isUavVelcityInThreshold() &&
-        isTargetInThreshold(
+    bool enabled = isUavVelcityInThreshold();
+    enabled = isTargetInThreshold(
             _minTouchdownTargetPositionError_xy, 
             _minTouchdownTargetPositionError_xy,
-            _minTouchdownTargetPositionError_z) &&
+            _minTouchdownTargetPositionError_z) & enabled;
+    if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
+        isRelativeDistanceValid(_relativeBrickDistance_local) && 
+        enabled &&
         _touchdownAlignDuration > _minTouchdownAlignDuration)
     {
         _currentState = VisualServoState::TOUCHDOWN;
@@ -385,16 +388,36 @@ void updateState()
 
 bool isUavVelcityInThreshold()
 {
-    return sqrt(pow(_currOdom.twist.twist.linear.x, 2)) < _minTouchdownUavVelocityError_xy
-        && sqrt(pow(_currOdom.twist.twist.linear.y, 2)) < _minTouchdownUavVelocityError_xy
-        && sqrt(pow(_currOdom.twist.twist.linear.z, 2)) < _minTouchdownUavVelocityError_z;
+    double velx = fabs(_currOdom.twist.twist.linear.x),
+        vely = fabs(_currOdom.twist.twist.linear.y),
+        velz = fabs(_currOdom.twist.twist.linear.z);
+
+    geometry_msgs::Vector3 msg;
+    msg.x = velx;
+    msg.y = vely;
+    msg.z = velz;
+    _pubVelError.publish(msg);
+
+    return velx < _minTouchdownUavVelocityError_xy
+        && vely < _minTouchdownUavVelocityError_xy
+        && velz < _minTouchdownUavVelocityError_z;
 }
 
 bool isTargetInThreshold(const double minX, const double minY, const double minZ)
 {
-    return abs(_localCentroid.x) < minX 
-        && abs(_localCentroid.y) < minY
-        && abs(_relativeBrickDistance_local - _touchdownHeight) < minZ;
+    double tarx = fabs(_localCentroid.x),
+        tary = fabs(_localCentroid.y),
+        tarz = fabs(_relativeBrickDistance_local - _touchdownHeight);
+    
+    geometry_msgs::Vector3 msg;
+    msg.x = tarx;
+    msg.y = tary;
+    msg.z = tarz;
+    _pubTargetError.publish(msg);
+
+    return tarx < minX 
+        && tary < minY
+        && tarz < minZ;
 }
 
 bool isRelativeDistanceValid(const double checkDistance)
@@ -433,6 +456,7 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
                 double(_descentCounterMax) / 100.0 * (_touchdownHeight - _relativeBrickDistance_local);
+            _currHeightReference = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownAlignDuration += dt;
             break;
@@ -507,6 +531,7 @@ private:
     ros::Publisher _pubVisualServoFeed;
     ros::Publisher _pubRelativeDistance_global;
     ros::Publisher _pubRelativeDistance_local;
+    ros::Publisher _pubVelError, _pubTargetError;
     uav_ros_control_msgs::VisualServoProcessValues _currVisualServoFeed;
 
     /* Odometry subscriber */
