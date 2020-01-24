@@ -59,8 +59,9 @@ namespace uav_controller
 		 * Yaw reference callback function.
 		 */
 		void yawRefCb(const std_msgs::Float64ConstPtr&);
+		void globalOdomCb(const nav_msgs::Odometry&);
 
-        /**
+		/**
 		 * Do all the parameter initialization here.
 		 */
 		void initializeParameters(ros::NodeHandle& nh);
@@ -126,6 +127,8 @@ namespace uav_controller
 		
 		/** Yaw reference subscriber. */
 		ros::Subscriber _yawRefSub;
+		ros::Subscriber _odomGlobalSub;
+		std::array<double, 3> _globalVelocity {0.0, 0.0, 0.0};
 	};
 
 	/**

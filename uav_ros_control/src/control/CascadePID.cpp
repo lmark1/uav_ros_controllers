@@ -29,6 +29,7 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 	_velRefPub = nh.advertise<geometry_msgs::Vector3>("carrot/velocity", 1);
 	_velCurrPub = nh.advertise<geometry_msgs::Vector3>("uav/velocity", 1);
 	_yawRefSub = nh.subscribe("carrot/yaw", 1, &uav_controller::CascadePID::yawRefCb, this);
+	_odomGlobalSub = nh.subscribe("/mavros/global_position/local", 1, &uav_controller::CascadePID::globalOdomCb, this);
 
 	// Setup dynamic reconfigure server
 	uav_ros_control::PositionControlParametersConfig posConfig;
@@ -56,6 +57,13 @@ bool uav_controller::CascadePID::intResetServiceCb(std_srvs::Empty::Request& req
 	
 uav_controller::CascadePID::~CascadePID()
 {
+}
+
+void uav_controller::CascadePID::globalOdomCb(const nav_msgs::Odometry& msg) 
+{
+	_globalVelocity[0] = msg.twist.twist.linear.x;
+	_globalVelocity[1] = msg.twist.twist.linear.y;
+	_globalVelocity[2] = - msg.twist.twist.linear.z;
 }
 
 void uav_controller::CascadePID::yawRefCb(const std_msgs::Float64ConstPtr& msg)
@@ -194,9 +202,9 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 	velocityRefZ += _ffGainVelocity * getCurrentReference().velocities[0].linear.z;
 
 	// Calculate second row of PID controllers
-	double roll = - _velYPID->compute(velocityRefY, getCurrVelocity()[1], dt);
-	double pitch = _velXPID->compute(velocityRefX, getCurrVelocity()[0], dt);
-	double thrust = _velZPID->compute(velocityRefZ, getCurrVelocity()[2], dt);
+	double roll = - _velYPID->compute(velocityRefY, _globalVelocity[1], dt); // getCurrVelocity()[1], dt);
+	double pitch = _velXPID->compute(velocityRefX, _globalVelocity[0], dt); // getCurrVelocity()[0], dt);
+	double thrust = _velZPID->compute(velocityRefZ, _globalVelocity[2], dt); // getCurrVelocity()[2], dt);
 	thrust += _hoverThrust;
 
 	// Add acceleration feed-forward gains
