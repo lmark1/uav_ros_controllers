@@ -29,6 +29,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_MIN_TD_UAV_VEL_ERROR_XY  "visual_servo/state_machine/min_touchdown_uav_velocity_error_xy"
 #define PARAM_MIN_TD_ALIGN_DURATION "visual_servo/state_machine/min_touchdown_align_duration"
 #define PARAM_MIN_YAW_ERROR         "visual_servo/state_machine/min_yaw_error"
+#define PARAM_VS_HEIGHT_DISABLE     "visual_servo/state_machine/disable_visual_servo_touchdown_height"
 #define PARAM_TOUCHDOWN_HEIGHT      "visual_servo/state_machine/touchdown_height"
 #define PARAM_MAGNET_OFFSET         "visual_servo/state_machine/magnet_offset"
 #define PARAM_TOUCHDOWN_SPEED       "visual_servo/state_machine/touchdown_speed"
@@ -209,6 +210,7 @@ void vssmParamCb(vssm_param_t& configMsg,uint32_t level)
     _minTouchdownTargetPositionError_xy = configMsg.min_touchdown_target_position_error_xy;
     _minTouchdownUavVelocityError_xy = configMsg.min_touchdown_uav_velocity_error_xy;
     _minTouchdownAlignDuration = configMsg.min_touchdown_align_duration;
+    _visualServoDisableHeight = configMsg.disable_visual_servo_touchdown_height;
 }
 
 void setVSSMParameters(vssm_param_t& config)
@@ -227,6 +229,7 @@ void setVSSMParameters(vssm_param_t& config)
     config.min_touchdown_target_position_error_xy = _minTouchdownTargetPositionError_xy;
     config.min_touchdown_uav_velocity_error_xy = _minTouchdownUavVelocityError_xy;
     config.min_touchdown_align_duration = _minTouchdownAlignDuration;
+    config.disable_visual_servo_touchdown_height = _visualServoDisableHeight;
 }
 
 void initializeParameters(ros::NodeHandle& nh)
@@ -238,7 +241,8 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_MIN_TD_UAV_VEL_ERROR_XY, _minTouchdownUavVelocityError_xy)
         && nh.getParam(PARAM_MIN_TD_TAR_ERROR_Z, _minTouchdownTargetPositionError_z)
         && nh.getParam(PARAM_MIN_TD_UAV_VEL_ERROR_Z, _minTouchdownUavVelocityError_z)
-        && nh.getParam(PARAM_MIN_TD_ALIGN_DURATION, _minTouchdownAlignDuration)
+        && nh.getParam(PARAM_VS_HEIGHT_DISABLE, _visualServoDisableHeight)
+        && nh.getParam(PARAM_MIN_TD_ALIGN_DURATION, _visualServoDisableHeight)
         && nh.getParam(PARAM_MIN_ERROR, _minTargetError)
 		&& nh.getParam(PARAM_TOUCHDOWN_HEIGHT, _touchdownHeight)
 		&& nh.getParam(PARAM_TOUCHDOWN_SPEED, _touchdownSpeed)
@@ -257,6 +261,7 @@ void initializeParameters(ros::NodeHandle& nh)
     ROS_INFO("Touchdown uav velocity error [%.2f, %.2f, %.2f]", 
         _minTouchdownUavVelocityError_xy, _minTouchdownUavVelocityError_xy, _minTouchdownUavVelocityError_z);
     ROS_INFO("Min touchdown alignment duration %.2f", _minTouchdownAlignDuration);
+    ROS_INFO("Visual servo disable height %.2f", _visualServoDisableHeight);
     ROS_INFO("Descent speed: %.2f", _descentSpeed);
     ROS_INFO("Touchdown height: %.2f", _touchdownHeight);
     ROS_INFO("Touchdown speed: %.2f", _touchdownSpeed);
@@ -433,13 +438,17 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
                 double(_descentCounterMax) / 100.0 * (_touchdownHeight - _relativeBrickDistance_local);
+            _currHeightReference  = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownAlignDuration += dt;
             break;
 
-        case VisualServoState::TOUCHDOWN : 
-            _currVisualServoFeed.x = 0;
-            _currVisualServoFeed.y = 0;
+        case VisualServoState::TOUCHDOWN :
+            if (_relativeBrickDistance_local < _visualServoDisableHeight) {
+                _currVisualServoFeed.x = 0;
+                _currVisualServoFeed.y = 0;    
+            }
+            
             if (_touchdownTime < _touchdownDuration) {
                 _currVisualServoFeed.z = _currHeightReference - _touchdownSpeed * dt;
             } else {
@@ -533,7 +542,7 @@ private:
     /* Touchdown mode parameters */
     double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, 
         _touchdownDuration = 0, _touchdownAlignDuration = 0, 
-        _touchdownTime, _descentCounterMax, _touchdownSpeed;
+        _touchdownTime, _descentCounterMax, _touchdownSpeed, _visualServoDisableHeight;
     double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
     int _descentTransitionCounter = 0;
 
