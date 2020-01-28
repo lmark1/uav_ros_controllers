@@ -375,6 +375,7 @@ void updateState()
         _touchdownAlignDuration > _minTouchdownAlignDuration)
     {
         _currentState = VisualServoState::TOUCHDOWN;
+        _touchdownDurationCorrection = false;
         _touchdownTime = 0;
         _touchdownDelta = _relativeBrickDistance_local - _magnetOffset;
         _touchdownDuration = _touchdownDelta / _touchdownSpeed;
@@ -471,8 +472,15 @@ void publishVisualServoSetpoint(double dt)
             if (_relativeBrickDistance_local < _visualServoDisableHeight) {
                 _currVisualServoFeed.x = 0;
                 _currVisualServoFeed.y = 0;
+
+                if (!_touchdownDurationCorrection) {
+                    _touchdownDurationCorrection = true;
+                    _touchdownTime = 0;
+                    _touchdownDelta = _relativeBrickDistance_local - _magnetOffset;
+                    _touchdownDuration = _touchdownDelta / _touchdownSpeed;
+                }
             }
-            
+
             if (_touchdownTime < _touchdownDuration) {
                 _currVisualServoFeed.z = _currHeightReference - _touchdownSpeed * dt;
             } else {
@@ -554,6 +562,7 @@ private:
         _minTouchdownTargetPositionError_xy, _minTouchdownUavVelocityError_xy,
         _minTouchdownTargetPositionError_z, _minTouchdownUavVelocityError_z,
         _minTouchdownAlignDuration;
+    bool _touchdownDurationCorrection;
 
     ros::Subscriber _subPatchCentroid_global, _subPatchCentroid_local;
     geometry_msgs::Vector3 _globalCentroid, _localCentroid;    
