@@ -355,10 +355,9 @@ void updateState()
         _relativeBrickDistance_local <= _touchdownHeight)
     {
         _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
-        _currHeightReference = _currOdom.pose.pose.position.z;
-        _touchdownAlignDuration = 0;
+        //_currHeightReference = _currOdom.pose.pose.position.z;
+        _touchdownAlignDuration = 0.1;
         ROS_INFO("VSSM::updateStatus - TOUCHDOWN_ALIGNMENT state activated");
-        return;
     }
 
     // if height is below touchdown treshold start touchdown
@@ -369,7 +368,7 @@ void updateState()
             _minTouchdownTargetPositionError_xy, 
             _minTouchdownTargetPositionError_xy,
             _minTouchdownTargetPositionError_z) &&
-        _touchdownAlignDuration > _minTouchdownAlignDuration)
+        _touchdownAlignDuration >= _minTouchdownAlignDuration)
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
@@ -438,7 +437,7 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
                 double(_descentCounterMax) / 100.0 * (_touchdownHeight - _relativeBrickDistance_local);
-            _currHeightReference  = _currVisualServoFeed.z;
+            //_currHeightReference  = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownAlignDuration += dt;
             break;
