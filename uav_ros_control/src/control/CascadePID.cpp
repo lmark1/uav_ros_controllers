@@ -29,7 +29,7 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 	_velRefPub = nh.advertise<geometry_msgs::Vector3>("carrot/velocity", 1);
 	_velCurrPub = nh.advertise<geometry_msgs::Vector3>("uav/velocity", 1);
 	_yawRefSub = nh.subscribe("carrot/yaw", 1, &uav_controller::CascadePID::yawRefCb, this);
-	_odomGlobalSub = nh.subscribe("/mavros/global_position/local", 1, &uav_controller::CascadePID::globalOdomCb, this);
+	_odomGlobalSub = nh.subscribe("mavros/global_position/local", 1, &uav_controller::CascadePID::globalOdomCb, this);
 
 	// Setup dynamic reconfigure server
 	uav_ros_control::PositionControlParametersConfig posConfig;
