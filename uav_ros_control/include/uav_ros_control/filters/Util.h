@@ -6,6 +6,15 @@
 
 namespace ros_util {
 
+struct EnumClassHash
+{
+    template <typename T>
+    std::size_t operator()(T t) const
+    {
+        return static_cast<std::size_t>(t);
+    }
+};
+
 template<class T>
 T getParamOrThrow(ros::NodeHandle& nh, const std::string& param_name) {
   T param;

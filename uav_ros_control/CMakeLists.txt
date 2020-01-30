@@ -63,6 +63,10 @@ target_link_libraries(visual_servo_node reference_lib)
 add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
 target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 
+# pickup state machine
+add_executable(pickup_sm nodes/reference/PickupStateNode.cpp)
+target_link_libraries(pickup_sm ${catkin_LIBRARIES} nfilt)
+
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
 target_link_libraries(pid_cascade_node control_lib)
