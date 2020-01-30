@@ -370,7 +370,7 @@ void updateState()
         _relativeBrickDistance_local <= _touchdownHeight)
     {
         _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
-        //_currHeightReference = _currOdom.pose.pose.position.z;
+        _currHeightReference = _currOdom.pose.pose.position.z;
         _touchdownAlignDuration = 0.1;
         ROS_INFO("VSSM::updateStatus - TOUCHDOWN_ALIGNMENT state activated");
     }
@@ -390,7 +390,7 @@ void updateState()
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
         _touchdownDelta = _relativeBrickDistance_local 
-            - fabs(_currHeightReference - _currOdom.pose.pose.position.z)   // Take into account position tracking error
+            //- fabs(_currHeightReference - _currOdom.pose.pose.position.z)   // Take into account position tracking error
             - _magnetOffset;                                                // Take into account magnet offset  
         _relativeBrickDistanceGlobal_lastValid = _relativeBrickDistance_global;
         _touchdownDuration = _touchdownDelta / _touchdownSpeed;
@@ -485,7 +485,7 @@ void publishVisualServoSetpoint(double dt)
         case VisualServoState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
                 double(_descentCounterMax) / 100.0 * (_touchdownHeight - _relativeBrickDistance_local);
-            //_currHeightReference  = _currVisualServoFeed.z;
+            _currHeightReference  = _currVisualServoFeed.z;
             _currVisualServoFeed.yaw = 0;
             _touchdownAlignDuration += dt;
             break;
