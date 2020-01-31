@@ -14,8 +14,8 @@
         <!-- Visual servo node -->
         <node
             pkg="uav_ros_control"
-            type="visual_servo_node"
-            name="visual_servo_node"
+            type="visual_servo_idle"
+            name="visual_servo_idle_node"
             output="screen">
 
             <!-- Topic remapping -->
@@ -23,6 +23,7 @@
             <remap from="imu" to="/mavros/imu/data"/>
             <remap from="yaw_error" to="red_color_filter/orientation_err"/>
             <remap from="centroid_point" to="pointcloud_filter/pc_filter/patch_centroid/filtered" />
+            <remap from="position_hold/trajectory" to="position_hold/dummy_trajectory"/>
 
         </node>
 
