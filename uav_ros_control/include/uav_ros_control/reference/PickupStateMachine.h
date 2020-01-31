@@ -109,7 +109,7 @@ bool isTargetInThreshold(const double minX, const double minY, const double minZ
   // TODO: Tranasform local centroid and compensate !!11
   double tarx = fabs(m_handlerLocalCentroid.getData().x),
     tary = fabs(m_handlerLocalCentroid.getData().y),
-    tarz = fabs(m_handlerLocalCentroid.getData().z - targetDistance);
+    tarz = fabs(- m_handlerLocalCentroid.getData().z - targetDistance);
 
   return tarx < minX 
     && tary < minY
@@ -136,7 +136,7 @@ bool isYawInThreshold()
 
 bool belowPickupHeight() 
 {
-  return m_handlerLocalCentroid.getData().z <= m_handlerParams->getData().touchdown_height;
+  return - m_handlerLocalCentroid.getData().z <= m_handlerParams->getData().touchdown_height;
 }
 
 void generatePickupTrajectory() 
@@ -199,7 +199,7 @@ void loopCallback(const ros::TimerEvent&)
   const auto height_servo_ref = [&] (const double servoSetpoint) {
     return m_handlerOdometry.getData().pose.pose.position.z + 
         double(m_handlerParams->getData().detection_counter) / 100.0 * (
-          servoSetpoint - m_handlerLocalCentroid.getData().z);
+          servoSetpoint -  (-m_handlerLocalCentroid.getData().z));
   };
   
   // Publish some trajectory points
