@@ -8,9 +8,11 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Int32.h>
 #include <geometry_msgs/Vector3.h>
 #include <nav_msgs/Odometry.h>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <std_srvs/SetBool.h>
 
 #include <uav_ros_control/filters/Util.h>
@@ -21,6 +23,7 @@
 namespace uav_reference 
 {
 
+typedef trajectory_msgs::MultiDOFJointTrajectory Traj;
 typedef trajectory_msgs::MultiDOFJointTrajectoryPoint TrajPoint;
 typedef uav_ros_control::VisualServoStateMachineParametersConfig PickupParams;
 
@@ -74,6 +77,8 @@ explicit PickupStateMachine(ros::NodeHandle& t_nh) :
   initializeStateActions();
   initializeStateTransitions();
 
+  m_pubPickupState = t_nh.advertise<std_msgs::Int32>("pickup_sm/state", 1);
+  m_pubTrajPointGen = t_nh.advertise<Traj>("generator/trajectory", 1);
   m_pubTrajectoryPoint = t_nh.advertise<TrajPoint>("trajectory_point", 1);
   // Setup brick pickup service callback
   m_serviceBrickPickup = t_nh.advertiseService(
@@ -94,9 +99,9 @@ inline bool isPickupActive() const {
 }
 
 inline bool isBrickDetectionValid() {
-  return m_handlerGlobalCentroid.getData().x == INVALID_DISTANCE
+  return !(m_handlerGlobalCentroid.getData().x == INVALID_DISTANCE
     || m_handlerGlobalCentroid.getData().y == INVALID_DISTANCE
-    || m_handlerGlobalCentroid.getData().z == INVALID_DISTANCE;
+    || m_handlerGlobalCentroid.getData().z == INVALID_DISTANCE);
 }
 
 bool isTargetInThreshold(const double minX, const double minY, const double minZ, const double targetDistance) {
@@ -134,10 +139,45 @@ bool belowPickupHeight()
   return m_handlerLocalCentroid.getData().z <= m_handlerParams->getData().touchdown_height;
 }
 
-void loopCallback(const ros::TimerEvent&) 
+void generatePickupTrajectory() 
+{
+  // This function assumes there is some sort of underlying trajectory generation happening
+  Traj inputTrajectory;
+  inputTrajectory.header.stamp = ros::Time::now();
+  inputTrajectory.points = std::vector<TrajPoint>(3);
+  inputTrajectory.points[0] = m_currentTrajectoryPoint;
+  inputTrajectory.points[1] = traj_gen::toTrajectoryPointMsg(
+    m_currentTrajectoryPoint.transforms[0].translation.x,
+    m_currentTrajectoryPoint.transforms[0].translation.y,
+    m_handlerGlobalCentroid.getData().z                         // Go to where the brick is (globally)
+    + m_handlerParams->getData().magnet_offset,                 // ... and add magnet offset
+    m_currentTrajectoryPoint.transforms[0].rotation.x,
+    m_currentTrajectoryPoint.transforms[0].rotation.y,
+    m_currentTrajectoryPoint.transforms[0].rotation.z,
+    m_currentTrajectoryPoint.transforms[0].rotation.w
+  );
+  inputTrajectory.points[2] = m_currentTrajectoryPoint;
+  m_pubTrajPointGen.publish(inputTrajectory);
+}
+
+void doTheStateAction() 
 {
   m_stateActionMap[m_currentState]();
+}
 
+void publishState() 
+{
+  std_msgs::Int32 msg;
+  msg.data = static_cast<int>(m_currentState);
+  m_pubPickupState.publish(msg);
+}
+
+void loopCallback(const ros::TimerEvent&) 
+{
+  doTheStateAction();
+  publishState();
+
+  // Publish some trajectory points
   double heightServoRef, uavYaw;
   switch (m_currentState) {
     
@@ -160,7 +200,7 @@ void loopCallback(const ros::TimerEvent&)
         m_handlerGlobalCentroid.getData().x, 
         m_handlerGlobalCentroid.getData().y,
         heightServoRef,
-        uavYaw - m_handlerYawError.getData().data
+        uavYaw - 0.2 * m_handlerYawError.getData().data
       );
 
       m_pubTrajectoryPoint.publish(m_currentTrajectoryPoint);
@@ -275,13 +315,14 @@ void initializeStateTransitions()
       m_handlerParams->getData().min_error, 
       m_handlerParams->getData().min_error, 
       m_handlerParams->getData().min_error, 
-      m_handlerParams->getData().brick_alignment_height)) {
-
+      m_handlerParams->getData().brick_alignment_height)) 
+    {
       ROS_INFO_STREAM("PickupStateMachine: " 
         << PickupState::ALIGNMENT << " -> " << state);
       m_currentState = PickupState::DESCENT;
       return true;
     }
+
     return false;
   };
 
@@ -300,7 +341,9 @@ void initializeStateTransitions()
       return false;
     }
 
-    if (belowPickupHeight()) {
+
+    if (belowPickupHeight()) 
+    {
       ROS_INFO_STREAM("PickupStateMachine: " 
         << PickupState::DESCENT << " -> " << state);
       m_currentState = PickupState::PICKUP_ALIGNMENT;
@@ -330,14 +373,16 @@ void initializeStateTransitions()
         m_handlerParams->getData().min_touchdown_target_position_error_xy,
         m_handlerParams->getData().min_touchdown_target_position_error_z,
         m_handlerParams->getData().touchdown_height)
-        && m_touchdownAlignDuration >= m_handlerParams->getData().min_touchdown_align_duration) {
-      
+        && m_touchdownAlignDuration >= m_handlerParams->getData().min_touchdown_align_duration) 
+    {  
       ROS_INFO_STREAM("PickupStateMachine: " 
         << PickupState::PICKUP_ALIGNMENT << " -> " << state);
       m_currentState = PickupState::PICKUP;
-
+      generatePickupTrajectory();
       // TODO: Generate trajectory here.
+      return true;
     }
+
     return false;
   };
 
@@ -347,7 +392,7 @@ void initializeStateTransitions()
     if (state == PickupState::OFF) {          // TODO: Add check for when pickup trajectory is finished  
       ROS_INFO_STREAM("PickupStateMachine: " 
         << m_currentState << " -> " << state);
-      m_currentState == PickupState::OFF;
+      m_currentState = PickupState::OFF;
       return true;
     
     } else {
@@ -436,7 +481,7 @@ void initializeParameters(ros::NodeHandle& t_nh)
 
 static constexpr int INVALID_DISTANCE = -1;
 
-ros::Publisher m_pubTrajectoryPoint;
+ros::Publisher m_pubTrajectoryPoint, m_pubTrajPointGen, m_pubPickupState;
 TrajPoint m_currentTrajectoryPoint;
 double m_dt = 0, m_touchdownAlignDuration = 0;
 

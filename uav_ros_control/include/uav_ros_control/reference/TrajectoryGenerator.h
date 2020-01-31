@@ -8,6 +8,27 @@
 namespace uav_reference { namespace traj_gen {
 
 static trajectory_msgs::MultiDOFJointTrajectoryPoint 
+toTrajectoryPointMsg(const double x, const double y, const double z, 
+    const double qx, const double qy, const double qz, const double qw) 
+{
+  trajectory_msgs::MultiDOFJointTrajectoryPoint point;
+  point.transforms = std::vector<geometry_msgs::Transform>(1);
+  point.velocities = std::vector<geometry_msgs::Twist>(1);
+  point.accelerations = std::vector<geometry_msgs::Twist>(1);
+  
+  point.transforms[0].translation.x = x;
+  point.transforms[0].translation.y = y;
+  point.transforms[0].translation.z = z;
+
+  point.transforms[0].rotation.x = qx;
+  point.transforms[0].rotation.y = qy;
+  point.transforms[0].rotation.z = qz;
+  point.transforms[0].rotation.w = qw;
+  
+  return point;
+}
+
+static trajectory_msgs::MultiDOFJointTrajectoryPoint 
 toTrajectoryPointMsg(const double x, const double y, const double z, const double yaw) {
   trajectory_msgs::MultiDOFJointTrajectoryPoint point;
   point.transforms = std::vector<geometry_msgs::Transform>(1);
