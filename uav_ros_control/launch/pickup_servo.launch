@@ -1,0 +1,51 @@
+<launch>
+    <arg name="namespace"   default="red"/>
+    <arg name="odom"        default="/mavros/global_position/local"/>
+    <arg name="status"      default="visual_servo/is_enabled"/>
+    <arg name="patch_centroid" default="pointcloud_filter/pc_filter/patch_centroid"/>
+
+
+    <group ns="$(arg namespace)">
+        
+         <!-- Visual servo state machine parameters -->
+        <rosparam command="load"
+            file="$(find uav_ros_control)/config/reference/visual_servo_brick.yaml" />
+        
+        <!-- Visual servo node -->
+        <node
+            pkg="uav_ros_control"
+            type="visual_servo_node"
+            name="visual_servo_node"
+            output="screen">
+
+            <!-- Topic remapping -->
+            <remap from="odometry" to="$(arg odom)"/>
+            <remap from="imu" to="/mavros/imu/data"/>
+            <remap from="yaw_error" to="red_color_filter/orientation_err"/>
+            <remap from="centroid_point" to="pointcloud_filter/pc_filter/patch_centroid/filtered" />
+
+        </node>
+
+        <!-- Visual servo state machine parameters -->
+        <rosparam command="load"
+            file="$(find uav_ros_control)/config/reference/visual_servo_brick_sm.yaml" />
+        
+        <!-- Visual Servo state machine node -->
+        <node
+            pkg="uav_ros_control"
+            type="pickup_sm"
+            name="pickup_state_machine"
+            output="screen">
+
+            <remap from="odometry" to="$(arg odom)"/>
+            <remap from="visual_servo/status" to="$(arg status)"/>
+            <remap from="visual_servo/yaw_error" to="red_color_filter/orientation_err"/>
+            <!--remap from="brick/distance" to="pointcloud_filter/brick/filtered_distance"/-->
+            <remap from="centroid_global" to="visual_servo/centroid/transformed" />
+            <remap from="centroid_local" to="visual_servo/centroid/compensated/transformed_local" />
+            <remap from="generator/trajectory" to="topp/input/trajectory"/>
+            <remap from="trajectory_point"     to="position_hold/trajectory"/>
+            <remap from="yaw_error" to="debug/yaw_error"/>
+        </node>
+    </group>
+</launch>
