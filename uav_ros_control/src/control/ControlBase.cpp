@@ -95,11 +95,13 @@ void uav_controller::ControlBase::trajPointCb(
 {
     if (msg->transforms.size() == 0 || msg->velocities.size() == 0 || msg->accelerations.size() == 0)
     {
-        ROS_WARN("ControlBase::trajPointCb - Trajectory point incomplete.");
+        ROS_FATAL("ControlBase::trajPointCb - Trajectory point incomplete.");
         return;
     } 
 
     _currentReference.transforms[0] = msg->transforms[0];
+		_currentReference.velocities[0] = msg->velocities[0];
+		_currentReference.accelerations[0] = msg->accelerations[0];
 }
 
 const std::array<double, 3>& uav_controller::ControlBase::getCurrPosition()

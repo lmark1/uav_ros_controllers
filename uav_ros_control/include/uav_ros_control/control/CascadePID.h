@@ -100,10 +100,10 @@ namespace uav_controller
 		double _hoverThrust = 0;
 
 		/** Feed-forward gain for linear velocity reference. */
-		double _ffGainVelocity = 0;
+		double _ffGainVelocityX = 0, _ffGainVelocityY = 0, _ffGainVelocityZ = 0;
 
 		/** Feed-forward gain for linear acceleration reference. */
-		double _ffGainAcceleration = 0;
+		double _ffGainAccelerationX = 0, _ffGainAccelerationY = 0, _ffGainAccelerationZ = 0;
 
 		/** Yaw reference */
 		double _yawRef = 0;
