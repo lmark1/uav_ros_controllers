@@ -2,19 +2,29 @@
 #define TRAJECOTRY_GENERATOR_H
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <nav_msgs/Odometry.h>
+#include <tf2/LinearMath/Quaternion.h>
 #include <list>
 
 namespace uav_reference { namespace traj_gen {
 
 static trajectory_msgs::MultiDOFJointTrajectoryPoint 
-toTrajectoryPointMsg(const double x, const double y, const double z) {
+toTrajectoryPointMsg(const double x, const double y, const double z, const double yaw) {
   trajectory_msgs::MultiDOFJointTrajectoryPoint point;
   point.transforms = std::vector<geometry_msgs::Transform>(1);
   point.velocities = std::vector<geometry_msgs::Twist>(1);
   point.accelerations = std::vector<geometry_msgs::Twist>(1);
+  
   point.transforms[0].translation.x = x;
   point.transforms[0].translation.y = y;
   point.transforms[0].translation.z = z;
+
+  tf2::Quaternion q;
+  q.setRPY(0, 0, yaw);
+  point.transforms[0].rotation.x = q.getX();
+  point.transforms[0].rotation.y = q.getY();
+  point.transforms[0].rotation.z = q.getZ();
+  point.transforms[0].rotation.w = q.getW();
+  
   return point;
 }
 
@@ -29,7 +39,7 @@ generateCircleTrajectoryAroundPoint(const double t_x, const double t_y, const do
     trajPoints.push_back(toTrajectoryPointMsg(
       t_x + t_circleRadius * cos(i * angleInc), 
       t_y + t_circleRadius * sin(i * angleInc),
-      t_z
+      t_z, 0
     ));
   }
   return trajPoints;
@@ -62,7 +72,7 @@ static std::list<trajectory_msgs::MultiDOFJointTrajectoryPoint> generateLinearTr
   std::list<trajectory_msgs::MultiDOFJointTrajectoryPoint> points;
   auto itX = rangeX.begin(), itY = rangeY.begin(), itZ = rangeZ.begin();
   while (itX != rangeX.end() && itY != rangeY.end() && itZ != rangeZ.end()) {
-    points.push_back(toTrajectoryPointMsg(*itX, *itY, *itZ));
+    points.push_back(toTrajectoryPointMsg(*itX, *itY, *itZ, 0));
     itX++; 
     itY++;
     itZ++;

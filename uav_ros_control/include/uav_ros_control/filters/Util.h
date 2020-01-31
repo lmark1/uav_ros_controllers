@@ -1,8 +1,9 @@
 #ifndef ROS_UTIL_H
 #define ROS_UTIL_H
 
-#include <ros/ros.h>
+
 #include <dynamic_reconfigure/server.h>
+#include <ros/ros.h>
 
 namespace ros_util {
 
