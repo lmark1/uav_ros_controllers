@@ -177,8 +177,32 @@ void loopCallback(const ros::TimerEvent&)
   doTheStateAction();
   publishState();
 
+  const auto near_brick_x = [&] () {
+    return m_handlerOdometry.getData().pose.pose.position.x +  
+        0.5 * (m_handlerGlobalCentroid.getData().x - m_handlerOdometry.getData().pose.pose.position.x);
+  };
+
+  const auto near_brick_y = [&] () {
+    return m_handlerOdometry.getData().pose.pose.position.y +  
+        0.5 * (m_handlerGlobalCentroid.getData().y - m_handlerOdometry.getData().pose.pose.position.y);
+  };
+
+  const auto near_brick_yaw = [&] () {
+    double uavYaw = util::calculateYaw(
+        m_handlerOdometry.getData().pose.pose.orientation.x,
+        m_handlerOdometry.getData().pose.pose.orientation.y,
+        m_handlerOdometry.getData().pose.pose.orientation.z,
+        m_handlerOdometry.getData().pose.pose.orientation.w);
+    return uavYaw - 0.2 * m_handlerYawError.getData().data;
+  };
+ 
+  const auto height_servo_ref = [&] (const double servoSetpoint) {
+    return m_handlerOdometry.getData().pose.pose.position.z + 
+        double(m_handlerParams->getData().detection_counter) / 100.0 * (
+          servoSetpoint - m_handlerLocalCentroid.getData().z);
+  };
+  
   // Publish some trajectory points
-  double heightServoRef, uavYaw;
   switch (m_currentState) {
     
     case PickupState::OFF:
@@ -186,43 +210,26 @@ void loopCallback(const ros::TimerEvent&)
       break;
 
     case PickupState::ALIGNMENT:
-      uavYaw = util::calculateYaw(
-        m_handlerOdometry.getData().pose.pose.orientation.x,
-        m_handlerOdometry.getData().pose.pose.orientation.y,
-        m_handlerOdometry.getData().pose.pose.orientation.z,
-        m_handlerOdometry.getData().pose.pose.orientation.w);
-      
-      heightServoRef =  m_handlerOdometry.getData().pose.pose.position.z + 
-        double(m_handlerParams->getData().detection_counter) / 100.0 * (
-          m_handlerParams->getData().brick_alignment_height - m_handlerLocalCentroid.getData().z);
-           
-      m_currentTrajectoryPoint = traj_gen::toTrajectoryPointMsg(
-        m_handlerGlobalCentroid.getData().x, 
-        m_handlerGlobalCentroid.getData().y,
-        heightServoRef,
-        uavYaw - 0.2 * m_handlerYawError.getData().data
-      );
 
+      m_currentTrajectoryPoint = traj_gen::toTrajectoryPointMsg(
+        near_brick_x(), near_brick_y(), 
+        height_servo_ref(m_handlerParams->getData().brick_alignment_height),
+        near_brick_yaw());
       m_pubTrajectoryPoint.publish(m_currentTrajectoryPoint);
       break;
 
     case PickupState::DESCENT: 
-      m_currentTrajectoryPoint.transforms[0].translation.x = m_handlerGlobalCentroid.getData().x;
-      m_currentTrajectoryPoint.transforms[0].translation.y = m_handlerGlobalCentroid.getData().y;
+      m_currentTrajectoryPoint.transforms[0].translation.x = near_brick_x();
+      m_currentTrajectoryPoint.transforms[0].translation.y = near_brick_y();
       m_currentTrajectoryPoint.transforms[0].translation.z -= m_handlerParams->getData().descent_speed * m_dt;
       m_pubTrajectoryPoint.publish(m_currentTrajectoryPoint);
       break;
 
     case PickupState::PICKUP_ALIGNMENT:
-      m_touchdownAlignDuration += m_dt;
-
-      heightServoRef =  m_handlerOdometry.getData().pose.pose.position.z + 
-        double(m_handlerParams->getData().detection_counter) / 100.0 * (
-          m_handlerParams->getData().touchdown_height - m_handlerLocalCentroid.getData().z);
-      
-      m_currentTrajectoryPoint.transforms[0].translation.x = m_handlerGlobalCentroid.getData().x;
-      m_currentTrajectoryPoint.transforms[0].translation.y = m_handlerGlobalCentroid.getData().y;
-      m_currentTrajectoryPoint.transforms[0].translation.z = heightServoRef;
+      m_touchdownAlignDuration += m_dt;      
+      m_currentTrajectoryPoint.transforms[0].translation.x = near_brick_x();
+      m_currentTrajectoryPoint.transforms[0].translation.y = near_brick_y();
+      m_currentTrajectoryPoint.transforms[0].translation.z = height_servo_ref(m_handlerParams->getData().touchdown_height);
       m_pubTrajectoryPoint.publish(m_currentTrajectoryPoint);
       break;
 
