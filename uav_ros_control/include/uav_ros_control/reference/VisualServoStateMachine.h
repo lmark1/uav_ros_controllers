@@ -389,7 +389,7 @@ void updateState()
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _touchdownDelta = _relativeBrickDistance_local 
+        _touchdownDelta = _touchdownHeight // _relativeBrickDistance_local
             //- fabs(_currHeightReference - _currOdom.pose.pose.position.z)   // Take into account position tracking error
             - _magnetOffset;                                                // Take into account magnet offset  
         _relativeBrickDistanceGlobal_lastValid = _relativeBrickDistance_global;
