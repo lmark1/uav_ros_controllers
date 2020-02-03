@@ -26,7 +26,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
   _pubUavRollDebug = nh.advertise<std_msgs::Float32>("debug/uav_roll", 1);
   _pubUavPitchDebug = nh.advertise<std_msgs::Float32>("debug/uav_pitch", 1);
   _pubNewSetpoint =
-      nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/dummy_trajectory", 1);
+      nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
   _pubTransformedTarget = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed", 1);
   _pubTransformedTarget_local = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed_local", 1);
   _pubTransformedTargetComp_local = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/compensated/transformed_local", 1);
@@ -358,7 +358,7 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
         // Publish also the centroid vector wrt. the UAV base frame
         localCentroidMsg.x = transformedTarget.getX();
         localCentroidMsg.y = transformedTarget.getY();
-        localCentroidMsg.z = - transformedTarget.getZ();
+        localCentroidMsg.z = transformedTarget.getZ();
 
         tf::Vector3 compVector;
         tf::Transform comp_only_attitude;
@@ -464,18 +464,23 @@ bool VisualServo::isVisualServoEnabled() {
 void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
   double rate = 50;
   visualServoRefObj.setRate(rate);
-  
-  ros::spin();
+  ros::Rate loopRate(rate);
 
-  //ros::Rate loopRate(rate);
-  // while (ros::ok()) {
-  //   ros::spinOnce();
-  //   visualServoRefObj.updateSetpoint();
-  //   if (visualServoRefObj.isVisualServoEnabled()) {
-  //     visualServoRefObj.publishNewSetpoint();
-  //   }
-  //   visualServoRefObj.publishStatus();
-  //   loopRate.sleep();
-  // }
+  while (ros::ok()) {
+    ros::spinOnce();
+    visualServoRefObj.updateSetpoint();
+    if (visualServoRefObj.isVisualServoEnabled()) {
+      visualServoRefObj.publishNewSetpoint();
+    }
+    visualServoRefObj.publishStatus();
+    loopRate.sleep();
+  }
 }
+
+void runIdle(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
+  double rate = 50;
+  visualServoRefObj.setRate(50);
+  ros::spin();
+}
+
 } // namespace uav_reference

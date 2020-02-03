@@ -59,6 +59,9 @@ target_link_libraries(carrot_reference_node reference_lib)
 add_executable(visual_servo_node nodes/reference/VisualServoNode.cpp)
 target_link_libraries(visual_servo_node reference_lib)
 
+add_executable(visual_servo_idle nodes/reference/VisualServoIdleNode.cpp)
+target_link_libraries(visual_servo_idle reference_lib)
+
 # visual servo state machine
 add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
 target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)

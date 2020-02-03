@@ -144,6 +144,7 @@ namespace uav_reference {
   };
 
   void runDefault(VisualServo& cc, ros::NodeHandle& nh);
+  void runIdle(VisualServo& vs, ros::NodeHandle& nh);
 }
 
 #endif //UAV_ROS_CONTROL_VISUALSERVO_H
