@@ -371,7 +371,7 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
         compVector = comp_only_attitude * transformedTarget;
         localCompMsg.x = compVector.getX();
         localCompMsg.y = compVector.getY();
-        localCompMsg.z = - compVector.getZ();
+        localCompMsg.z = compVector.getZ();
 
         tf::Transform compensate_attitude;
         compensate_attitude.setRotation(tf::Quaternion(
