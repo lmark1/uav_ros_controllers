@@ -74,7 +74,7 @@ class GlobalPickupStateMachine {
 public:
 GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     m_handlerVSSMState(t_nh, "visual_servo_sm/state"),
-    m_handlerOdometry(t_nh, "mavros/global_position/local"),
+    m_handlerOdometry(t_nh, "odometry"),
     m_handlerBrickAttached(t_nh, "brick_attached"),
     m_handlerTrajectoryStatus(t_nh, "topp/status"),
     m_global2Local(t_nh) 
@@ -150,11 +150,13 @@ void update_state(const ros::TimerEvent& /* unused */)
     return;
   }
 
+  // Case when we drop off brick (either on purpose or intentionally)
   if (m_currentStatus.isDropOff() 
       && !is_brick_picked_up()) {
     ROS_WARN("BrickPickup::update_state - DROPOFF finished, SEARCH state activated");
     m_currentStatus.m_status = BrickPickupStates::APPROACH;
     clear_current_trajectory();
+    return;
   }
 }
 
