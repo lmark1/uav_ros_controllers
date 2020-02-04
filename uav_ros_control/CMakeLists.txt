@@ -77,6 +77,9 @@ target_link_libraries(carrot_reference_node reference_lib)
 add_executable(visual_servo_node nodes/reference/VisualServoNode.cpp)
 target_link_libraries(visual_servo_node reference_lib)
 
+add_executable(visual_servo_idle nodes/reference/VisualServoIdleNode.cpp)
+target_link_libraries(visual_servo_idle reference_lib)
+
 # visual servo state machine
 add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
 target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
@@ -84,6 +87,10 @@ target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 # visual servo state machine
 add_executable(brick_pickup_sm nodes/reference/BrickPickupStateNode.cpp)
 target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt ${GeographicLib_LIBRARIES})
+
+# pickup state machine
+add_executable(pickup_sm nodes/reference/PickupStateNode.cpp)
+target_link_libraries(pickup_sm ${catkin_LIBRARIES} nfilt)
 
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)

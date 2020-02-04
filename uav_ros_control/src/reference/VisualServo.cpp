@@ -29,6 +29,7 @@ VisualServo::VisualServo(ros::NodeHandle& nh) {
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>("position_hold/trajectory", 1);
   _pubTransformedTarget = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed", 1);
   _pubTransformedTarget_local = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/transformed_local", 1);
+  _pubTransformedTargetComp_local = nh.advertise<geometry_msgs::Vector3>("visual_servo/centroid/compensated/transformed_local", 1);
   
   // Define Subscribers
   _subOdom =
@@ -325,6 +326,11 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
     tf::Vector3 transformedTarget (
       _targetCentroid.point.x, _targetCentroid.point.y, _targetCentroid.point.z);
 
+    geometry_msgs::Vector3 localCompMsg;
+    localCompMsg.x = -1;
+    localCompMsg.y = -1;
+    localCompMsg.z = -1;
+
     geometry_msgs::Vector3 localCentroidMsg;
     localCentroidMsg.x = -1; 
     localCentroidMsg.y = -1;
@@ -354,6 +360,19 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
         localCentroidMsg.y = transformedTarget.getY();
         localCentroidMsg.z = transformedTarget.getZ();
 
+        tf::Vector3 compVector;
+        tf::Transform comp_only_attitude;
+        comp_only_attitude.setRotation(tf::Quaternion(
+          _uavOdom.pose.pose.orientation.x,
+          _uavOdom.pose.pose.orientation.y,
+          _uavOdom.pose.pose.orientation.z,
+          _uavOdom.pose.pose.orientation.w
+        ));
+        compVector = comp_only_attitude * transformedTarget;
+        localCompMsg.x = compVector.getX();
+        localCompMsg.y = compVector.getY();
+        localCompMsg.z = compVector.getZ();
+
         tf::Transform compensate_attitude;
         compensate_attitude.setRotation(tf::Quaternion(
           _uavOdom.pose.pose.orientation.x,
@@ -361,6 +380,7 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
           _uavOdom.pose.pose.orientation.z,
           _uavOdom.pose.pose.orientation.w
         ));
+
         compensate_attitude.setOrigin(tf::Vector3(
           _uavOdom.pose.pose.position.x,
           _uavOdom.pose.pose.position.y,
@@ -373,8 +393,10 @@ void VisualServo::targetCentroidCb(const geometry_msgs::PointStamped &msg)
     globalCentroidMsg.x = transformedTarget.getX();
     globalCentroidMsg.y = transformedTarget.getY();
     globalCentroidMsg.z = transformedTarget.getZ();
+    
     _pubTransformedTarget.publish(globalCentroidMsg);
     _pubTransformedTarget_local.publish(localCentroidMsg);
+    _pubTransformedTargetComp_local.publish(localCompMsg);
 
     _targetCentroid.point.x = transformedTarget.getX();
     _targetCentroid.point.y = transformedTarget.getY();
@@ -454,4 +476,11 @@ void runDefault(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
     loopRate.sleep();
   }
 }
+
+void runIdle(VisualServo& visualServoRefObj, ros::NodeHandle& nh) {
+  double rate = 50;
+  visualServoRefObj.setRate(50);
+  ros::spin();
+}
+
 } // namespace uav_reference

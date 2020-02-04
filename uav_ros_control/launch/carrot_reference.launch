@@ -1,6 +1,6 @@
 <launch>
-    <arg name="namespace"       default="red"/>
-    <arg name="odom"            default="/mavros/global_position/local"/>
+    <arg name="namespace"       default="$(env UAV_NAMESPACE)"/>
+    <arg name="odom"            default="mavros/global_position/local"/>
     <arg name="ref"             default="carrot/trajectory"/>
     <arg name="config"          default="joy_control_input.config.yaml"/>
     <arg name="carrot_index"    default="5"/>
@@ -28,7 +28,7 @@
             <remap from="odometry"          to="$(arg odom)"/>
         </node>
 
-        <!-- include file="$(find uav_ros_control)/launch/joy.launch"/ -->
+        <include file="$(find uav_ros_control)/launch/joy.launch"/>
     </group>
 
 </launch>

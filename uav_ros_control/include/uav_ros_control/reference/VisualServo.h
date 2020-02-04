@@ -111,7 +111,7 @@ namespace uav_reference {
       // Topics for debugging
       ros::Publisher _pubUavYawDebug, _pubChangeYawDebug, _pubYawErrorDebug;
       ros::Publisher _pubUavRollDebug, _pubUavPitchDebug;
-      ros::Publisher _pubTransformedTarget, _pubTransformedTarget_local;
+      ros::Publisher _pubTransformedTarget, _pubTransformedTarget_local, _pubTransformedTargetComp_local;
       std_msgs::Float32 _floatMsg;
 
       // Brick errors publisher
@@ -144,6 +144,7 @@ namespace uav_reference {
   };
 
   void runDefault(VisualServo& cc, ros::NodeHandle& nh);
+  void runIdle(VisualServo& vs, ros::NodeHandle& nh);
 }
 
 #endif //UAV_ROS_CONTROL_VISUALSERVO_H
