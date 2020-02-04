@@ -259,6 +259,7 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_AFTER_TD_HEIGHT, _afterTouchdownHeight)
         && nh.getParam(PARAM_DET_COUNTER, _descentCounterMax);
 
+    _afterTouchdownHeight_GPS = _afterTouchdownHeight;
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
     ROS_INFO("Brick alignment height: %.2f", _brickAlignHeight);
@@ -362,6 +363,8 @@ void updateState()
         isRelativeDistanceValid(_relativeBrickDistance_local) &&
         _relativeBrickDistance_local <= _touchdownHeight)
     {
+        _afterTouchdownHeight_GPS = _currOdom.pose.pose.position.z + 
+            (_afterTouchdownHeight - _relativeBrickDistance_local);
         _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
         _currHeightReference = _currOdom.pose.pose.position.z;
         _touchdownAlignDuration = 0.1;
@@ -393,8 +396,8 @@ void updateState()
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _currHeightReference >= _afterTouchdownHeight &&
-	    _touchdownTime >  _touchdownDuration) // TODO: Ovo napraviti kako treba
+        _currHeightReference >= _afterTouchdownHeight_GPS &&
+	    _touchdownTime >  _touchdownDuration)
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
         turnOffVisualServo();
@@ -590,7 +593,7 @@ private:
     double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, 
         _touchdownDuration = 0, _touchdownAlignDuration = 0, 
         _touchdownTime, _descentCounterMax, _touchdownSpeed, _visualServoDisableHeight;
-    double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
+    double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight, _afterTouchdownHeight_GPS; 
     int _descentTransitionCounter = 0;
 
     /* Define Dynamic Reconfigure parameters */
