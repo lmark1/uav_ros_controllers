@@ -34,7 +34,7 @@ generate_dynamic_reconfigure_options(
 	config/control/DistanceControlParameters.cfg
 	config/reference/VisualServoParameters.cfg
 	config/reference/VisualServoStateMachineParameters.cfg
-	config/reference/BrickPickupStateMachineParameters.cfg
+	config/reference/GlobalPickupStateMachineParameters.cfg
 )
 
 catkin_package(
@@ -84,12 +84,12 @@ target_link_libraries(visual_servo_idle reference_lib)
 add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
 target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 
-# visual servo state machine
-add_executable(brick_pickup_sm nodes/reference/BrickPickupStateNode.cpp)
+# Global pickup state machine
+add_executable(brick_pickup_sm nodes/reference/GlobalPickupStateNode.cpp)
 target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt ${GeographicLib_LIBRARIES})
 
-# pickup state machine
-add_executable(pickup_sm nodes/reference/PickupStateNode.cpp)
+# pickup state machine - with trajectories
+add_executable(pickup_sm nodes/reference/PickupStateNode_trajectory.cpp)
 target_link_libraries(pickup_sm ${catkin_LIBRARIES} nfilt)
 
 # PID cascade node

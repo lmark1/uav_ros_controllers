@@ -3,7 +3,7 @@
 
 #include <std_msgs/Int32.h>
 #include <ros/ros.h>
-#include <uav_ros_control/BrickPickupStateMachineParametersConfig.h>
+#include <uav_ros_control/GlobalPickupStateMachineParametersConfig.h>
 #include <uav_ros_control_msgs/GeoBrickApproach.h>
 #include <uav_ros_control/filters/Util.h>
 #include <iostream>
@@ -64,15 +64,15 @@ struct BrickPickupStatus {
   Eigen::Vector3d m_localBrick;
 };
 
-typedef uav_ros_control::BrickPickupStateMachineParametersConfig PickupParams;
+typedef uav_ros_control::GlobalPickupStateMachineParametersConfig PickupParams;
 typedef uav_ros_control_msgs::GeoBrickApproach GeoBrickMsg;
 typedef GeoBrickMsg::Request GeoBrickReq;
 typedef GeoBrickMsg::Response GeoBrickResp;
 
-class BrickPickupStateMachine {
+class GlobalPickupStateMachine {
 
 public:
-BrickPickupStateMachine(ros::NodeHandle& t_nh) :
+GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     m_handlerVSSMState(t_nh, "visual_servo_sm/state"),
     m_handlerOdometry(t_nh, "/mavros/global_position/local"),
     m_handlerBrickAttached(t_nh, "brick_attached"),
@@ -92,19 +92,19 @@ BrickPickupStateMachine(ros::NodeHandle& t_nh) :
   // Advertise service
   m_serviceBrickPickup = t_nh.advertiseService(
     "brick_pickup/global",
-    &uav_sm::BrickPickupStateMachine::brick_pickup_global_cb,
+    &uav_sm::GlobalPickupStateMachine::brick_pickup_global_cb,
     this);
   
   // Iniitalize timers
   m_runTimer = t_nh.createTimer(
     ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/rate")), 
-    &uav_sm::BrickPickupStateMachine::update_state, this);
+    &uav_sm::GlobalPickupStateMachine::update_state, this);
   m_initFilterTimer = t_nh.createTimer(
     ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/color_init_rate")),
-    &uav_sm::BrickPickupStateMachine::init_filter, this);
+    &uav_sm::GlobalPickupStateMachine::init_filter, this);
   m_publishTrajectoryTimer = t_nh.createTimer(
     ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/search_traj_rate")),
-    &uav_sm::BrickPickupStateMachine::publish_trajectory, this);
+    &uav_sm::GlobalPickupStateMachine::publish_trajectory, this);
 }
 
 private:
@@ -249,7 +249,7 @@ bool is_close_to_brick() {
   return uav_reference::traj_gen::isCloseToReference(
     uav_reference::traj_gen::toTrajectoryPointMsg(
       m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
-      m_currentStatus.m_localBrick.z()),
+      m_currentStatus.m_localBrick.z(), 0),
     m_handlerOdometry.getData(), 2);
 }
 
