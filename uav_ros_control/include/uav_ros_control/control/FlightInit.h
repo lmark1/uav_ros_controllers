@@ -64,7 +64,7 @@ public:
 				&flight_init::FlightInit::stateCb, this);
 
 		m_subGlobalPosition = nh.subscribe<sensor_msgs::NavSatFix>(
-			"mavros/global_position/global", 1, 
+			"mavros/global_position/global", 10, 
 			&flight_init::FlightInit::globalPositionCb, this);
 
 		// Setup takeoff service callback
@@ -97,7 +97,7 @@ void initializeParameters(ros::NodeHandle& nh)
 
     ROS_INFO("Node rate: %.2f", m_rate);
     ROS_INFO("Time for initialization: %.2f", m_timeForInit);
-	ROSS_INFO("Takeoff height: %.2f", m_takeoffHeight);
+	ROS_INFO("Takeoff height: %.2f", m_takeoffHeight);
     if (!initialized)
 	{
 		ROS_FATAL("FlightInit::initializeParameters() - failed to initialize parameters");
@@ -125,7 +125,7 @@ void stateCb(const mavros_msgs::State::ConstPtr& msg)
 	m_currentState = *msg;
 }
 
-void globalPositionCb(const sensor_msgs::NavSatFix& msg)
+void globalPositionCb(const sensor_msgs::NavSatFix::ConstPtr& msg)
 {
 	m_currentGlobalPosition = *msg;
 }
@@ -146,15 +146,46 @@ void odometryCb(const nav_msgs::OdometryConstPtr& msg)
 	m_currentOdom = *msg;
 }
 
-void run()
-{
-    ros::Rate loopRate(m_rate);
-	mavros_msgs::SetMode offb_set_mode;
-	offb_set_mode.request.custom_mode = "GUIDED";
-
+bool arm()
+{	
 	mavros_msgs::CommandBool arm_cmd;
 	arm_cmd.request.value = true;
+	// Arm throttle
+	
+	if (m_currentState.mode == "GUIDED" &&
+		!m_currentState.armed)
+	{
+		if (m_armingClient.call(arm_cmd) && arm_cmd.response.success)
+		{
+			ROS_INFO("Vehicle armed");
+			return true;
+		}
+		return false;
+	}
+	return false;
+}
 
+bool modeGuided()
+{
+	mavros_msgs::SetMode offb_set_mode;
+	offb_set_mode.request.custom_mode = "GUIDED";
+	// Enable guided
+	if (m_currentState.mode != "GUIDED")
+	{
+		if(m_setModeClient.call(offb_set_mode) && offb_set_mode.response.mode_sent)
+		{
+			std::cout << "STATE: " << m_currentState.mode << std::endl;
+			ROS_INFO("GUIDED enabled");
+			return true;
+
+		}
+		return false;
+	}
+	return false;
+}	
+
+bool takeoff()
+{
 	double current_yaw = util::calculateYaw(
         m_currentOdom.pose.pose.orientation.x,
         m_currentOdom.pose.pose.orientation.y,
@@ -166,7 +197,25 @@ void run()
 	takeoff.request.yaw = current_yaw;
 	takeoff.request.latitude = m_currentGlobalPosition.latitude;
 	takeoff.request.longitude = m_currentGlobalPosition.longitude;
-	takeoff.request.altitude = m_currentGlobalPosition.altitude;
+	takeoff.request.altitude = m_currentGlobalPosition.altitude + m_takeoffHeight;
+
+	if (m_currentState.armed)
+	{
+		if (m_takeoffClient.call(takeoff))
+		{
+			ROS_INFO("Takeoff!!");
+			return true;
+		}
+		return false;
+	}
+	return false;
+}
+
+void run()
+{
+    ros::Rate loopRate(m_rate);
+
+	
 	// ros::Time last_request = ros::Time::now();
 	 // Wait for FCU connection
 	ros::Time last_request = ros::Time::now();
@@ -175,38 +224,14 @@ void run()
 		ros::spinOnce();
 		// std::cout << "Offb set mode: " << offb_set_mode.request.custom_mode << std::endl;
 		// std::cout << "Current state mode: " << m_currentState.mode << std::endl;
-		
-		// Enable guided
-        if (m_currentState.mode != "GUIDED" &&
-			ros::Time::now() - last_request > ros::Duration(5.0))
+		bool guided = modeGuided();
+		bool armed = arm();
+		bool go = takeoff();
+		if (go)
 		{
-			if(m_setModeClient.call(offb_set_mode) &&
-                offb_set_mode.response.mode_sent)
-			{
-				std::cout << "STATE: " << m_currentState.mode << std::endl;
-				ROS_INFO("GUIDED enabled");
-
-			}
-	 	last_request = ros::Time::now();
-		}
-		
-		// Arm throttle
-		// std::cout << "Armed: " << int(m_currentState.armed) << std::endl;
-        if (m_currentState.mode == "GUIDED" &&
-			!m_currentState.armed &&
-			(ros::Time::now() - last_request > ros::Duration(2.0)))
-		{
-			if (m_armingClient.call(arm_cmd) && arm_cmd.response.success)
-			{
-        		ROS_INFO("Vehicle armed");
-            }
-    		last_request = ros::Time::now();
-        }
-
-		if (m_currentState.armed)
-		{
-			if (m_takeoffService.call())
-		}
+			ROS_INFO("Mission completed!");
+			break;
+		}		
 
 		// ROS_INFO("Waiting for connection.");
         loopRate.sleep();
