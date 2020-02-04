@@ -13,7 +13,7 @@ using namespace ros_util;
 class Global2Local {
 public:
 Global2Local(ros::NodeHandle& nh) :
-    m_homeHandler(nh, "/mavros/global_position/home") { }
+    m_homeHandler(nh, "mavros/global_position/home") { }
 
 Eigen::Vector3d toLocal(const double lat, const double lon, const double alt, bool altitudeRelative = false) {
   Eigen::Vector3d local_ecef;

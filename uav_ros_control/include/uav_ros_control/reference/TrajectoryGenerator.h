@@ -1,6 +1,8 @@
 #ifndef TRAJECTORY_GENERATOR_H
 #define TRAJECOTRY_GENERATOR_H
+
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <nav_msgs/Odometry.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <list>
@@ -99,6 +101,69 @@ static std::list<trajectory_msgs::MultiDOFJointTrajectoryPoint> generateLinearTr
     itZ++;
   }
   return points;
+}
+
+static trajectory_msgs::MultiDOFJointTrajectory
+generateLinearTrajectory_topp(const double x, const double y, const double z, 
+    const nav_msgs::Odometry& odom)
+{
+  trajectory_msgs::MultiDOFJointTrajectory trajectory;
+  trajectory.header.stamp = ros::Time::now();
+  trajectory.points.push_back(
+    toTrajectoryPointMsg(
+      odom.pose.pose.position.x,
+      odom.pose.pose.position.y,
+      odom.pose.pose.position.z,
+      odom.pose.pose.orientation.x,
+      odom.pose.pose.orientation.y,
+      odom.pose.pose.orientation.z,
+      odom.pose.pose.orientation.w
+    )
+  );
+  trajectory.points.push_back(
+    toTrajectoryPointMsg(
+      x, y, z,
+      odom.pose.pose.orientation.x,
+      odom.pose.pose.orientation.y,
+      odom.pose.pose.orientation.z,
+      odom.pose.pose.orientation.w
+    )
+  );
+  return trajectory;
+}
+
+static trajectory_msgs::MultiDOFJointTrajectory
+generateCircleTrajectory_topp(const double t_x, const double t_y, const double t_z,
+   const nav_msgs::Odometry& odom, const int t_numberOfPoints = 10, const int t_circleRadius = 1) 
+{
+  trajectory_msgs::MultiDOFJointTrajectory trajectory;
+  trajectory.header.stamp = ros::Time::now();
+  trajectory.points.push_back(
+    toTrajectoryPointMsg(
+      odom.pose.pose.position.x,
+      odom.pose.pose.position.y,
+      odom.pose.pose.position.z,
+      odom.pose.pose.orientation.x,
+      odom.pose.pose.orientation.y,
+      odom.pose.pose.orientation.z,
+      odom.pose.pose.orientation.w
+    )
+  );
+
+  const double DEG_TO_RAD = M_PI / 180.0;
+  double angleInc = 360.0 / t_numberOfPoints * DEG_TO_RAD;
+  for(int i = 0; i < t_numberOfPoints; i ++) {
+    trajectory.points.push_back(toTrajectoryPointMsg(
+      t_x + t_circleRadius * cos(i * angleInc), 
+      t_y + t_circleRadius * sin(i * angleInc),
+      t_z, 
+      odom.pose.pose.orientation.x,
+      odom.pose.pose.orientation.y,
+      odom.pose.pose.orientation.z,
+      odom.pose.pose.orientation.w
+    ));
+  }
+  return trajectory;
 }
 
 }
