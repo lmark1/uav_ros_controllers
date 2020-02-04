@@ -79,8 +79,6 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("global_centroid_point", 1, &uav_reference::VisualServoStateMachine::globalCentroidPointCb, this);
     _subPatchCentroid_local = 
         nh.subscribe("local_centroid_point", 1, &uav_reference::VisualServoStateMachine::localCentroidPointCb, this);
-    _subMagActivity =  
-        nh.subscribe("magnet/active", 1, &uav_reference::VisualServoStateMachine::magActivityCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -111,11 +109,6 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     {
         turnOffVisualServo();
     }
-}
-
-void magActivityCb(const std_msgs::Bool& msg) 
-{
-    _magnetActive = msg.data;
 }
 
 void localCentroidPointCb(const geometry_msgs::Vector3& msg) 
@@ -578,7 +571,6 @@ private:
 
     /* Yaw error subscriber */
     ros::Subscriber _subYawError, _subMagActivity;
-    bool _magnetActive = false;
     double _currYawError = 1e5, _currUavVelError = 1e5;
     double _minYawError, _minTargetError,   
         _minTouchdownTargetPositionError_xy, _minTouchdownUavVelocityError_xy,
