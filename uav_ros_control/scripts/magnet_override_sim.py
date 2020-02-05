@@ -10,7 +10,7 @@ class MagnetOverride:
     self.service = rospy.Service('magnet/override_ON', Empty, self.override_cb)
     self.magnet_pub = rospy.Publisher('/magnet_uav/gain', Float32, queue_size=1)
 
-  def override_cb(self, req):
+  def override_cb(self, req, resp):
     print("MagnetOverride - turning off magnet")
     offMsg = Float32()
     offMsg.data = 0

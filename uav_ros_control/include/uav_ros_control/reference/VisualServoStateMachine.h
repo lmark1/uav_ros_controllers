@@ -145,11 +145,11 @@ void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 
 bool healthyNumberOfPublishers() 
 {
-    ROS_FATAL_COND(!_subNContours.getNumPublishers() > 0, "VSSM - 'n_contours' topic publisher missing");
-    ROS_FATAL_COND(!_subOdom.getNumPublishers() > 0, "VSSM - 'odometry' topic publisher missing");
-    ROS_FATAL_COND(!_subPatchCentroid_global.getNumPublishers() > 0, "VSSM - 'centroid_global' topic publisher missing");
-    ROS_FATAL_COND(!_subPatchCentroid_local.getNumPublishers() > 0, "VSSM - 'centroid_local' topic publisher missing");
-    ROS_FATAL_COND(!_subYawError.getNumPublishers() > 0, "VSSM - 'yaw_error' topic publisher missing");
+    ROS_FATAL_COND(_subNContours.getNumPublishers() == 0, "VSSM - 'n_contours' topic publisher missing");
+    ROS_FATAL_COND(_subOdom.getNumPublishers() == 0, "VSSM - 'odometry' topic publisher missing");
+    ROS_FATAL_COND(_subPatchCentroid_global.getNumPublishers() == 0, "VSSM - 'centroid_global' topic publisher missing");
+    ROS_FATAL_COND(_subPatchCentroid_local.getNumPublishers() == 0, "VSSM - 'centroid_local' topic publisher missing");
+    ROS_FATAL_COND(_subYawError.getNumPublishers() == 0, "VSSM - 'yaw_error' topic publisher missing");
     
     return _subNContours.getNumPublishers() > 0 
         && _subOdom.getNumPublishers() > 0
@@ -348,10 +348,10 @@ bool stateMachineDisableConditions()
 
 void updateState()
 {
-    if (_currentState != VisualServoState::OFF && !_brickPickupActivated ||  // If visual servo is 
-        _currentState == VisualServoState::DESCENT && stateMachineDisableConditions() ||
-        _currentState == VisualServoState::BRICK_ALIGNMENT && stateMachineDisableConditions() ||
-        _currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
+    if ( (_currentState != VisualServoState::OFF && !_brickPickupActivated) ||  
+        (_currentState == VisualServoState::DESCENT && stateMachineDisableConditions()) ||
+        (_currentState == VisualServoState::BRICK_ALIGNMENT && stateMachineDisableConditions()) ||
+        (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions()))
     {
         // deactivate state machine
         ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
