@@ -2,7 +2,8 @@ brick_pickup:
   rate: 1
   color_init_rate: 0.5
   search_traj_rate: 1
-  dummy_param: 0.02
+  brick_approach_tolerance: 1
+  dropoff_approach_tolerance: 0.25
 
 brick_dropoff:
   lat: -35.3631661

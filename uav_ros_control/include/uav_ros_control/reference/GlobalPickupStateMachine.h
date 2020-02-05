@@ -225,7 +225,8 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
 
 void initialize_parameters(ros::NodeHandle& nh) {
   PickupParams initParams;
-  initParams.dummy_param = getParamOrThrow<double>(nh, "brick_pickup/dummy_param");
+  initParams.brick_approach_tolerance = getParamOrThrow<double>(nh, "brick_pickup/brick_approach_tolerance");
+  initParams.dropoff_approach_tolerance = getParamOrThrow<double>(nh, "brick_pickup/dropoff_approach_tolerance");
   m_pickupConfig.reset(new ParamHandler<PickupParams>(initParams, "brick_pickup"));
 }
 
