@@ -38,7 +38,9 @@ struct BrickPickupStatus {
     const BrickPickupStates t_status = BrickPickupStates::OFF) :
       m_brickColor(t_brickColor),
       m_status(t_status), 
-      m_localBrick(t_brickLocal) { }
+      m_localBrick(t_brickLocal),
+      m_dropoffPos(-1, -1, -1),
+      m_dropoffPositionSet(false) { }
 
   bool isOff() {
     return m_status == BrickPickupStates::OFF;
@@ -60,9 +62,21 @@ struct BrickPickupStatus {
     return m_status == BrickPickupStates::DROPOFF;
   }
 
+  void setDropoffPosition(Eigen::Vector3d&& vec) 
+  {
+    m_dropoffPositionSet = true;
+    m_dropoffPos = std::move(vec);
+  }
+
+  bool isDropoffPositionSet()
+  {
+    return m_dropoffPositionSet;
+  }
+
+  bool m_dropoffPositionSet;
   BrickPickupStates m_status;
   std::string m_brickColor;
-  Eigen::Vector3d m_localBrick;
+  Eigen::Vector3d m_localBrick, m_dropoffPos;
 };
 
 typedef uav_ros_control::GlobalPickupStateMachineParametersConfig PickupParams;
@@ -102,7 +116,7 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     this);
   
   // Iniitalize timers
-  m_runTimer = t_nh.createTimer(
+  m_stateTimer = t_nh.createTimer(
     ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/rate")), 
     &uav_sm::GlobalPickupStateMachine::update_state, this);
   m_initFilterTimer = t_nh.createTimer(
@@ -145,7 +159,7 @@ void update_state(const ros::TimerEvent& /* unused */)
     if (is_brick_picked_up()) {
       ROS_INFO("BrickPickup::update_state - brick is picked up, DROPOFF state activated.");
       m_currentStatus.m_status = BrickPickupStates::DROPOFF;
-      
+
     } else {
       ROS_FATAL("BrickPickup::update_state - brick is not picked up, ATTEMPT_PICKUP state activated");
       m_currentStatus.m_status = BrickPickupStates::SEARCH;
@@ -154,10 +168,16 @@ void update_state(const ros::TimerEvent& /* unused */)
   }
 
   // Case when we drop off brick (either on purpose or intentionally)
-  if (m_currentStatus.isDropOff() 
-      && !is_brick_picked_up()) {
-    ROS_WARN("BrickPickup::update_state - DROPOFF finished, SEARCH state activated");
+  if (m_currentStatus.isDropOff() && !is_brick_picked_up()) {
+    ROS_WARN("BrickPickup::update_state - DROPOFF finished, APPROACH activated");
     m_currentStatus.m_status = BrickPickupStates::APPROACH;
+    clear_current_trajectory();
+    return;
+  }
+
+  if (m_currentStatus.isDropOff() && is_brick_picked_up() && is_close_to_dropoff()) {
+    ROS_INFO("BrickPickup::updateState - at DROPOFF position");
+    toggle_magnet();
     clear_current_trajectory();
     return;
   }
@@ -176,7 +196,7 @@ void init_filter(const ros::TimerEvent& /* unused */)
 void publish_trajectory(const ros::TimerEvent& /* unused */) 
 {  
   if (m_currentStatus.isSearching() && !is_trajectory_active()) {    
-    ROS_WARN("publish_trajectory - generating search trajectory.");
+    ROS_INFO("BrickPickup - generating SEARCH trajectory.");
     m_pubTrajGen.publish(
       uav_reference::traj_gen::generateCircleTrajectory_topp(
         m_currentStatus.m_localBrick.x(),
@@ -185,18 +205,29 @@ void publish_trajectory(const ros::TimerEvent& /* unused */)
         m_handlerOdometry.getData()
       )
     );
+    return;
   }
 
   if (m_currentStatus.isApproaching() && !is_close_to_brick() && !is_trajectory_active()) {
-    ROS_WARN("publish_trajectory - generating approach trajectory.");
+    ROS_INFO("BrickPickup - generating APPROACH trajectory.");
     m_pubTrajGen.publish(
       uav_reference::traj_gen::generateLinearTrajectory_topp(
         m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(),
         m_currentStatus.m_localBrick.z(), m_handlerOdometry.getData()
       )
     ); 
+    return;
   }
 
+  if (m_currentStatus.isDropOff() && !is_close_to_dropoff() && !is_trajectory_active()) {
+    ROS_INFO("BrickPickup - generating DROPOFF trajectory.");
+    m_pubTrajGen.publish(
+      uav_reference::traj_gen::generateLinearTrajectory_topp(
+        m_currentStatus.m_dropoffPos.x(), m_currentStatus.m_dropoffPos.y(),
+        m_currentStatus.m_dropoffPos.z(), m_handlerOdometry.getData()
+      )
+    );
+  }
 } 
 
 bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) 
@@ -205,7 +236,7 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
   if (!request.enable) {
     ROS_FATAL("BPSM::brick_pickup_global_cb - brick_pickup/global disabled");
     response.status = false;
-    m_currentStatus.m_status = BrickPickupStates::OFF;
+    m_currentStatus = BrickPickupStatus();
     return true;
   }
 
@@ -214,6 +245,18 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
     m_global2Local.toLocal(
       request.latitude, request.longitude, request.altitude_relative, true), 
     BrickPickupStates::APPROACH);
+
+  double dropoffLat, dropoffLon;
+  bool gotLat = m_nh.getParam("brick_dropoff/lat", dropoffLat);
+  bool gotLon = m_nh.getParam("brick_dropoff/lon", dropoffLon);
+  ROS_FATAL_COND(!gotLat || !gotLon, "BrickPickup - dropoff position unavailable");
+  if (gotLat && gotLon) {
+    m_currentStatus.setDropoffPosition(
+      m_global2Local.toLocal(
+        dropoffLat, dropoffLon, request.altitude_relative, true
+      )
+    );
+  }
 
   ROS_INFO("Current brick goal: [%.3f, %.3f, %.3f]", 
     m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
@@ -271,12 +314,24 @@ bool filter_choose_color(const std::string& t_color) {
   return true;
 }
 
-bool is_close_to_brick() {
+bool is_close_to_brick() 
+{
   return uav_reference::traj_gen::isCloseToReference(
     uav_reference::traj_gen::toTrajectoryPointMsg(
       m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
       m_currentStatus.m_localBrick.z(), 0),
-    m_handlerOdometry.getData(), 2);
+    m_handlerOdometry.getData(), m_pickupConfig->getData().brick_approach_tolerance
+   );
+}
+
+bool is_close_to_dropoff() 
+{
+  return uav_reference::traj_gen::isCloseToReference(
+    uav_reference::traj_gen::toTrajectoryPointMsg(
+      m_currentStatus.m_dropoffPos.x(), m_currentStatus.m_dropoffPos.y(), 
+      m_currentStatus.m_dropoffPos.z(), 0),
+    m_handlerOdometry.getData(), m_pickupConfig->getData().dropoff_approach_tolerance
+  );
 }
 
 bool is_brick_picked_up() {
@@ -302,8 +357,9 @@ std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
 ros::ServiceServer m_serviceBrickPickup;
 ros::ServiceClient m_vssmCaller, m_chooseColorCaller, m_magnetOverrideCaller;
 
+ros::NodeHandle m_nh;
 ros::Publisher m_pubTrajGen;
-ros::Timer m_runTimer, m_initFilterTimer, m_publishTrajectoryTimer;
+ros::Timer m_stateTimer, m_initFilterTimer, m_publishTrajectoryTimer;
 TopicHandler<std_msgs::Int32> m_handlerVSSMState;
 TopicHandler<nav_msgs::Odometry> m_handlerOdometry;
 TopicHandler<std_msgs::Bool> m_handlerBrickAttached;
