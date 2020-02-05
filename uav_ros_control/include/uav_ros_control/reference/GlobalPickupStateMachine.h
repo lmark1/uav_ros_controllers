@@ -11,6 +11,7 @@
 #include <uav_ros_control/reference/TrajectoryGenerator.h>
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/SetBool.h>
+#include <std_srvs/Empty.h>
 #include <color_filter/color.h>
 #include <std_msgs/Bool.h>
 
@@ -34,7 +35,7 @@ enum class VisualServoState {
 struct BrickPickupStatus {
   BrickPickupStatus() : BrickPickupStatus("red", Eigen::Vector3d(0, 0, 0)) { }
   BrickPickupStatus(const std::string& t_brickColor, const Eigen::Vector3d& t_brickLocal, 
-    const BrickPickupStates t_status = BrickPickupStates::OFF) : // TODO: Set this to default OFF
+    const BrickPickupStates t_status = BrickPickupStates::OFF) :
       m_brickColor(t_brickColor),
       m_status(t_status), 
       m_localBrick(t_brickLocal) { }
@@ -91,6 +92,8 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/local");
   m_chooseColorCaller = t_nh.serviceClient
     <color_filter::color::Request, color_filter::color::Response>("filter_color");
+  m_magnetOverrideCaller = t_nh.serviceClient
+    <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
 
   // Advertise service
   m_serviceBrickPickup = t_nh.advertiseService(
@@ -173,26 +176,27 @@ void init_filter(const ros::TimerEvent& /* unused */)
 void publish_trajectory(const ros::TimerEvent& /* unused */) 
 {  
   if (m_currentStatus.isSearching() && !is_trajectory_active()) {    
-      ROS_WARN("publish_trajectory - generating search trajectory.");
-      m_pubTrajGen.publish(
-        uav_reference::traj_gen::generateCircleTrajectory_topp(
-          m_currentStatus.m_localBrick.x(), 
-          m_currentStatus.m_localBrick.y(), 
-          m_currentStatus.m_localBrick.z(),
-          m_handlerOdometry.getData() 
-        )
-      );
+    ROS_WARN("publish_trajectory - generating search trajectory.");
+    m_pubTrajGen.publish(
+      uav_reference::traj_gen::generateCircleTrajectory_topp(
+        m_currentStatus.m_localBrick.x(),
+        m_currentStatus.m_localBrick.y(),
+        m_currentStatus.m_localBrick.z(),
+        m_handlerOdometry.getData()
+      )
+    );
   }
 
   if (m_currentStatus.isApproaching() && !is_close_to_brick() && !is_trajectory_active()) {
-      ROS_WARN("publish_trajectory - generating approach trajectory.");
-      m_pubTrajGen.publish(
-        uav_reference::traj_gen::generateLinearTrajectory_topp(
-          m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
-          m_currentStatus.m_localBrick.z(), m_handlerOdometry.getData()
-        )
-      ); 
+    ROS_WARN("publish_trajectory - generating approach trajectory.");
+    m_pubTrajGen.publish(
+      uav_reference::traj_gen::generateLinearTrajectory_topp(
+        m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(),
+        m_currentStatus.m_localBrick.z(), m_handlerOdometry.getData()
+      )
+    ); 
   }
+
 } 
 
 bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) 
@@ -223,6 +227,20 @@ void initialize_parameters(ros::NodeHandle& nh) {
   PickupParams initParams;
   initParams.dummy_param = getParamOrThrow<double>(nh, "brick_pickup/dummy_param");
   m_pickupConfig.reset(new ParamHandler<PickupParams>(initParams, "brick_pickup"));
+}
+
+bool toggle_magnet() 
+{
+  std_srvs::Empty::Request req;
+  std_srvs::Empty::Response resp;
+
+  if (!m_magnetOverrideCaller.call(req, resp)) {
+    ROS_FATAL("BrickPickup - unable to toggle magnet!");
+    return false;
+  }
+
+  ROS_INFO("BrickPickup - magnet toggled");
+  return true;
 }
 
 bool toggle_visual_servo_state_machine(bool t_enable = true) {
@@ -281,7 +299,7 @@ BrickPickupStatus m_currentStatus;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
 
 ros::ServiceServer m_serviceBrickPickup;
-ros::ServiceClient m_vssmCaller, m_chooseColorCaller;
+ros::ServiceClient m_vssmCaller, m_chooseColorCaller, m_magnetOverrideCaller;
 
 ros::Publisher m_pubTrajGen;
 ros::Timer m_runTimer, m_initFilterTimer, m_publishTrajectoryTimer;
