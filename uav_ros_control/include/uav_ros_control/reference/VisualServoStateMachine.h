@@ -79,8 +79,6 @@ VisualServoStateMachine(ros::NodeHandle& nh)
         nh.subscribe("global_centroid_point", 1, &uav_reference::VisualServoStateMachine::globalCentroidPointCb, this);
     _subPatchCentroid_local = 
         nh.subscribe("local_centroid_point", 1, &uav_reference::VisualServoStateMachine::localCentroidPointCb, this);
-    _subMagActivity =  
-        nh.subscribe("magnet/active", 1, &uav_reference::VisualServoStateMachine::magActivityCb, this);
 
     // Setup dynamic reconfigure server
 	vssm_param_t  vssmConfig;
@@ -92,7 +90,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 
     // Setup brick pickup service callback
     _serviceBrickPickup = nh.advertiseService(
-			"brick_pickup",
+			"brick_pickup/local",
 			&uav_reference::VisualServoStateMachine::brickPickupServiceCb,
 			this);
 
@@ -111,11 +109,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     {
         turnOffVisualServo();
     }
-}
-
-void magActivityCb(const std_msgs::Bool& msg) 
-{
-    _magnetActive = msg.data;
+    _timeLastContour = ros::Time::now().toSec();
 }
 
 void localCentroidPointCb(const geometry_msgs::Vector3& msg) 
@@ -129,6 +123,7 @@ void localCentroidPointCb(const geometry_msgs::Vector3& msg)
     std_msgs::Float32 newMessage;
     newMessage.data = _relativeBrickDistance_local;
     _pubRelativeDistance_local.publish(newMessage);
+    _timeLastCentroidLocal = ros::Time::now().toSec();
 }
 
 void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
@@ -145,16 +140,43 @@ void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
     std_msgs::Float32 newMessage;
     newMessage.data = _relativeBrickDistance_global;
     _pubRelativeDistance_global.publish(newMessage);
+    _timeLastCentroidGlobal = ros::Time::now().toSec();
+}
+
+bool healthyNumberOfPublishers() 
+{
+    ROS_FATAL_COND(!_subNContours.getNumPublishers() > 0, "VSSM - 'n_contours' topic publisher missing");
+    ROS_FATAL_COND(!_subOdom.getNumPublishers() > 0, "VSSM - 'odometry' topic publisher missing");
+    ROS_FATAL_COND(!_subPatchCentroid_global.getNumPublishers() > 0, "VSSM - 'centroid_global' topic publisher missing");
+    ROS_FATAL_COND(!_subPatchCentroid_local.getNumPublishers() > 0, "VSSM - 'centroid_local' topic publisher missing");
+    ROS_FATAL_COND(!_subYawError.getNumPublishers() > 0, "VSSM - 'yaw_error' topic publisher missing");
+    
+    return _subNContours.getNumPublishers() > 0 
+        && _subOdom.getNumPublishers() > 0
+        && _subPatchCentroid_global.getNumPublishers() > 0
+        && _subPatchCentroid_local.getNumPublishers() > 0
+        && _subYawError.getNumPublishers() > 0;
 }
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || _nContours == 0)
+    if (!request.data || _nContours == 0 
+        || !healthyNumberOfPublishers()
+        || stateMachineDisableConditions()
+        || !isRelativeDistanceValid(_relativeBrickDistance_global))
     {
+        if (!healthyNumberOfPublishers())
+            ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
+        
         if (!request.data)
             ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
-        else if (_nContours == 0)
+        
+        if (_nContours == 0)
             ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
+
+        if (!isRelativeDistanceValid(_relativeBrickDistance_local)
+            || !isRelativeDistanceValid(_relativeBrickDistance_global))
+            ROS_FATAL("VSSM::brickPIckupServiceCb - distances invalid");
 
         turnOffVisualServo();
         _brickPickupActivated = false;
@@ -266,6 +288,7 @@ void initializeParameters(ros::NodeHandle& nh)
         && nh.getParam(PARAM_AFTER_TD_HEIGHT, _afterTouchdownHeight)
         && nh.getParam(PARAM_DET_COUNTER, _descentCounterMax);
 
+    _afterTouchdownHeight_GPS = _afterTouchdownHeight;
     ROS_INFO("Node rate: %.2f", _rate);
     ROS_INFO("Minimum yaw error: %.2f", _minYawError);
     ROS_INFO("Brick alignment height: %.2f", _brickAlignHeight);
@@ -318,12 +341,17 @@ void turnOffVisualServo()
     }
 }
 
+bool stateMachineDisableConditions()
+{
+    return !subscribedTopicsActive() || !isRelativeDistanceValid(_relativeBrickDistance_local);
+}
+
 void updateState()
 {
     if (_currentState != VisualServoState::OFF && !_brickPickupActivated ||  // If visual servo is 
-        _currentState == VisualServoState::DESCENT && !isRelativeDistanceValid(_relativeBrickDistance_local) ||
-        _currentState == VisualServoState::BRICK_ALIGNMENT && !isRelativeDistanceValid(_relativeBrickDistance_local) ||
-        _currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && !isRelativeDistanceValid(_relativeBrickDistance_local))
+        _currentState == VisualServoState::DESCENT && stateMachineDisableConditions() ||
+        _currentState == VisualServoState::BRICK_ALIGNMENT && stateMachineDisableConditions() ||
+        _currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
     {
         // deactivate state machine
         ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
@@ -369,6 +397,8 @@ void updateState()
         isRelativeDistanceValid(_relativeBrickDistance_local) &&
         _relativeBrickDistance_local <= _touchdownHeight)
     {
+        _afterTouchdownHeight_GPS = _currOdom.pose.pose.position.z + 
+            (_afterTouchdownHeight - _relativeBrickDistance_local);
         _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
         _currHeightReference = _currOdom.pose.pose.position.z;
         _touchdownAlignDuration = 0.1;
@@ -389,7 +419,7 @@ void updateState()
     {
         _currentState = VisualServoState::TOUCHDOWN;
         _touchdownTime = 0;
-        _touchdownDelta = _relativeBrickDistance_local 
+        _touchdownDelta = _touchdownHeight // _relativeBrickDistance_local
             //- fabs(_currHeightReference - _currOdom.pose.pose.position.z)   // Take into account position tracking error
             - _magnetOffset;                                                // Take into account magnet offset  
         _relativeBrickDistanceGlobal_lastValid = _relativeBrickDistance_global;
@@ -400,8 +430,8 @@ void updateState()
 
     // If touchdown time is exceeded, touchdown state is considered finished
     if (_currentState == VisualServoState::TOUCHDOWN &&
-        _currHeightReference >= _afterTouchdownHeight &&
-	    _touchdownTime >  _touchdownDuration) // TODO: Ovo napraviti kako treba
+        _currHeightReference >= _afterTouchdownHeight_GPS &&
+	    _touchdownTime >  _touchdownDuration)
     {
         ROS_INFO("VSSM::updateStatus - Touchdown duration finished.");
         turnOffVisualServo();
@@ -444,7 +474,30 @@ bool isTargetInThreshold(const double minX, const double minY, const double minZ
 
 bool isRelativeDistanceValid(const double checkDistance)
 {
-    return checkDistance != INVALID_DISTANCE;
+    return !isnan(checkDistance) && checkDistance != INVALID_DISTANCE;
+}
+
+bool subscribedTopicsActive() 
+{
+    double currentTime = ros::Time::now().toSec();
+    double dt_odom = currentTime - _timeLastOdometry;
+    double dt_contour = currentTime - _timeLastContour;
+    double dt_centGlobal = currentTime - _timeLastCentroidGlobal;
+    double dt_centLocal = currentTime - _timeLastCentroidLocal;
+    double dt_yaw = currentTime - _timeLastYawError;
+    
+    static constexpr double MAX_DT = 0.1;
+    ROS_FATAL_COND(dt_odom > MAX_DT,        "VSSM - odometry timeout reached.");
+    ROS_FATAL_COND(dt_contour > MAX_DT,     "VSSM - contour timeout reached.");
+    ROS_FATAL_COND(dt_centGlobal > MAX_DT,  "VSSM - centroid global timeout reached.");
+    ROS_FATAL_COND(dt_centLocal > MAX_DT,   "VSSM - centroid local timeout reached.");
+    ROS_FATAL_COND(dt_yaw > MAX_DT,         "VSSM - yaw error timeout reached.");
+    
+    return dt_odom < MAX_DT 
+        && dt_contour < MAX_DT 
+        && dt_centGlobal < MAX_DT
+        && dt_centLocal < MAX_DT
+        && dt_yaw < MAX_DT;
 }
 
 void publishVisualServoSetpoint(double dt)
@@ -525,11 +578,13 @@ void publishVisualServoSetpoint(double dt)
 void odomCb(const nav_msgs::OdometryConstPtr& msg)
 {
     _currOdom = *msg;
+    _timeLastOdometry = ros::Time::now().toSec();
 }
 
 void yawErrorCb(const std_msgs::Float32ConstPtr& msg)
 {
     _currYawError = msg->data;
+    _timeLastYawError = ros::Time::now().toSec();
 }
 
 void run()
@@ -577,8 +632,7 @@ private:
     nav_msgs::Odometry _currOdom;
 
     /* Yaw error subscriber */
-    ros::Subscriber _subYawError, _subMagActivity;
-    bool _magnetActive = false;
+    ros::Subscriber _subYawError;
     double _currYawError = 1e5, _currUavVelError = 1e5;
     double _minYawError, _minTargetError,   
         _minTouchdownTargetPositionError_xy, _minTouchdownUavVelocityError_xy,
@@ -598,8 +652,14 @@ private:
     double _touchdownHeight, _touchdownDelta = 0, _magnetOffset, 
         _touchdownDuration = 0, _touchdownAlignDuration = 0, 
         _touchdownTime, _descentCounterMax, _touchdownSpeed, _visualServoDisableHeight;
-    double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight; 
+    double _currHeightReference, _descentSpeed, _ascentSpeed, _afterTouchdownHeight, _afterTouchdownHeight_GPS; 
     int _descentTransitionCounter = 0;
+
+    double _timeLastContour = 0,
+        _timeLastOdometry = 0,
+        _timeLastCentroidGlobal = 0,
+        _timeLastCentroidLocal = 0,
+        _timeLastYawError = 0;
 
     /* Define Dynamic Reconfigure parameters */
     boost::recursive_mutex _vssmConfigMutex;
