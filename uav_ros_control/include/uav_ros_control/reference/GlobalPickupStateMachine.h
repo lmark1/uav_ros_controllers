@@ -233,7 +233,7 @@ void publish_trajectory(const ros::TimerEvent& /* unused */)
 bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) 
 {
   // If we want to disable the global brick pickup
-  if (!request.enable) {
+  if (!request.enable && !all_services_available()) { // TODO: Add checks for services
     ROS_FATAL("BPSM::brick_pickup_global_cb - brick_pickup/global disabled");
     response.status = false;
     m_currentStatus = BrickPickupStatus();
@@ -252,11 +252,18 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
   bool gotLat = m_nh.getParam("brick_dropoff/lat", dropoffLat);
   bool gotLon = m_nh.getParam("brick_dropoff/lon", dropoffLon);
   ROS_FATAL_COND(!gotLat || !gotLon, "BrickPickup - dropoff position unavailable");
+
   if (gotLat && gotLon) {
+    // If brick_dropoff is available set its position
     m_currentStatus.setDropoffPosition(
       m_global2Local.toLocal(
         dropoffLat, dropoffLon, request.altitude_relative, true
       )
+    );
+  } else {
+    // Otherwise set dropoff to zero - TODO: Have a better backupf
+    m_currentStatus.setDropoffPosition(
+      Eigen::Vector3d(0, 0, request.altitude_relative)
     );
   }
 
@@ -273,6 +280,13 @@ void initialize_parameters(ros::NodeHandle& nh) {
   initParams.brick_approach_tolerance = getParamOrThrow<double>(nh, "brick_pickup/brick_approach_tolerance");
   initParams.dropoff_approach_tolerance = getParamOrThrow<double>(nh, "brick_pickup/dropoff_approach_tolerance");
   m_pickupConfig.reset(new ParamHandler<PickupParams>(initParams, "brick_pickup"));
+}
+
+bool all_services_available()
+{
+  ROS_FATAL_COND(!m_vssmCaller.exists(), "GlobalPickup - VSSM service non exsistant.");
+  ROS_FATAL_COND(!m_magnetOverrideCaller.exists(), "GlobalPickup - magnet override does not exist.");
+  return m_vssmCaller.exists() && m_magnetOverrideCaller.exists();
 }
 
 bool toggle_magnet() 

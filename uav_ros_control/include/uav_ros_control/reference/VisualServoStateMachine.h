@@ -178,7 +178,7 @@ bool healthyNumberOfPublishers()
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || stateMachineDisableConditions())
+    if (!request.data || stateMachineDisableConditions() || !healthyNumberOfPublishers() )
     {
         if (!healthyNumberOfPublishers())
             ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
@@ -359,7 +359,6 @@ void turnOffVisualServo()
 bool stateMachineDisableConditions()
 {
     return !subscribedTopicsActive()
-        || !healthyNumberOfPublishers() 
         || !isRelativeDistanceValid(_relativeBrickDistance_local) 
         || !isRelativeDistanceValid(_relativeBrickDistance_global) 
         || _nContours == 0;
