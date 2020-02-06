@@ -7,13 +7,14 @@
 #include <GeographicLib/Geocentric.hpp>
 #include <mavros/frame_tf.h>
 #include <mavros_msgs/HomePosition.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 using namespace ros_util;
 
 class Global2Local {
 public:
 Global2Local(ros::NodeHandle& nh) :
-    m_homeHandler(nh, "mavros/global_position/home") { }
+    m_homeHandler(nh, "mavros/global_position/home", -1) { }
 
 Eigen::Vector3d toLocal(const double lat, const double lon, const double alt, bool altitudeRelative = false) {
   Eigen::Vector3d local_ecef;
@@ -42,6 +43,12 @@ Eigen::Vector3d toLocal(const double lat, const double lon, const double alt, bo
 
   if (altitudeRelative) {
     local_ecef.z() = alt;
+  }
+
+  if (!m_homeHandler.isMessageRecieved()) {
+    ROS_FATAL("Global2Local - unable to get home position.");
+    local_ecef.x() = 0;
+    local_ecef.y() = 0;
   }
 
   return local_ecef;
