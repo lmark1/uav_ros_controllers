@@ -1,5 +1,5 @@
 brick_pickup:
-  rate: 1
+  rate: 10
   color_init_rate: 0.5
   search_traj_rate: 1
   brick_approach_tolerance: 1
