@@ -31,23 +31,63 @@ T getParamOrThrow(ros::NodeHandle& nh, const std::string& param_name) {
 template<class T>
 class TopicHandler {
 public:
-  TopicHandler(ros::NodeHandle& t_nh, const std::string& t_topicName) :
-    m_topicName(t_topicName) {
+  TopicHandler(ros::NodeHandle& t_nh, const std::string& t_topicName, const double t_timeoutDuration = 2) :
+    m_topicName(t_topicName),
+    m_topicTimeout(t_timeoutDuration),
+    m_lastMessgeTime(0),
+    m_isResponsive(false),
+    m_messageRecieved(false)
+  {
     m_subT = t_nh.subscribe(m_topicName, 1, &TopicHandler::callback, this);
+    
+    if (t_timeoutDuration > 0) {
+      m_watchdogTimer = t_nh.createTimer(
+        ros::Duration(t_timeoutDuration), &TopicHandler::watchdog_callback, this);
+    }
   }
 
-  const T& getData() {
+  const T& getData() 
+  {
     return m_data;
   }
 
-private:
-  void callback(const T& msg) {
-    m_data = std::move(msg);
+
+  bool isResponsive()
+  {
+    return m_isResponsive;
   }
 
+  bool isMessageRecieved()
+  {
+    return m_messageRecieved;
+  }
+
+private:
+  void callback(const T& msg) 
+  {
+    m_data = std::move(msg);
+    m_lastMessgeTime = ros::Time::now().toSec();
+    m_messageRecieved = true;
+  }
+
+  void watchdog_callback(const ros::TimerEvent& e)
+  {
+    double elapsedTime = ros::Time::now().toSec() - m_lastMessgeTime;
+    if (elapsedTime > m_topicTimeout) {
+      m_isResponsive = false;
+      ROS_FATAL_STREAM("Topic: [" << m_topicName << "] unresponsive.");
+    } else {
+      m_isResponsive = true;
+    }
+  }
+
+  ros::Timer m_watchdogTimer;
+  double m_topicTimeout, m_lastMessgeTime;
+  bool m_isResponsive, m_messageRecieved;
+
   ros::Subscriber m_subT;
-  const std::string m_topicName;
   T m_data;
+  const std::string m_topicName;
 };
 
 template<class T>
