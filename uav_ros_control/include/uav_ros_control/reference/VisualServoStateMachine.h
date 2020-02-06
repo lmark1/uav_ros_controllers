@@ -107,6 +107,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     if (msg->data == 0 && _currentState != VisualServoState::TOUCHDOWN && 
         _currentState !=VisualServoState::OFF)
     {
+        ROS_FATAL("VSSM - patch count is 0.");
         turnOffVisualServo();
     }
     _timeLastContour = ros::Time::now().toSec();
@@ -145,11 +146,11 @@ void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 
 bool healthyNumberOfPublishers() 
 {
-    ROS_FATAL_COND(_subNContours.getNumPublishers() == 0, "VSSM - 'n_contours' topic publisher missing");
-    ROS_FATAL_COND(_subOdom.getNumPublishers() == 0, "VSSM - 'odometry' topic publisher missing");
-    ROS_FATAL_COND(_subPatchCentroid_global.getNumPublishers() == 0, "VSSM - 'centroid_global' topic publisher missing");
-    ROS_FATAL_COND(_subPatchCentroid_local.getNumPublishers() == 0, "VSSM - 'centroid_local' topic publisher missing");
-    ROS_FATAL_COND(_subYawError.getNumPublishers() == 0, "VSSM - 'yaw_error' topic publisher missing");
+    ROS_FATAL_COND(!_subNContours.getNumPublishers() > 0, "VSSM - 'n_contours' topic publisher missing");
+    ROS_FATAL_COND(!_subOdom.getNumPublishers() > 0, "VSSM - 'odometry' topic publisher missing");
+    ROS_FATAL_COND(!_subPatchCentroid_global.getNumPublishers() > 0, "VSSM - 'centroid_global' topic publisher missing");
+    ROS_FATAL_COND(!_subPatchCentroid_local.getNumPublishers() > 0, "VSSM - 'centroid_local' topic publisher missing");
+    ROS_FATAL_COND(!_subYawError.getNumPublishers() > 0, "VSSM - 'yaw_error' topic publisher missing");
     
     return _subNContours.getNumPublishers() > 0 
         && _subOdom.getNumPublishers() > 0
@@ -160,10 +161,7 @@ bool healthyNumberOfPublishers()
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || _nContours == 0 
-        || !healthyNumberOfPublishers()
-        || stateMachineDisableConditions()
-        || !isRelativeDistanceValid(_relativeBrickDistance_global))
+    if (!request.data || stateMachineDisableConditions())
     {
         if (!healthyNumberOfPublishers())
             ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
@@ -343,15 +341,19 @@ void turnOffVisualServo()
 
 bool stateMachineDisableConditions()
 {
-    return !subscribedTopicsActive() || !isRelativeDistanceValid(_relativeBrickDistance_local);
+    return !subscribedTopicsActive()
+        || !healthyNumberOfPublishers() 
+        || !isRelativeDistanceValid(_relativeBrickDistance_local) 
+        || !isRelativeDistanceValid(_relativeBrickDistance_global) 
+        || _nContours == 0;
 }
 
 void updateState()
 {
-    if ( (_currentState != VisualServoState::OFF && !_brickPickupActivated) ||  
-        (_currentState == VisualServoState::DESCENT && stateMachineDisableConditions()) ||
-        (_currentState == VisualServoState::BRICK_ALIGNMENT && stateMachineDisableConditions()) ||
-        (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions()))
+    if (_currentState != VisualServoState::OFF && !_brickPickupActivated ||  // If visual servo is 
+        _currentState == VisualServoState::DESCENT && stateMachineDisableConditions() ||
+        _currentState == VisualServoState::BRICK_ALIGNMENT && stateMachineDisableConditions() ||
+        _currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
     {
         // deactivate state machine
         ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
