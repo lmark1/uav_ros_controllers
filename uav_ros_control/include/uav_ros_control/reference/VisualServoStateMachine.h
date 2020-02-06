@@ -107,6 +107,7 @@ void nContoursCb(const std_msgs::Int32ConstPtr& msg)
     if (msg->data == 0 && _currentState != VisualServoState::TOUCHDOWN && 
         _currentState !=VisualServoState::OFF)
     {
+        ROS_FATAL("VSSM - patch count is 0.");
         turnOffVisualServo();
     }
     _timeLastContour = ros::Time::now().toSec();
@@ -160,10 +161,7 @@ bool healthyNumberOfPublishers()
 
 bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
-    if (!request.data || _nContours == 0 
-        || !healthyNumberOfPublishers()
-        || stateMachineDisableConditions()
-        || !isRelativeDistanceValid(_relativeBrickDistance_global))
+    if (!request.data || stateMachineDisableConditions())
     {
         if (!healthyNumberOfPublishers())
             ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
@@ -343,7 +341,11 @@ void turnOffVisualServo()
 
 bool stateMachineDisableConditions()
 {
-    return !subscribedTopicsActive() || !isRelativeDistanceValid(_relativeBrickDistance_local);
+    return !subscribedTopicsActive()
+        || !healthyNumberOfPublishers() 
+        || !isRelativeDistanceValid(_relativeBrickDistance_local) 
+        || !isRelativeDistanceValid(_relativeBrickDistance_global) 
+        || _nContours == 0;
 }
 
 void updateState()
