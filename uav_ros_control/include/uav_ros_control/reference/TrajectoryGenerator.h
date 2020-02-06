@@ -9,6 +9,16 @@
 
 namespace uav_reference { namespace traj_gen {
 
+static const tf2::Quaternion getHeadingQuaternion(
+  const double t_xStart, const double t_yStart,
+  const double t_xEnd, const double t_yEnd)
+{
+  tf2::Quaternion q;
+  double yaw = atan2(t_yEnd - t_yStart, t_xEnd - t_xStart);
+  q.setRPY(0, 0, yaw);
+  return q;
+}
+
 static trajectory_msgs::MultiDOFJointTrajectoryPoint 
 toTrajectoryPointMsg(const double x, const double y, const double z, 
     const double qx, const double qy, const double qz, const double qw) 
@@ -120,14 +130,11 @@ generateLinearTrajectory_topp(const double x, const double y, const double z,
       odom.pose.pose.orientation.w
     )
   );
+
+  tf2::Quaternion q = getHeadingQuaternion(
+    odom.pose.pose.position.x,odom.pose.pose.position.y, x, y);
   trajectory.points.push_back(
-    toTrajectoryPointMsg(
-      x, y, z,
-      odom.pose.pose.orientation.x,
-      odom.pose.pose.orientation.y,
-      odom.pose.pose.orientation.z,
-      odom.pose.pose.orientation.w
-    )
+    toTrajectoryPointMsg(x, y, z, q.getX(), q.getY(), q.getZ(), q.getW())
   );
   return trajectory;
 }
@@ -153,14 +160,17 @@ generateCircleTrajectory_topp(const double t_x, const double t_y, const double t
   const double DEG_TO_RAD = M_PI / 180.0;
   double angleInc = 360.0 / t_numberOfPoints * DEG_TO_RAD;
   for(int i = 0; i < t_numberOfPoints; i ++) {
+    const double newX = t_x + t_circleRadius * cos(i * angleInc);
+    const double newY = t_y + t_circleRadius * sin(i * angleInc);
+
+    tf2::Quaternion q = getHeadingQuaternion(
+      trajectory.points.back().transforms.front().translation.x,
+      trajectory.points.back().transforms.front().translation.y,
+      newX, newY
+    );
+
     trajectory.points.push_back(toTrajectoryPointMsg(
-      t_x + t_circleRadius * cos(i * angleInc), 
-      t_y + t_circleRadius * sin(i * angleInc),
-      t_z, 
-      odom.pose.pose.orientation.x,
-      odom.pose.pose.orientation.y,
-      odom.pose.pose.orientation.z,
-      odom.pose.pose.orientation.w
+      newX, newY, t_z, q.getX(), q.getY(), q.getZ(), q.getW()
     ));
   }
   return trajectory;
