@@ -129,6 +129,23 @@ void localCentroidPointCb(const geometry_msgs::Vector3& msg)
 
 void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
 {
+    static constexpr double MIN_CENTROID_DISTANCE = 1;
+
+    // Check if global centroid is same as previous centroid
+    if (_currentState != VisualServoState::OFF              // Not in OFF state
+        && _currentState != VisualServoState::TOUCHDOWN     // .. and Not in TOUCHDOWN state
+        && isRelativeDistanceValid(msg.z)                   // .. and relative distance is valid
+        && sqrt(                                             
+                pow(_globalCentroid.x - msg.x, 2) 
+                + pow(_globalCentroid.y - msg.y, 2) 
+                + pow(_globalCentroid.z - msg.z, 2)
+                ) > MIN_CENTROID_DISTANCE)                  // .. and not close to precious centroid
+    {  
+        ROS_FATAL("VSSM - new centroid [%.2f, %.2f, %.2f] is not old [%.2f, %.2f, %.2f]",
+            msg.x, msg.y, msg.z, _globalCentroid.x, _globalCentroid.y, _globalCentroid.z);
+        turnOffVisualServo();
+    }
+
     _globalCentroid = msg;
     // TODO: provjeriti sa relativnom udaljenoscu
     if (msg.z == INVALID_DISTANCE) {
