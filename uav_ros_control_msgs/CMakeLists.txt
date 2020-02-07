@@ -12,7 +12,12 @@ add_message_files(
   VisualServoProcessValues.msg
 )
 
+add_service_files(
+  FILES
+  TakeOff.srv
+)
 generate_messages(DEPENDENCIES std_msgs)
+
 
 catkin_package(
   CATKIN_DEPENDS message_runtime std_msgs
