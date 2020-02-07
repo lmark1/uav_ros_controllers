@@ -9,7 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
     dynamic_reconfigure
     sensor_msgs
 	mav_msgs
-	tf)
+	tf
+	frontier_exploration_3d)
 
 find_package(cmake_modules REQUIRED)
 
