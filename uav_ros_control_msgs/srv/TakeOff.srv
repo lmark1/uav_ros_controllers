@@ -1,4 +1,4 @@
-float64 request
+float64 rel_alt
 ---
 bool success
 string message
