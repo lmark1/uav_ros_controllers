@@ -217,13 +217,27 @@ void pointReachedCb(const std_msgs::Bool msg)
 
 bool modeGuided()
 {
-	// Wait for GUIDED_NOGPS mode
+	mavros_msgs::SetMode offb_set_mode;
+	offb_set_mode.request.custom_mode = "GUIDED_NOGPS";
+	
 	if (m_currentState.mode != "GUIDED_NOGPS")
 	{
-		ROS_FATAL("Mode GUIDED_NOGPS is not set.");
+		if (m_setModeClient.call(offb_set_mode))
+		{
+			ros::Duration(2.0).sleep();
+			if (offb_set_mode.response.mode_sent)
+			{
+			std::cout << "STATE: " << m_currentState.mode << std::endl;
+			ROS_INFO ("GUIDED_NOGPS enabled");
+			return true;
+			}
+		ROS_FATAL("Setting mode GUIDED_NOGPS failed.");
+		return false;
+		}
+		ROS_FATAL("Setting mode GUIDED_NOGPS failed.");
 		return false;
 	}
-	ROS_WARN("GUIDED_NOGPS mode is already set.");
+	ROS_WARN("GUIDED_NOGPS mode already set.");
 	return true;
 } 
 
