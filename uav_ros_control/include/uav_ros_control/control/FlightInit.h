@@ -40,6 +40,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <uav_ros_control/FlightInitParametersConfig.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control_msgs/TakeOff.h>
 #include <tf2/LinearMath/Quaternion.h>
 
 namespace flight_init 
@@ -82,24 +83,29 @@ public:
 			&flight_init::FlightInit::globalPositionCb, this);
 		m_subPointReached = nh.subscribe("exploration_sm/point_reached", 1,
 			&flight_init::FlightInit::pointReachedCb, this);
+		// m_subCartographerPose = nh.subscribe ("uav/cartographer/pose", 1,
+		// 	&flight_init::FlightInit::cartographerPosecb, this);
 
 		m_pubGoal = nh.advertise<geometry_msgs::PoseStamped>("exploration_sm/goal", 1);
 
 		m_pubGoalsMarker = nh.advertise<visualization_msgs::MarkerArray>(
 			"flight_init/goals_marker", 20);
-		// Setup takeoff service callback
+		// Services
     	m_serviceTakeOff = nh.advertiseService(
-			"takeoff", &flight_init::FlightInit::takeOffCb, this);
+			"arm_and_takeoff", &flight_init::FlightInit::takeOffCb, this);
 		m_serviceStartFlight = nh.advertiseService(
 			"start_flight", &flight_init::FlightInit::startFlightCb, this);
+		
 		m_armingClient = nh.serviceClient<mavros_msgs::CommandBool>
             ("mavros/cmd/arming");
     	m_setModeClient = nh.serviceClient<mavros_msgs::SetMode>
             ("mavros/set_mode");
-		m_takeoffClient = nh.serviceClient<mavros_msgs::CommandTOL>
-			("mavros/cmd/takeoff");
+		m_takeoffClient = nh.serviceClient<uav_ros_control_msgs::TakeOff>
+			("takeoff");
 		m_setTrajectoryFlagsClient = nh.serviceClient<frontier_exploration_3d::FlagArray>
 			("exploration_sm/set_flags"); 
+		m_startFlightClient = nh.serviceClient<std_srvs::SetBool> (
+			"start_flight");
 		// Setup dynamic reconfigure server
 		fi_param_t  fiConfig;
 		setReconfigureParameters(fiConfig);
@@ -158,6 +164,11 @@ void globalPositionCb(const sensor_msgs::NavSatFix::ConstPtr& msg)
 	m_currentGlobalPosition = *msg;
 }
 
+// void cartographerPosecb(const geometry_msgs::PoseStamped& msg)
+// {
+// 	m_cartographerPose = *msg;
+// }
+
 bool takeOffCb(
 	std_srvs::SetBool::Request& request, 
 	std_srvs::SetBool::Response& response)
@@ -179,6 +190,8 @@ bool startFlightCb(
 	generateWaypoints(m_vectorWaypoints);
 
 	ROS_INFO("Start flight service called.");
+	// Set timer for map initialization
+	m_timer = ros::Time::now();
 	m_serviceStartFlightCalledFlag = true;
 	
 	response.success = true;
@@ -204,27 +217,13 @@ void pointReachedCb(const std_msgs::Bool msg)
 
 bool modeGuided()
 {
-	mavros_msgs::SetMode offb_set_mode;
-	offb_set_mode.request.custom_mode = "GUIDED_NOGPS";
-	
+	// Wait for GUIDED_NOGPS mode
 	if (m_currentState.mode != "GUIDED_NOGPS")
 	{
-		if (m_setModeClient.call(offb_set_mode))
-		{
-			ros::Duration(2.0).sleep();
-			if (offb_set_mode.response.mode_sent)
-			{
-			std::cout << "STATE: " << m_currentState.mode << std::endl;
-			ROS_INFO ("GUIDED_NOGPS enabled");
-			return true;
-			}
-		ROS_FATAL("Setting mode GUIDED_NOGPS failed.");
-		return false;
-		}
-		ROS_FATAL("Setting mode GUIDED_NOGPS failed.");
+		ROS_FATAL("Mode GUIDED_NOGPS is not set.");
 		return false;
 	}
-	ROS_WARN("GUIDED_NOGPS mode already set.");
+	ROS_WARN("GUIDED_NOGPS mode is already set.");
 	return true;
 } 
 
@@ -254,8 +253,30 @@ bool armUAV()
 	return true;
 }
 
+bool takeOffUAV()
+{
+	// Call takeoff 
+	uav_ros_control_msgs::TakeOff take_off;
+	take_off.request.rel_alt = m_takeoffHeight;
+	
+	if (m_takeoffClient.call(take_off))
+	{
+		ros::Duration(0.2).sleep();
+		if (take_off.response.success)
+		{
+			ROS_INFO("Takeoff successfully called.");
+			return true;
+		}
+		ROS_INFO("Takeoff response failed.");
+		return false;
+	}
+	ROS_INFO("Takeoff call failed.");
+	return false;
+}
+
 bool setFlags()
 {
+	// Call service to start init flight without path planner
 	frontier_exploration_3d::FlagArray flag_array;
 	// [plan_path, plan_trajectory]
 	flag_array.request.flags.clear();
@@ -275,6 +296,27 @@ bool setFlags()
 		return false;
 	}
 	ROS_FATAL("Calling set_flags failed.");
+	return false;
+}
+
+bool startInitFlight()
+{
+	// Call service for init flight
+	std_srvs::SetBool start_init_flight;
+	start_init_flight.request.data = true;
+
+	if (m_startFlightClient.call(start_init_flight))
+	{
+		ros::Duration(0.2).sleep();
+		if (start_init_flight.response.success)
+		{
+			ROS_INFO("Service start_flight called.");
+			return true;	
+		}
+		ROS_FATAL("Calling start_flight failed.");
+		return false;
+	}	
+	ROS_FATAL("Calling start_flight failed.");
 	return false;
 }
 
@@ -392,6 +434,11 @@ void publishCurrGoal (
 	}
 }
 
+void checkMapInitialization(bool &initialized)
+{
+	// m_cartographerPose --> current pose in map
+}
+
 void run()
 {
     ros::Rate loopRate(m_rate);
@@ -416,14 +463,35 @@ void run()
 					// if (m_takeoffClient.call(m_takeoff) &&
 					// 	int(m_takeoff.response.success))
 					// {
-					ROS_INFO("Takeoff!!");
-					m_takeoffFlag = true;
-					// }
+					bool takeoff_success = takeOffUAV(); 
+					if (takeoff_success)
+					{
+						m_takeoffFlag = true;
+					}
+					else
+					{
+						ROS_INFO ("Takeoff failed: Calling arm_and_takeoff service again");
+						m_serviceTakeoffCalledFlag = true;
+					}
+					
 				}
+				else
+				{
+					ROS_INFO ("Arm failed: Calling arm_and_takeoff service again");
+					m_serviceTakeoffCalledFlag = true;
+				}
+				
 			}
-		}	
-		// if (m_takeoffFlag && m_serviceStartFlightCalledFlag)
-		if (m_serviceStartFlightCalledFlag && !m_publishedAllPointsFlag)
+			else
+			{
+				ROS_INFO ("Mode GUIDED_NOGPS failed: Calling arm_and_takeoff service again");
+				m_serviceTakeoffCalledFlag = true;
+			}
+			
+		
+		}
+		// Call start flight 	
+		if (m_takeoffFlag && m_serviceStartFlightCalledFlag && !m_publishedAllPointsFlag)
 		{
 			// Init flight start
 			publishCurrGoal(m_vectorWaypoints);
@@ -443,9 +511,11 @@ int position_in_vector = 0;
 mavros_msgs::State m_currentState;
 sensor_msgs::NavSatFix m_currentGlobalPosition;
 geometry_msgs::Point m_currGoal;
+geometry_msgs::PoseStamped m_cartographerPose;
 nav_msgs::Odometry m_currentOdom, m_homeOdom;
-ros::Subscriber m_subState, m_subGlobalPosition, m_subOdometry, m_subPointReached;
+ros::Subscriber m_subState, m_subGlobalPosition, m_subOdometry, m_subPointReached, m_subCartographerPose;
 ros::Publisher m_pubGoal, m_pubGoalsMarker;
+ros::Time m_timer;
 bool m_serviceTakeoffCalledFlag = false;
 bool m_takeoffFlag = false;
 bool m_serviceStartFlightCalledFlag = false;
@@ -456,7 +526,8 @@ std::string m_mapFrame;
 std::vector<geometry_msgs::Point> m_vectorWaypoints = {};
 std::vector<geometry_msgs::Point> m_vectorWaypointsInit = {};
 ros::ServiceServer m_serviceTakeOff, m_serviceStartFlight;
-ros::ServiceClient m_armingClient, m_setModeClient, m_takeoffClient, m_setTrajectoryFlagsClient;
+ros::ServiceClient m_armingClient, m_setModeClient, m_takeoffClient,
+m_setTrajectoryFlagsClient, m_startFlightClient;
 /* Define Dynamic Reconfigure parameters */
 boost::recursive_mutex m_fiConfigMutex;
 dynamic_reconfigure::Server<fi_param_t>
