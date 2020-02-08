@@ -13,11 +13,13 @@ add_message_files(
 )
 
 add_service_files(
-  FILES
-  TakeOff.srv
+    DIRECTORY srv
+    FILES
+    GeoBrickApproach.srv
+    TakeOff.srv
 )
-generate_messages(DEPENDENCIES std_msgs)
 
+generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(
   CATKIN_DEPENDS message_runtime std_msgs

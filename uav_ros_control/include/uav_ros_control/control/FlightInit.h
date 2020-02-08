@@ -258,7 +258,7 @@ bool takeOffUAV()
 	// Call takeoff 
 	uav_ros_control_msgs::TakeOff take_off;
 	take_off.request.rel_alt = m_takeoffHeight;
-	
+	ros::Duration(2.0).sleep();
 	if (m_takeoffClient.call(take_off))
 	{
 		ros::Duration(0.2).sleep();

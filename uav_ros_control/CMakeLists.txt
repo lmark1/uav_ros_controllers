@@ -5,9 +5,9 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	uav_ros_control_msgs
 	rospy
-    std_msgs
-    dynamic_reconfigure
-    sensor_msgs
+	std_msgs
+	dynamic_reconfigure
+	sensor_msgs
 	mav_msgs
 	tf
 	frontier_exploration_3d)

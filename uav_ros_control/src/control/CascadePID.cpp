@@ -3,6 +3,11 @@
 #include <geometry_msgs/Vector3.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 
+#define CARROT_OFF 			"OFF"
+#define CARROT_ON_LAND  "CARROT_ON_LAND"
+#define CARROT_ON_AIR		"CARROT_ON_AIR"
+#define POS_HOLD   			"HOLD"
+
 // Define all parameter paths here
 #define PID_X_PARAM "control/pos_x"
 #define PID_Y_PARAM "control/pos_y"
@@ -36,6 +41,7 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle& nh) :
 	_velRefPub = nh.advertise<geometry_msgs::Vector3>("carrot/velocity", 1);
 	_velCurrPub = nh.advertise<geometry_msgs::Vector3>("uav/velocity", 1);
 	_yawRefSub = nh.subscribe("carrot/yaw", 1, &uav_controller::CascadePID::yawRefCb, this);
+	_carrotStateSub = nh.subscribe("carrot/status", 1, &uav_controller::CascadePID::carrotStatusCb, this);
 
 	// Setup dynamic reconfigure server
 	uav_ros_control::PositionControlParametersConfig posConfig;
@@ -63,6 +69,16 @@ bool uav_controller::CascadePID::intResetServiceCb(std_srvs::Empty::Request& req
 	
 uav_controller::CascadePID::~CascadePID()
 {
+}
+
+bool uav_controller::CascadePID::activationPermission()
+{
+	return _carrotStatus == CARROT_ON_AIR || _carrotStatus == POS_HOLD;
+}
+
+void uav_controller::CascadePID::carrotStatusCb(const std_msgs::StringConstPtr& msg)
+{
+	_carrotStatus = msg->data;
 }
 
 void uav_controller::CascadePID::yawRefCb(const std_msgs::Float64ConstPtr& msg)
@@ -265,8 +281,12 @@ void uav_controller::runDefault(
 	while (ros::ok())
 	{
 		ros::spinOnce();
-		cascadeObj.calculateAttThrustSp(dt);
-		cascadeObj.publishAttitudeTarget(MASK_IGNORE_RPY_RATE);
+		if (cascadeObj.activationPermission()) {
+			cascadeObj.calculateAttThrustSp(dt);
+			cascadeObj.publishAttitudeTarget(MASK_IGNORE_RPY_RATE);
+		} else {
+			ROS_FATAL_THROTTLE(2, "CascadePID::runDefault - controller inactive");
+		}
 		cascadeObj.publishEulerSp();
 		loopRate.sleep();
 	}
