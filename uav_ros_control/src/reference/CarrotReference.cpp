@@ -129,16 +129,14 @@ bool uav_reference::CarrotReference::takeoffServiceCb(
 		return true;
 	}
 
+	resetCarrot();
+        _carrotPoint.transforms[0].translation.z = _uavPos[2] + request.rel_alt;
+
 	_positionHold = true;
 	_takeoffHappened = true;
 	_carrotOnLand = false;
 	ROS_INFO("CarrotReference::takeoffServiceCb - enable position hold");
 
-	// Set takeoff position
-	_carrotPoint.transforms[0].translation.x = _uavPos[0];
-	_carrotPoint.transforms[0].translation.y = _uavPos[1];
-	_carrotPoint.transforms[0].translation.z = _uavPos[2] + request.rel_alt;
-	
 	set_response(true);
 	return true;
 }
