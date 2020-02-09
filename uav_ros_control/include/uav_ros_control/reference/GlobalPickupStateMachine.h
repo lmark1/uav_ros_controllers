@@ -14,18 +14,12 @@
 #include <std_srvs/Empty.h>
 #include <color_filter/color.h>
 #include <std_msgs/Bool.h>
+#include <uav_ros_control/reference/PickupStates.h>
 
+using namespace pickup_states;
 using namespace ros_util;
 
 namespace uav_sm {
-
-enum class BrickPickupStates {
-  OFF,
-  APPROACH,
-  SEARCH,
-  ATTEMPT_PICKUP, 
-  DROPOFF
-};
 
 enum class VisualServoState {
   OFF
@@ -35,7 +29,7 @@ enum class VisualServoState {
 struct BrickPickupStatus {
   BrickPickupStatus() : BrickPickupStatus("red", Eigen::Vector3d(0, 0, 0)) { }
   BrickPickupStatus(const std::string& t_brickColor, const Eigen::Vector3d& t_brickLocal, 
-    const BrickPickupStates t_status = BrickPickupStates::OFF) :
+    const GlobalPickupStates t_status = GlobalPickupStates::OFF) :
       m_brickColor(t_brickColor),
       m_status(t_status), 
       m_localBrick(t_brickLocal),
@@ -43,23 +37,23 @@ struct BrickPickupStatus {
       m_dropoffPositionSet(false) { }
 
   bool isOff() {
-    return m_status == BrickPickupStates::OFF;
+    return m_status == GlobalPickupStates::OFF;
   }
 
   bool isSearching() {
-    return m_status == BrickPickupStates::SEARCH;
+    return m_status == GlobalPickupStates::SEARCH;
   }
 
   bool isApproaching() {
-    return m_status == BrickPickupStates::APPROACH;
+    return m_status == GlobalPickupStates::APPROACH;
   }
 
   bool isAttemptingPickup() {
-    return m_status == BrickPickupStates::ATTEMPT_PICKUP;
+    return m_status == GlobalPickupStates::ATTEMPT_PICKUP;
   }
 
   bool isDropOff() {
-    return m_status == BrickPickupStates::DROPOFF;
+    return m_status == GlobalPickupStates::DROPOFF;
   }
 
   void setDropoffPosition(Eigen::Vector3d&& vec) 
@@ -74,7 +68,7 @@ struct BrickPickupStatus {
   }
 
   bool m_dropoffPositionSet;
-  BrickPickupStates m_status;
+  GlobalPickupStates m_status;
   std::string m_brickColor;
   Eigen::Vector3d m_localBrick, m_dropoffPos;
 };
@@ -137,7 +131,7 @@ void update_state(const ros::TimerEvent& /* unused */)
 {  
   if (m_currentStatus.isApproaching() && is_close_to_brick()) {
     ROS_WARN("BrickPickup::update_state - SEARCH state activated");
-    m_currentStatus.m_status = BrickPickupStates::SEARCH;
+    m_currentStatus.m_status = GlobalPickupStates::SEARCH;
     clear_current_trajectory();
     return;
   }
@@ -146,7 +140,7 @@ void update_state(const ros::TimerEvent& /* unused */)
        && getCurrentVisualServoState() == VisualServoState::OFF
        && toggle_visual_servo_state_machine(true)) {
     ROS_WARN("BrickPickup::update_state - ATTEMPT_PICKUP activated");
-    m_currentStatus.m_status = BrickPickupStates::ATTEMPT_PICKUP;
+    m_currentStatus.m_status = GlobalPickupStates::ATTEMPT_PICKUP;
     clear_current_trajectory();
     return;
   }
@@ -158,11 +152,11 @@ void update_state(const ros::TimerEvent& /* unused */)
     clear_current_trajectory();
     if (is_brick_picked_up()) {
       ROS_INFO("BrickPickup::update_state - brick is picked up, DROPOFF state activated.");
-      m_currentStatus.m_status = BrickPickupStates::DROPOFF;
+      m_currentStatus.m_status = GlobalPickupStates::DROPOFF;
 
     } else {
       ROS_FATAL("BrickPickup::update_state - brick is not picked up, ATTEMPT_PICKUP state activated");
-      m_currentStatus.m_status = BrickPickupStates::SEARCH;
+      m_currentStatus.m_status = GlobalPickupStates::SEARCH;
     }
     return;
   }
@@ -170,7 +164,7 @@ void update_state(const ros::TimerEvent& /* unused */)
   // Case when we drop off brick (either on purpose or intentionally)
   if (m_currentStatus.isDropOff() && !is_brick_picked_up()) {
     ROS_WARN("BrickPickup::update_state - DROPOFF finished, APPROACH activated");
-    m_currentStatus.m_status = BrickPickupStates::APPROACH;
+    m_currentStatus.m_status = GlobalPickupStates::APPROACH;
     clear_current_trajectory();
     return;
   }
@@ -246,7 +240,7 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
   m_currentStatus = BrickPickupStatus(request.brick_color,
     m_global2Local.toLocal(
       request.latitude, request.longitude, request.altitude_relative, true), 
-    BrickPickupStates::APPROACH);
+    GlobalPickupStates::APPROACH);
 
   double dropoffLat, dropoffLon;
   bool gotLat = m_nh.getParam("brick_dropoff/lat", dropoffLat);
