@@ -16,6 +16,7 @@ add_service_files(
     DIRECTORY srv
     FILES
     GeoBrickApproach.srv
+    TakeOff.srv
 )
 
 generate_messages(DEPENDENCIES std_msgs)

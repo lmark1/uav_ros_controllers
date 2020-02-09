@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 	tf
 	mavros
 	color_filter
-	)
+	larics_motion_planning)
 
 
 list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
@@ -32,6 +32,7 @@ endif()
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
 	config/control/DistanceControlParameters.cfg
+	config/control/FlightInitParameters.cfg
 	config/reference/VisualServoParameters.cfg
 	config/reference/VisualServoStateMachineParameters.cfg
 	config/reference/GlobalPickupStateMachineParameters.cfg
@@ -99,6 +100,10 @@ target_link_libraries(pid_cascade_node control_lib)
 # Distance control node
 add_executable(distance_control_node nodes/control/DistanceControlNode.cpp)
 target_link_libraries(distance_control_node control_lib nfilt)
+
+# Flight init node
+add_executable(flight_init_node nodes/control/FlightInitNode.cpp)
+target_link_libraries(flight_init_node control_lib nfilt)
 
 install(DIRECTORY include/${PROJECT_NAME}/
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
