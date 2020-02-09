@@ -93,6 +93,10 @@ target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt ${GeographicLib_
 add_executable(pickup_sm nodes/reference/PickupStateNode_trajectory.cpp)
 target_link_libraries(pickup_sm ${catkin_LIBRARIES} nfilt)
 
+# master pickup state machnie
+add_executable(master_brick_pickup nodes/reference/MasterPickupControlNode.cpp)
+target_link_libraries(master_brick_pickup ${catkin_LIBRARIES} nfilt)
+
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
 target_link_libraries(pid_cascade_node control_lib)
