@@ -25,6 +25,25 @@ namespace pickup_states
     TOUCHDOWN
   };
 
+
+  std::ostream& operator<<(std::ostream& o, const MasterPickupStates& state) 
+  {
+    switch (state) {
+      case MasterPickupStates::OFF:
+        o << "[OFF]";
+        break;
+      
+      case MasterPickupStates::SEARCH:
+        o << "[SEARCH]";
+        break;
+
+      case MasterPickupStates::ACTION:
+        o << "[ACTION]";
+        break;
+    }
+    return o;
+  }
+
 }
 
 #endif /* PICKUP_STATES_H */
