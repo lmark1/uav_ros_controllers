@@ -151,6 +151,12 @@ void update_state(const ros::TimerEvent& /* unused */)
 
     clear_current_trajectory();
     if (is_brick_picked_up()) {
+
+      // Update both dropoff and brick pickup global position with current relative height
+      ros::Duration(AFTER_PICKUP_SLEEP).sleep();
+      m_currentStatus.m_dropoffPos.z() = m_handlerOdometry.getData().pose.pose.position.z;
+      m_currentStatus.m_localBrick.z() = m_handlerOdometry.getData().pose.pose.position.z;
+
       ROS_INFO("BrickPickup::update_state - brick is picked up, DROPOFF state activated.");
       m_currentStatus.m_status = GlobalPickupStates::DROPOFF;
 
@@ -359,6 +365,8 @@ bool is_trajectory_active()
 {
   return m_handlerTrajectoryStatus.getData().data;
 }
+
+static constexpr double AFTER_PICKUP_SLEEP = 3.0;
 
 Global2Local m_global2Local;
 BrickPickupStatus m_currentStatus;
