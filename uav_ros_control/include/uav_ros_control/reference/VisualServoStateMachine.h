@@ -175,17 +175,17 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     if (!request.data || stateMachineDisableConditions() || !healthyNumberOfPublishers() )
     {
         if (!healthyNumberOfPublishers())
-            ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
+            ROS_FATAL_THROTTLE(2.0, "VSSM::brickPickupServiceCb - check connected publishers.");
         
         if (!request.data)
-            ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
+            ROS_FATAL_THROTTLE(2.0, "VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
         
         if (_nContours == 0)
-            ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
+            ROS_FATAL_THROTTLE(2.0, "VSSM::brickPickupServiceCb - no contours found.");
 
         if (!isRelativeDistanceValid(_relativeBrickDistance_local)
             || !isRelativeDistanceValid(_relativeBrickDistance_global))
-            ROS_FATAL("VSSM::brickPIckupServiceCb - distances invalid");
+            ROS_FATAL_THROTTLE(2.0, "VSSM::brickPIckupServiceCb - distances invalid");
 
         turnOffVisualServo();
         _brickPickupActivated = false;
@@ -335,12 +335,12 @@ void turnOffVisualServo()
 
     if (!resp.success)
     {
-        ROS_INFO("VSSM::updateStatus - visual servo successfully deactivated");
+        ROS_INFO_THROTTLE(2.0, "VSSM::updateStatus - visual servo successfully deactivated");
         // Visual servo successfully activated
         _currentState = LocalPickupState::OFF;
-        ROS_INFO("VSSM::updateStatus - OFF state activated. ");
+        ROS_INFO_THROTTLE(1.0, "VSSM::updateStatus - OFF state activated. ");
         _brickPickupActivated = false; 
-        ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
+        ROS_INFO_THROTTLE(2.0, "VSSM::updateStatus - Brick pickup finished.");
         return;
     }
     else
@@ -366,11 +366,11 @@ void updateState()
         _currentState == LocalPickupState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
     {
         // deactivate state machine
-        ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
+        ROS_WARN_THROTTLE(2,0, "VSSM::updateStatus - Visual servo is inactive.");
         _currentState = LocalPickupState::OFF;
         _brickPickupActivated = false;
         turnOffVisualServo();
-        ROS_WARN("VSSM::updateStatus - OFF State activated.");
+        ROS_WARN_THROTTLE(2.0, "VSSM::updateStatus - OFF State activated.");
         return;
     }
 
