@@ -163,14 +163,12 @@ generateCircleTrajectory_topp(const double t_x, const double t_y, const double t
     const double newX = t_x + t_circleRadius * cos(i * angleInc);
     const double newY = t_y + t_circleRadius * sin(i * angleInc);
 
-    tf2::Quaternion q = getHeadingQuaternion(
-      trajectory.points.back().transforms.front().translation.x,
-      trajectory.points.back().transforms.front().translation.y,
-      newX, newY
-    );
-
     trajectory.points.push_back(toTrajectoryPointMsg(
-      newX, newY, t_z, q.getX(), q.getY(), q.getZ(), q.getW()
+      newX, newY, t_z,
+      odom.pose.pose.orientation.x,
+      odom.pose.pose.orientation.y,
+      odom.pose.pose.orientation.z,
+      odom.pose.pose.orientation.w
     ));
   }
   return trajectory;

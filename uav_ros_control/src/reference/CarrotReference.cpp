@@ -131,6 +131,7 @@ bool uav_reference::CarrotReference::landServiceCb(std_srvs::Empty::Request& req
 		return true;
 	}
 
+	_positionHold = false;
 	_takeoffHappened = false;
 	_carrotOnLand = true;
 	ROS_INFO("Carrotreference::landServiceCb - land initialized");
@@ -178,7 +179,7 @@ bool uav_reference::CarrotReference::takeoffServiceCb(
 	}
 
 	resetCarrot();
-        _carrotPoint.transforms[0].translation.z = _uavPos[2] + request.rel_alt;
+	_carrotPoint.transforms[0].translation.z = _uavPos[2] + request.rel_alt;
 
 	_positionHold = true;
 	_takeoffHappened = true;

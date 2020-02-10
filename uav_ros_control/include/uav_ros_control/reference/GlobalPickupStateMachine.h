@@ -94,6 +94,9 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
   m_pubTrajGen = t_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
     "topp/input/trajectory", 1
   );
+  m_pubGlobalPickupStatus = t_nh.advertise<std_msgs::Int32>(
+    "global_pickup/status", 1
+  );
 
   // Initialize service callers
   m_vssmCaller = t_nh.serviceClient
@@ -102,7 +105,7 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     <color_filter::color::Request, color_filter::color::Response>("filter_color");
   m_magnetOverrideCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
-
+  
   // Advertise service
   m_serviceBrickPickup = t_nh.advertiseService(
     "brick_pickup/global",
@@ -129,6 +132,8 @@ inline const VisualServoState getCurrentVisualServoState() {
 
 void update_state(const ros::TimerEvent& /* unused */) 
 {  
+  m_pubGlobalPickupStatus.publish(static_cast<int>(m_currentStatus.m_status));
+
   if (m_currentStatus.isApproaching() && is_close_to_brick()) {
     ROS_WARN("BrickPickup::update_state - SEARCH state activated");
     m_currentStatus.m_status = GlobalPickupStates::SEARCH;
@@ -151,6 +156,12 @@ void update_state(const ros::TimerEvent& /* unused */)
 
     clear_current_trajectory();
     if (is_brick_picked_up()) {
+
+      // Update both dropoff and brick pickup global position with current relative height
+      ros::Duration(AFTER_PICKUP_SLEEP).sleep();
+      m_currentStatus.m_dropoffPos.z() = m_handlerOdometry.getData().pose.pose.position.z;
+      m_currentStatus.m_localBrick.z() = m_handlerOdometry.getData().pose.pose.position.z;
+
       ROS_INFO("BrickPickup::update_state - brick is picked up, DROPOFF state activated.");
       m_currentStatus.m_status = GlobalPickupStates::DROPOFF;
 
@@ -227,7 +238,7 @@ void publish_trajectory(const ros::TimerEvent& /* unused */)
 bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) 
 {
   // If we want to disable the global brick pickup
-  if (!request.enable && !all_services_available()) { // TODO: Add checks for services
+  if (!request.enable || !all_services_available()) { // TODO: Add checks for services
     ROS_FATAL("BPSM::brick_pickup_global_cb - brick_pickup/global disabled");
     response.status = false;
     m_currentStatus = BrickPickupStatus();
@@ -360,6 +371,8 @@ bool is_trajectory_active()
   return m_handlerTrajectoryStatus.getData().data;
 }
 
+static constexpr double AFTER_PICKUP_SLEEP = 3.0;
+
 Global2Local m_global2Local;
 BrickPickupStatus m_currentStatus;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
@@ -368,7 +381,7 @@ ros::ServiceServer m_serviceBrickPickup;
 ros::ServiceClient m_vssmCaller, m_chooseColorCaller, m_magnetOverrideCaller;
 
 ros::NodeHandle m_nh;
-ros::Publisher m_pubTrajGen;
+ros::Publisher m_pubTrajGen, m_pubGlobalPickupStatus;
 ros::Timer m_stateTimer, m_initFilterTimer, m_publishTrajectoryTimer;
 TopicHandler<std_msgs::Int32> m_handlerVSSMState;
 TopicHandler<nav_msgs::Odometry> m_handlerOdometry;

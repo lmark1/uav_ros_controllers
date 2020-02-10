@@ -59,6 +59,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     _pubRelativeDistance_local = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/local", 1);
     _pubVelError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/velocity_error", 1);
     _pubTargetError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/pos_error", 1);
+    _pubLoopStatus = nh.advertise<std_msgs::Int32>("visual_servo_sm/loop_status", 1);
 
     // Define Subscribers
     _subOdom =
@@ -175,17 +176,17 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     if (!request.data || stateMachineDisableConditions() || !healthyNumberOfPublishers() )
     {
         if (!healthyNumberOfPublishers())
-            ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPickupServiceCb - check connected publishers.");
         
         if (!request.data)
-            ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
         
         if (_nContours == 0)
-            ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPickupServiceCb - no contours found.");
 
         if (!isRelativeDistanceValid(_relativeBrickDistance_local)
             || !isRelativeDistanceValid(_relativeBrickDistance_global))
-            ROS_FATAL("VSSM::brickPIckupServiceCb - distances invalid");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPIckupServiceCb - distances invalid");
 
         turnOffVisualServo();
         _brickPickupActivated = false;
@@ -335,12 +336,12 @@ void turnOffVisualServo()
 
     if (!resp.success)
     {
-        ROS_INFO("VSSM::updateStatus - visual servo successfully deactivated");
+        ROS_INFO_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - visual servo successfully deactivated");
         // Visual servo successfully activated
         _currentState = LocalPickupState::OFF;
-        ROS_INFO("VSSM::updateStatus - OFF state activated. ");
+        ROS_INFO_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - OFF state activated. ");
         _brickPickupActivated = false; 
-        ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
+        ROS_INFO_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - Brick pickup finished.");
         return;
     }
     else
@@ -366,11 +367,11 @@ void updateState()
         _currentState == LocalPickupState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
     {
         // deactivate state machine
-        ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
+        ROS_WARN_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - Visual servo is inactive.");
         _currentState = LocalPickupState::OFF;
         _brickPickupActivated = false;
         turnOffVisualServo();
-        ROS_WARN("VSSM::updateStatus - OFF State activated.");
+        ROS_WARN_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - OFF State activated.");
         return;
     }
 
@@ -606,6 +607,8 @@ void run()
 	while (ros::ok())
 	{
 		ros::spinOnce();
+        _pubLoopStatus.publish(1);
+        
         updateState();
         publishVisualServoSetpoint(dt);
 
@@ -619,6 +622,7 @@ void run()
 
 private:
 
+    static constexpr double THROTTLE_TIME = 3.0;
     double _rate = 50;
 
     /* Service brick pickup */
@@ -637,6 +641,7 @@ private:
     ros::Publisher _pubRelativeDistance_global;
     ros::Publisher _pubRelativeDistance_local;
     ros::Publisher _pubVelError, _pubTargetError;
+    ros::Publisher _pubLoopStatus;
     uav_ros_control_msgs::VisualServoProcessValues _currVisualServoFeed;
 
     /* Odometry subscriber */
