@@ -94,6 +94,9 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
   m_pubTrajGen = t_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
     "topp/input/trajectory", 1
   );
+  m_pubGlobalPickupStatus = t_nh.advertise<std_msgs::Int32>(
+    "global_pickup/status", 1
+  );
 
   // Initialize service callers
   m_vssmCaller = t_nh.serviceClient
@@ -102,7 +105,7 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     <color_filter::color::Request, color_filter::color::Response>("filter_color");
   m_magnetOverrideCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
-
+  
   // Advertise service
   m_serviceBrickPickup = t_nh.advertiseService(
     "brick_pickup/global",
@@ -129,6 +132,8 @@ inline const VisualServoState getCurrentVisualServoState() {
 
 void update_state(const ros::TimerEvent& /* unused */) 
 {  
+  m_pubGlobalPickupStatus.publish(static_cast<int>(m_currentStatus.m_status));
+
   if (m_currentStatus.isApproaching() && is_close_to_brick()) {
     ROS_WARN("BrickPickup::update_state - SEARCH state activated");
     m_currentStatus.m_status = GlobalPickupStates::SEARCH;
@@ -376,7 +381,7 @@ ros::ServiceServer m_serviceBrickPickup;
 ros::ServiceClient m_vssmCaller, m_chooseColorCaller, m_magnetOverrideCaller;
 
 ros::NodeHandle m_nh;
-ros::Publisher m_pubTrajGen;
+ros::Publisher m_pubTrajGen, m_pubGlobalPickupStatus;
 ros::Timer m_stateTimer, m_initFilterTimer, m_publishTrajectoryTimer;
 TopicHandler<std_msgs::Int32> m_handlerVSSMState;
 TopicHandler<nav_msgs::Odometry> m_handlerOdometry;
