@@ -103,7 +103,9 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/local");
   m_chooseColorCaller = t_nh.serviceClient
     <color_filter::color::Request, color_filter::color::Response>("filter_color");
-  m_magnetOverrideCaller = t_nh.serviceClient
+  m_magnetOverrideOnCaller = t_nh.serviceClient
+    <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
+  m_magnetOverrideOffCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
   
   // Advertise service
@@ -146,6 +148,7 @@ void update_state(const ros::TimerEvent& /* unused */)
        && toggle_visual_servo_state_machine(true)) {
     ROS_WARN("BrickPickup::update_state - ATTEMPT_PICKUP activated");
     m_currentStatus.m_status = GlobalPickupStates::ATTEMPT_PICKUP;
+    toggle_magnet(true);
     clear_current_trajectory();
     return;
   }
@@ -177,12 +180,13 @@ void update_state(const ros::TimerEvent& /* unused */)
     ROS_WARN("BrickPickup::update_state - DROPOFF finished, APPROACH activated");
     m_currentStatus.m_status = GlobalPickupStates::APPROACH;
     clear_current_trajectory();
+    toggle_magnet(false);
     return;
   }
 
   if (m_currentStatus.isDropOff() && is_brick_picked_up() && is_close_to_dropoff()) {
     ROS_INFO("BrickPickup::updateState - at DROPOFF position");
-    toggle_magnet();
+    toggle_magnet(false);
     clear_current_trajectory();
     return;
   }
@@ -290,21 +294,32 @@ void initialize_parameters(ros::NodeHandle& nh) {
 bool all_services_available()
 {
   ROS_FATAL_COND(!m_vssmCaller.exists(), "GlobalPickup - VSSM service non exsistant.");
-  ROS_FATAL_COND(!m_magnetOverrideCaller.exists(), "GlobalPickup - magnet override does not exist.");
-  return m_vssmCaller.exists() && m_magnetOverrideCaller.exists();
+  ROS_FATAL_COND(!m_magnetOverrideOnCaller.exists(), "GlobalPickup - magnet override does not exist.");
+  ROS_FATAL_COND(!m_magnetOverrideOffCaller.exists(), "GlobalPickup - magnet override does not exist.");
+  return m_vssmCaller.exists() 
+    && m_magnetOverrideOnCaller.exists()
+    && m_magnetOverrideOffCaller.exists();
 }
 
-bool toggle_magnet() 
+bool toggle_magnet(bool t_magnetOn = true) 
 {
   std_srvs::Empty::Request req;
   std_srvs::Empty::Response resp;
 
-  if (!m_magnetOverrideCaller.call(req, resp)) {
-    ROS_FATAL("BrickPickup - unable to toggle magnet!");
+  bool magnetToggled = false;
+  if (t_magnetOn) {
+    magnetToggled = m_magnetOverrideOnCaller.call(req, resp);
+  }
+  else {
+    magnetToggled = m_magnetOverrideOffCaller.call(req, resp);
+  }
+  
+  if (!magnetToggled) {
+    ROS_FATAL("GlobalPickup::toggle_magnet - unable to toggle magnet.");
     return false;
   }
 
-  ROS_INFO("BrickPickup - magnet toggled");
+  ROS_INFO("GlobalPickupt::toggle_magnet - magnet toggled");
   return true;
 }
 
@@ -378,7 +393,8 @@ BrickPickupStatus m_currentStatus;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
 
 ros::ServiceServer m_serviceBrickPickup;
-ros::ServiceClient m_vssmCaller, m_chooseColorCaller, m_magnetOverrideCaller;
+ros::ServiceClient m_vssmCaller, m_chooseColorCaller, 
+  m_magnetOverrideOnCaller, m_magnetOverrideOffCaller;
 
 ros::NodeHandle m_nh;
 ros::Publisher m_pubTrajGen, m_pubGlobalPickupStatus;
