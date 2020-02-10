@@ -49,7 +49,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
 
   m_clientArming = t_nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
   m_clientTakeoff = t_nh.serviceClient<uav_ros_control_msgs::TakeOff>("takeoff");
-  m_clientLand = t_nh.serviceClient<std_srvs::Empty>("land");
+  m_clientLand = t_nh.serviceClient<std_srvs::SetBool>("land");
   m_clientSearchGenerator = t_nh.serviceClient<uav_search::GetPoints>("get_points");
 }
 
@@ -99,23 +99,23 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
     return true;
   }
 
-  arm_uav();
-  sleep_for(ARM_DURATION);
-  if (!is_vehicle_armed()) {
+  if (!arm_uav()) {
     ROS_FATAL("MasterPickupControl - request denied, ARMING failed.");
     set_response(false);
     return true;
   }
 
+  sleep_for(ARM_DURATION);
+  
   // Assume vehicle is armed at this point
-  takeoff_uav();
-  sleep_for(TAKEOFF_DURATION);
-  if (!is_uav_airborne()) {
+  if (!takeoff_uav()) {
     ROS_FATAL("MasterPickupControl - request denied, TAKEOFF unsuccessful");
     set_response(false);
     return true;
   }
+  sleep_for(TAKEOFF_DURATION);
 
+  // Assume takeoff is successful at this point
   ROS_INFO("MasterPickupControl - request approved, TAKEOFF successful.");
   switch_to_search_state();
   set_response(true);
@@ -125,6 +125,8 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
 void switch_to_off_state()
 {
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::OFF);
+  clear_current_trajectory();
+  go_to_home();
   land_uav();
   m_currentState = MasterPickupStates::OFF;
 }
@@ -132,6 +134,7 @@ void switch_to_off_state()
 void switch_to_search_state()
 {
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::SEARCH);
+  clear_current_trajectory();
   generate_search_trajectory();
   m_currentState = MasterPickupStates::SEARCH;
 }
@@ -203,7 +206,32 @@ void clear_current_trajectory()
   ros::Duration(1.0).sleep();
 }
 
-void arm_uav()
+void go_to_home() 
+{
+  ROS_INFO("MasterPickupControl::go_to_home");
+  double homeAltitude = m_handlerOdometry.getData().pose.pose.position.z; 
+  m_pubTrajGen.publish(traj_gen::generateLinearTrajectory_topp(
+    0, 0, homeAltitude,
+    m_handlerOdometry.getData()
+    )
+  );
+
+  const auto is_close_to_home = [this, &homeAltitude] () {
+    return traj_gen::isCloseToReference(
+      traj_gen::toTrajectoryPointMsg(0, 0, homeAltitude, 0), 
+      this->m_handlerOdometry.getData(), GOTO_HOME_TOL);
+  };
+
+  while (!is_close_to_home()) {
+    ROS_INFO("MasterPickupControl::go_to_home - going home ...");
+    ros::Duration(1.0).sleep();
+  }
+
+  // Arrived home
+  clear_current_trajectory();
+}
+
+bool arm_uav()
 {
   ROS_WARN("MasterPickupControl - arming UAV.");
   mavros_msgs::CommandBool::Request armRequest;
@@ -211,17 +239,19 @@ void arm_uav()
   armRequest.value = true;
   if (!m_clientArming.call(armRequest, armResponse)) {
     ROS_FATAL("MasterPickupControl::arm_uav - call to ARM service failed");
-    return;
+    return false;
   }
 
   if (!armResponse.success) {
     ROS_FATAL("MasterPickupControl::arm_uav - UAV arm failed");
-    return;
+    return false;
   }
+
   ROS_INFO("MasterPickupControl::arm_uav - UAV ARM successful");
+  return true;
 }
 
-void takeoff_uav()
+bool takeoff_uav()
 {
   ROS_WARN("MasterPickupControl - UAV takeoff to %.2f", TAKEOFF_HEIGHT);
   uav_ros_control_msgs::TakeOff::Request takeoffRequest;
@@ -229,37 +259,40 @@ void takeoff_uav()
   takeoffRequest.rel_alt = TAKEOFF_HEIGHT;
   if (!m_clientTakeoff.call(takeoffRequest, takeoffResponse)) {
     ROS_FATAL("MasterPickupControl::takeoff_uav - call to TAKEOFF service failed.");
-    return;
+    return false;
   }
 
   if (!takeoffResponse.success) {
     ROS_FATAL("MasterPickupControl::takeoff_uav - TAKEOFF failed.");
-    return;
+    return false;
   }
   ROS_INFO("MasterPickupControl::takeoff_uav - TAKEOFF successful");
+  return true;
 }
 
 void land_uav()
 {
   ROS_WARN("MasterPickupControl - UAV land");
-  std_srvs::Empty::Request landRequest;
-  std_srvs::Empty::Response landResponse;
+  std_srvs::SetBool::Request landRequest;
+  std_srvs::SetBool::Response landResponse;
+  landRequest.data = true;
   if (!m_clientLand.call(landRequest, landResponse)) {
     ROS_FATAL("MasterPickupControl::land_uav - call to LAND service failed");
     return;
   }
 
-  if (!is_land_active()) {
+  if (!landResponse.success) {
     ROS_FATAL("MasterPickupControl::land_uav - LAND mode still not active.");
     return;
-  } 
+  }
   ROS_INFO("MasterPickupControl::laun_uav - UAV is landing."); 
 }
 
-static constexpr double ARM_DURATION = 2.0;
-static constexpr double TAKEOFF_DURATION = 2.0;
+static constexpr double ARM_DURATION = 3.0;
+static constexpr double TAKEOFF_DURATION = 5.0;
 static constexpr double TAKEOFF_HEIGHT = 3.0;
 static constexpr double SEARCH_HEIGHT = 5.0;
+static constexpr double GOTO_HOME_TOL = 1.0;
 
 MasterPickupStates m_currentState;
   
