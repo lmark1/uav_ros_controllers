@@ -1,0 +1,9 @@
+<launch>
+  <arg name="namespace" default="$(env UAV_NAMESPACE)"/>
+  
+  <group ns="$(arg namespace)">
+    <node name="point_generator" pkg="uav_search" type="waypoint_generator_ros.py" output="screen"/>
+    <node name="master_brick_pickup" pkg="uav_ros_control" type="master_brick_pickup" output="screen"/>
+  </group>
+
+</launch>
