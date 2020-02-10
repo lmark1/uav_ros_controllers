@@ -6,5 +6,5 @@ brick_pickup:
   dropoff_approach_tolerance: 0.25
 
 brick_dropoff:
-  lat: -35.363164
-  lon: 149.1652302
+  lat: 45.8139782
+  lon: 16.0386249
