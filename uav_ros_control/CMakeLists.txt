@@ -9,15 +9,34 @@ find_package(catkin REQUIRED COMPONENTS
 	dynamic_reconfigure
 	sensor_msgs
 	mav_msgs
-	tf)
+	tf
+	mavros
+	color_filter
+	larics_motion_planning
+	uav_search)
 
+
+list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
+find_package(GeographicLib REQUIRED)
 find_package(cmake_modules REQUIRED)
+
+## Find Eigen
+find_package(Eigen3)
+if(NOT EIGEN3_FOUND)
+  # Fallback to cmake_modules
+  find_package(cmake_modules REQUIRED)
+  find_package(Eigen REQUIRED)
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})
+endif()
 
 generate_dynamic_reconfigure_options(
 	config/control/PositionControlParameters.cfg
 	config/control/DistanceControlParameters.cfg
+	config/control/FlightInitParameters.cfg
 	config/reference/VisualServoParameters.cfg
 	config/reference/VisualServoStateMachineParameters.cfg
+	config/reference/GlobalPickupStateMachineParameters.cfg
 )
 
 catkin_package(
@@ -27,7 +46,8 @@ catkin_package(
 
 include_directories(
 	include
-	${catkin_INCLUDE_DIRS})
+	${catkin_INCLUDE_DIRS}
+  ${GeographicLib_INCLUDE_DIRS})
 
 # PID controller library
 add_library(pid src/control/PID.cpp)
@@ -66,9 +86,17 @@ target_link_libraries(visual_servo_idle reference_lib)
 add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
 target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 
-# pickup state machine
-add_executable(pickup_sm nodes/reference/PickupStateNode.cpp)
+# Global pickup state machine
+add_executable(brick_pickup_sm nodes/reference/GlobalPickupStateNode.cpp)
+target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt ${GeographicLib_LIBRARIES})
+
+# pickup state machine - with trajectories
+add_executable(pickup_sm nodes/reference/PickupStateNode_trajectory.cpp)
 target_link_libraries(pickup_sm ${catkin_LIBRARIES} nfilt)
+
+# master pickup state machnie
+add_executable(master_brick_pickup nodes/reference/MasterPickupControlNode.cpp)
+target_link_libraries(master_brick_pickup ${catkin_LIBRARIES} nfilt)
 
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
@@ -77,6 +105,10 @@ target_link_libraries(pid_cascade_node control_lib)
 # Distance control node
 add_executable(distance_control_node nodes/control/DistanceControlNode.cpp)
 target_link_libraries(distance_control_node control_lib nfilt)
+
+# Flight init node
+add_executable(flight_init_node nodes/control/FlightInitNode.cpp)
+target_link_libraries(flight_init_node control_lib nfilt)
 
 install(DIRECTORY include/${PROJECT_NAME}/
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
