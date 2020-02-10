@@ -139,6 +139,7 @@ void update_state(const ros::TimerEvent& /* unused */)
   if (m_currentStatus.isApproaching() && is_close_to_brick()) {
     ROS_WARN("BrickPickup::update_state - SEARCH state activated");
     m_currentStatus.m_status = GlobalPickupStates::SEARCH;
+    m_searchRadius = INITIAL_SEARCH_RADIUS;
     clear_current_trajectory();
     return;
   }
@@ -196,6 +197,9 @@ void init_filter(const ros::TimerEvent& /* unused */)
 {
   if (m_currentStatus.isSearching()) {
     // TODO: dont use color chooser filter for now...
+    // TODO: Consider removing this from here, only set colors in MasterPickupControl
+    // TODO: Add a brick_pickup/global success service
+    // TODO: In MasterPickupControl listen to the success service and determine wheather the task was successful or not
     //ROS_INFO("BrickPickup::init_filter - initializing color %s", 
     //  m_currentStatus.m_brickColor.c_str());
     //filter_choose_color(m_currentStatus.m_brickColor);
@@ -211,9 +215,12 @@ void publish_trajectory(const ros::TimerEvent& /* unused */)
         m_currentStatus.m_localBrick.x(),
         m_currentStatus.m_localBrick.y(),
         m_currentStatus.m_localBrick.z(),
-        m_handlerOdometry.getData()
+        m_handlerOdometry.getData(),
+        20, /* Number of points */
+        m_searchRadius
       )
     );
+    m_searchRadius += SEARCH_RADIUS_INCREMENT;
     return;
   }
 
@@ -387,7 +394,10 @@ bool is_trajectory_active()
 }
 
 static constexpr double AFTER_PICKUP_SLEEP = 3.0;
+static constexpr double INITIAL_SEARCH_RADIUS = 1.0;
+static constexpr double SEARCH_RADIUS_INCREMENT = 0.5;
 
+double m_searchRadius = INITIAL_SEARCH_RADIUS;
 Global2Local m_global2Local;
 BrickPickupStatus m_currentStatus;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
