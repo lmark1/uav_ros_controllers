@@ -59,6 +59,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     _pubRelativeDistance_local = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/local", 1);
     _pubVelError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/velocity_error", 1);
     _pubTargetError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/pos_error", 1);
+    _pubLoopStatus = nh.advertise<std_msgs::Int32>("visual_servo_sm/loop_status", 1);
 
     // Define Subscribers
     _subOdom =
@@ -606,6 +607,8 @@ void run()
 	while (ros::ok())
 	{
 		ros::spinOnce();
+        _pubLoopStatus.publish(1);
+        
         updateState();
         publishVisualServoSetpoint(dt);
 
@@ -637,6 +640,7 @@ private:
     ros::Publisher _pubRelativeDistance_global;
     ros::Publisher _pubRelativeDistance_local;
     ros::Publisher _pubVelError, _pubTargetError;
+    ros::Publisher _pubLoopStatus;
     uav_ros_control_msgs::VisualServoProcessValues _currVisualServoFeed;
 
     /* Odometry subscriber */
