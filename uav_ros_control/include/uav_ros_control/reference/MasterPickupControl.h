@@ -5,6 +5,8 @@
 #include <uav_ros_control/filters/Util.h>
 #include <uav_ros_control/reference/PickupStates.h>
 #include <uav_ros_control/reference/TrajectoryGenerator.h>
+#include <uav_ros_control/reference/Global2Local.h>
+#include <Eigen/Dense>
 
 #include <mavros_msgs/State.h>
 #include <std_msgs/String.h>
@@ -12,17 +14,64 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Odometry.h>
 #include <uav_search/GetPoints.h>
+#include <std_msgs/Int32.h>
 
 #include <std_srvs/SetBool.h>
 #include <std_srvs/Empty.h>
 #include <uav_ros_control_msgs/TakeOff.h>
+#include <mbzirc_mission_control/CompletedTask.h>
+#include <mbzirc_mission_control/NextTask.h>
+#include <uav_ros_control_msgs/GeoBrickApproach.h>
 
 using namespace ros_util;
 using namespace pickup_states;
 using namespace uav_reference;
+typedef mbzirc_mission_control::NextTask::Response CurrentTask;
 
 namespace uav_sm 
 {
+
+class PickupChallengeInfo 
+{
+public:
+  bool isBrickLocationSet() 
+  {
+    return m_brickLocationFound;
+  }
+
+  bool isDropoffLocationSet()
+  {
+    return m_dropoffLocationFound;
+  }
+
+  void setDropoffLocation(Eigen::Vector3d dropoffLocation)
+  {
+    m_dropoffLocationFound = true;
+    m_dropoffLocation = dropoffLocation;
+  }
+
+  void setBrickLocation(Eigen::Vector3d brickLocation)
+  {
+    m_brickLocationFound = true;
+    m_brickLocation = brickLocation;
+  }
+
+  void setCurrentTask(CurrentTask newTask) 
+  {
+    m_taskCompleted = false;
+    m_currentTask = newTask;
+  }
+
+  bool currentTaskCompleted()
+  {
+    return m_taskCompleted;
+  }
+
+private:
+  CurrentTask m_currentTask;
+  bool m_brickLocationFound = false, m_dropoffLocationFound = false, m_taskCompleted = true;
+  Eigen::Vector3d m_brickLocation{-1, -1, -1}, m_dropoffLocation{-1, -1, -1};
+};
 
 class MasterPickupControl
 {
@@ -33,6 +82,8 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_handlerGpsFix(t_nh, "mavros/global_position/global"),
   m_handlerCarrotStatus(t_nh, "carrot/status"),
   m_handlerOdometry(t_nh, "mavros/global_position/local"),
+  m_handlerPatchCount(t_nh, "n_contours"),
+  m_globalToLocal(t_nh),
   m_currentState(MasterPickupStates::OFF)
 {
   // Initialize publisher 
@@ -51,11 +102,20 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_clientTakeoff = t_nh.serviceClient<uav_ros_control_msgs::TakeOff>("takeoff");
   m_clientLand = t_nh.serviceClient<std_srvs::SetBool>("land");
   m_clientSearchGenerator = t_nh.serviceClient<uav_search::GetPoints>("get_points");
+  m_clientRequestTask = t_nh.serviceClient<mbzirc_mission_control::NextTask>("request_new_task");
+  m_clienCompleteTask = t_nh.serviceClient<mbzirc_mission_control::CompletedTask>("register_completed_task");
+  m_clientGlobalPickup = t_nh.serviceClient<uav_ros_control_msgs::GeoBrickApproach>("brick_pickup/global");
+  m_stateTimer = t_nh.createTimer(
+    ros::Duration(STATE_TIMER),
+    &uav_sm::MasterPickupControl::state_timer_cb,
+    this
+  );
 }
 
 private:
 
 inline static void sleep_for(double duration) { ros::Duration(duration).sleep(); }
+inline bool is_brick_visible() { return m_handlerPatchCount.getData().data > 0; }
 inline bool is_guided_active() { return m_handlerState.getData().mode == "GUIDED_NOGPS"; }
 inline bool is_land_active() { return m_handlerState.getData().mode == "LAND"; }
 inline bool is_vehicle_armed() { return m_handlerState.getData().armed; }
@@ -65,6 +125,51 @@ inline bool in_task_state() const { return m_currentState == MasterPickupStates:
 inline bool is_uav_airborne() { 
   return m_handlerCarrotStatus.getData().data == "CARROT_ON_AIR" 
     && m_handlerCarrotStatus.getData().data == "HOLD";
+}
+
+void state_timer_cb(const ros::TimerEvent& /* unused */) 
+{
+  // TODO: When searching consider filtering "all" colors for better patch detection
+
+  // Check if we see any bricks
+  if (!m_challengeInfo.isBrickLocationSet() && is_brick_visible()) {
+    ROS_INFO("MasterPickupControl::state_timer - BRICK seen at [%.10f, %.10f, %.10f]",
+      m_handlerGpsFix.getData().latitude, 
+      m_handlerGpsFix.getData().longitude,
+      m_handlerGpsFix.getData().altitude);
+    m_challengeInfo.setBrickLocation(
+      Eigen::Vector3d {
+        m_handlerOdometry.getData().pose.pose.position.x,
+        m_handlerOdometry.getData().pose.pose.position.y,
+        m_handlerOdometry.getData().pose.pose.position.z
+      }
+    );
+  }
+
+  // TODO: Add check for wall location
+
+  // If brick location is found start the mission
+  if (in_search_state() && m_challengeInfo.isBrickLocationSet()) {
+    switch_to_task_state();
+  }
+
+  if (in_task_state() && m_challengeInfo.currentTaskCompleted()) {
+    m_challengeInfo.setCurrentTask(generate_new_task());
+    dispatch_new_task();
+  }
+ }
+
+CurrentTask generate_new_task()
+{
+  // TODO: Call service client here
+  return CurrentTask();
+}
+
+void dispatch_new_task()
+{
+  // TODO: Here you will call brick_pickup/global service with the m_challengeInfo
+  // TODO: Additionaly set color for color_filter
+  // TODO: Make a service server for listening to global_pickup success status
 }
 
 bool master_pickup_cb(std_srvs::SetBool::Request& request, 
@@ -104,7 +209,6 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
     set_response(false);
     return true;
   }
-
   sleep_for(ARM_DURATION);
   
   // Assume vehicle is armed at this point
@@ -137,6 +241,13 @@ void switch_to_search_state()
   clear_current_trajectory();
   generate_search_trajectory();
   m_currentState = MasterPickupStates::SEARCH;
+}
+
+void switch_to_task_state()
+{
+  ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::ACTION);
+  clear_current_trajectory();
+  m_currentState = MasterPickupStates::ACTION;
 }
 
 void generate_search_trajectory()
@@ -178,10 +289,11 @@ void generate_search_trajectory()
   );
 
   for (std::size_t i = 0; 
-      i < pointsResponse.response.data.size(); i+= pointsResponse.response.size_y) {
+      i < pointsResponse.response.data.size(); 
+      i+= pointsResponse.response.size_y) {
     const double newX = pointsResponse.response.data[i];
     const double newY = pointsResponse.response.data[i+1];
-
+    
     tf2::Quaternion q = traj_gen::getHeadingQuaternion(
       searchtrajectory.points.back().transforms[0].translation.x,
       searchtrajectory.points.back().transforms[0].translation.y,
@@ -288,23 +400,31 @@ void land_uav()
   ROS_INFO("MasterPickupControl::laun_uav - UAV is landing."); 
 }
 
+static constexpr double STATE_TIMER = 0.05;
 static constexpr double ARM_DURATION = 3.0;
 static constexpr double TAKEOFF_DURATION = 5.0;
 static constexpr double TAKEOFF_HEIGHT = 3.0;
 static constexpr double SEARCH_HEIGHT = 5.0;
 static constexpr double GOTO_HOME_TOL = 1.0;
 
+Global2Local m_globalToLocal;
+PickupChallengeInfo m_challengeInfo;
 MasterPickupStates m_currentState;
   
 ros::ServiceServer m_serviceMasterPickup;
-ros::ServiceClient m_clientArming, m_clientTakeoff, m_clientLand, m_clientSearchGenerator;
+ros::ServiceClient m_clientArming, m_clientTakeoff, 
+  m_clientLand, m_clientSearchGenerator,
+  m_clientRequestTask, m_clienCompleteTask,
+  m_clientGlobalPickup;
 
 ros::Publisher m_pubTrajGen;
 TopicHandler<mavros_msgs::State> m_handlerState;
 TopicHandler<sensor_msgs::NavSatFix> m_handlerGpsFix;
 TopicHandler<std_msgs::String> m_handlerCarrotStatus;
 TopicHandler<nav_msgs::Odometry> m_handlerOdometry;
+TopicHandler<std_msgs::Int32> m_handlerPatchCount;
 
+ros::Timer m_stateTimer;
 };
 
 }
