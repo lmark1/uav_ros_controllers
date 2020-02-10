@@ -12,7 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
 	tf
 	mavros
 	color_filter
-	larics_motion_planning)
+	larics_motion_planning
+	uav_search)
 
 
 list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
