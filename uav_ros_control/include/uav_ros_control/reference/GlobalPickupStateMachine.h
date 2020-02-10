@@ -227,7 +227,7 @@ void publish_trajectory(const ros::TimerEvent& /* unused */)
 bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response) 
 {
   // If we want to disable the global brick pickup
-  if (!request.enable && !all_services_available()) { // TODO: Add checks for services
+  if (!request.enable || !all_services_available()) { // TODO: Add checks for services
     ROS_FATAL("BPSM::brick_pickup_global_cb - brick_pickup/global disabled");
     response.status = false;
     m_currentStatus = BrickPickupStatus();
