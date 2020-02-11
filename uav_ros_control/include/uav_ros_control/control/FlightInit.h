@@ -80,25 +80,17 @@ public:
 	{
 		initializeParameters(nh);
 
-		// Define subscribers 
+		// Initialize subscribers 
 		m_subOdometry = nh.subscribe(
 			"mavros/global_position/local", 1, 
 			&flight_init::FlightInit::odometryCb, this);
-
 		m_subState = nh.subscribe(
 				"mavros/state", 1, 
 				&flight_init::FlightInit::stateCb, this);
-
-		m_subGlobalPosition = nh.subscribe(
-			"mavros/global_position/global", 10, 
-			&flight_init::FlightInit::globalPositionCb, this);
-
-		m_subExecutingTrajectory = nh.subscribe(
-			"executing_trajectory", 1, 
-			&flight_init::FlightInit::executingTrajectoryCb, this);
 		m_subCartographerPose = nh.subscribe("uav/cartographer/pose", 1,
 			&flight_init::FlightInit::cartographerPoseCb, this);
 
+		// Initialize publishers 
 		m_pubGoalsMarker = nh.advertise<visualization_msgs::MarkerArray>(
 			"flight_init/goals_marker", 20);
 		m_pubTrajectory = nh.advertise<trajectory_msgs::JointTrajectory> (
@@ -106,12 +98,11 @@ public:
 		m_pubReadyForExploration = nh.advertise<std_msgs::Bool> (
 			"ready_for_exploration", 1);
 	
-		// Services
+		// Advertise service
     	m_serviceTakeOff = nh.advertiseService(
-			"arm_and_takeoff", &flight_init::FlightInit::takeOffCb, this);
-		m_serviceStartFlight = nh.advertiseService(
-			"start_flight", &flight_init::FlightInit::startFlightCb, this);
-	
+			"arm_and_takeoff", &flight_init::FlightInit::armAndTakeOffCb, this);
+		
+		// Clients
 		m_armingClient = nh.serviceClient<mavros_msgs::CommandBool>
             ("mavros/cmd/arming");
     	m_setModeClient = nh.serviceClient<mavros_msgs::SetMode>
@@ -124,8 +115,7 @@ public:
 			("msf_pose_sensor/pose_sensor/initialize_msf_scale");			
 		m_planTrajectoryClient = nh.serviceClient<larics_motion_planning::MultiDofTrajectory> (
 			"multi_dof_trajectory");
-		// m_startFlightClient = nh.serviceClient<std_srvs::SetBool> (
-		// 	"start_flight");
+		
 		// Setup dynamic reconfigure server
 		fi_param_t  fiConfig;
 		setReconfigureParameters(fiConfig);
@@ -133,26 +123,25 @@ public:
 		m_fiParamCallback = boost::bind(
 			&flight_init::FlightInit::fiParamCb, this, _1, _2);
 		m_fiConfigServer.setCallback(m_fiParamCallback);
-
 	}
 
 void initializeParameters(ros::NodeHandle& nh)
 {
-    ROS_INFO("FlightInit::initializeParameters()");
-    bool initialized = 
-        nh.getParam(PARAM_TIME_FOR_INIT, m_timeForInit)
-		&& nh.getParam(PARAM_TAKEOFF_HEIGHT, m_takeoffHeight)
-		&& nh.getParam(PARAM_RADIUS_INIT, m_radiusInit)
-		&& nh.getParam(PARAM_EXECUTION_NUM, m_executeTrajectoryNum)
-		&& nh.getParam(PARAM_MAP_FRAME, m_mapFrame)
-        && nh.getParam(PARAM_RATE, m_rate);
+	ROS_INFO("FlightInit::initializeParameters()");
+	bool initialized = 
+			nh.getParam(PARAM_TIME_FOR_INIT, m_timeForInit)
+	&& nh.getParam(PARAM_TAKEOFF_HEIGHT, m_takeoffHeight)
+	&& nh.getParam(PARAM_RADIUS_INIT, m_radiusInit)
+	&& nh.getParam(PARAM_EXECUTION_NUM, m_executeTrajectoryNum)
+	&& nh.getParam(PARAM_MAP_FRAME, m_mapFrame)
+			&& nh.getParam(PARAM_RATE, m_rate);
 
-    ROS_INFO("Node rate: %.2f", m_rate);
-    ROS_INFO("Time for initialization: %.2f", m_timeForInit);
+  ROS_INFO("Node rate: %.2f", m_rate);
+  ROS_INFO("Time for initialization: %.2f", m_timeForInit);
 	ROS_INFO("Radius around UAV for initialization: %.2f", m_radiusInit);
 	ROS_INFO("Execution num: %d", m_executeTrajectoryNum);
 	ROS_INFO("Takeoff height: %.2f", m_takeoffHeight);
-    if (!initialized)
+  if (!initialized)
 	{
 		ROS_FATAL("FlightInit::initializeParameters() - failed to initialize parameters");
 		throw std::runtime_error("FlightInit parameters not properly initialized.");
@@ -161,8 +150,8 @@ void initializeParameters(ros::NodeHandle& nh)
 
 void fiParamCb(fi_param_t& configMsg,uint32_t level)
 {
-    ROS_WARN("FlightInit::fiParamCb()");
-    m_timeForInit = configMsg.time_for_init;
+	ROS_WARN("FlightInit::fiParamCb()");
+  m_timeForInit = configMsg.time_for_init;
 	m_takeoffHeight = configMsg.takeoff_height;
 	m_radiusInit = configMsg.radius_init;
 	m_executeTrajectoryNum = configMsg.execute_trajectory_num;
@@ -183,21 +172,11 @@ void stateCb(const mavros_msgs::State::ConstPtr& msg)
 	m_currentState = *msg;
 }
 
-void globalPositionCb(const sensor_msgs::NavSatFix::ConstPtr& msg)
-{
-	m_currentGlobalPosition = *msg;
-}
-
-void executingTrajectoryCb(const std_msgs::Int32& msg)
-{
-	m_executingTrajectory = msg;
-}
-
 void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 {	
 	std_msgs::Bool m_ready;
 	// When we take off
-	if (m_takeoffFlag && !m_initializedFlag)
+	if (m_takeoffFlag && !m_mapInitializedFlag)
 	{
 			// First time previous = new
 		if (first_time)
@@ -233,7 +212,7 @@ void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 				// Enough time pass --> map is initialized
 				ROS_INFO("Map initialized.");
 				m_ready.data = true;
-				m_initializedFlag = true;
+				m_mapInitializedFlag = true;
 			}
 			
 		}
@@ -241,39 +220,43 @@ void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 	}
 }
 
-bool takeOffCb(
+bool armAndTakeOffCb(
 	std_srvs::SetBool::Request& request, 
 	std_srvs::SetBool::Response& response)
 {
+	const auto set_response = [&response] (bool success) { response.success = success; };
 
-	ROS_INFO("TakeOff service called.");
-	m_serviceTakeoffCalledFlag = true;
-	
-	response.success = true;
-	response.message = "TakeOff service called.";
-	return true;
-}
-
-bool startFlightCb(
-	std_srvs::SetBool::Request& request, 
-	std_srvs::SetBool::Response& response)
-{
-	m_vectorWaypoints = {};
-	generateWaypoints(m_vectorWaypoints);
-
-	// Check if waypoints are generated
-	if (m_vectorWaypoints.size() == 0)
+	if (!modeGuided())
 	{
-		ROS_INFO("startFlightCb: waypoints are not generated.");
-		response.success = false;
-		response.message = "Start flight service failed.";
-		return false;
-	} 
+		ROS_FATAL("TakeoffCb - request denied, not in GUIDED_NOGPS");
+		set_response(false);
+		return true;
+	}
+	
+	if (!armUAV())
+	{
+		 ROS_FATAL("TakeoffCb - request denied, ARMING failed.");
+		set_response(false);
+		return true;
+	}
 
-	ROS_INFO("Start flight service called.");
-	response.success = true;
-	response.message = "Start flight service called.";
+	ros::Duration(ARM_DURATION).sleep();
+
+	if (!takeOffUAV())
+	{
+		ROS_FATAL("TakeoffCb - request denied, TAKEOFF unsuccessful");
+		set_response(false);
+		return true;
+	}
+
+	ros::Duration(TAKEOFF_DURATION).sleep();
+	
+	// Assume takeoff is successful at this point
+	ROS_INFO("TakeoffCb - request approved, TAKEOFF successful");
+	m_takeoffFlag = true;
+	set_response(true);
 	return true;
+	
 }
 
 void odometryCb(const nav_msgs::OdometryConstPtr& msg)
@@ -284,12 +267,6 @@ void odometryCb(const nav_msgs::OdometryConstPtr& msg)
 		m_homeOdom = *msg; 
 	}	
 	m_currentOdom = *msg;
-}
-
-void pointReachedCb(const std_msgs::Bool msg)
-{
-	m_isPointReached = msg.data;
-	ROS_INFO("Current point is reached.");
 }
 
 bool modeGuided()
@@ -305,16 +282,16 @@ bool modeGuided()
 			if (offb_set_mode.response.mode_sent)
 			{
 			std::cout << "STATE: " << m_currentState.mode << std::endl;
-			ROS_INFO ("GUIDED_NOGPS enabled");
+			ROS_INFO ("modeGuided - GUIDED_NOGPS enabled");
 			return true;
 			}
-		ROS_FATAL("Setting mode GUIDED_NOGPS failed.");
+		ROS_FATAL("modeGuided - Setting mode GUIDED_NOGPS failed.");
 		return false;
 		}
-		ROS_FATAL("Setting mode GUIDED_NOGPS failed.");
+		ROS_FATAL("modeGuided - Setting mode GUIDED_NOGPS failed.");
 		return false;
 	}
-	ROS_WARN("GUIDED_NOGPS mode already set.");
+	ROS_WARN("modeGuided - GUIDED_NOGPS mode already set.");
 	return true;
 } 
 
@@ -331,16 +308,16 @@ bool armUAV()
 		{
 			if (arm_cmd.response.success)
 			{
-				ROS_INFO("Vehicle armed");
+				ROS_INFO("armUAV - Vehicle armed");
 				return true;
 			}
-			ROS_FATAL("Calling arming failed.");
+			ROS_FATAL("armUAV - Calling arming failed.");
 			return false;
 		}
-		ROS_FATAL("Calling arming failed.");
+		ROS_FATAL("armUAV - Calling arming failed.");
 		return false;
 	}
-	ROS_WARN("Already armed.");
+	ROS_WARN("armUAV - Already armed.");
 	return true;
 }
 
@@ -349,23 +326,23 @@ bool takeOffUAV()
 	// Call takeoff 
 	uav_ros_control_msgs::TakeOff take_off;
 	take_off.request.rel_alt = m_takeoffHeight;
-	ros::Duration(2.0).sleep();
+
 	if (m_takeoffClient.call(take_off))
 	{
 		ros::Duration(0.2).sleep();
 		if (take_off.response.success)
 		{
-			ROS_INFO("Takeoff successfully called.");
+			ROS_INFO("takeOffUAV - Takeoff successfully called.");
 			return true;
 		}
-		ROS_INFO("Takeoff response failed.");
+		ROS_FATAL("takeOffUAV - Takeoff response failed.");
 		return false;
 	}
-	ROS_INFO("Takeoff call failed.");
+	ROS_FATAL("takeOffUAV - Takeoff call failed.");
 	return false;
 }
 
-bool startInitFlight()
+void startInitFlight()
 {
 	m_vectorWaypoints = {};
 	generateWaypoints(m_vectorWaypoints);
@@ -373,24 +350,36 @@ bool startInitFlight()
 	// Check if waypoints are generated
 	if (m_vectorWaypoints.size() == 0)
 	{
-		ROS_INFO("startFlightCb: waypoints are not generated.");
-		return false;
+		ROS_FATAL("startFlightCb: waypoints are not generated.");
+		m_startFlightFlag = false;
 	} 
-	ROS_INFO("Start flight service called.");
-	return true;
+	if (!publishTrajectory(m_vectorWaypoints))
+	{
+		ROS_FATAL("startInitFlight - publishing trajectory failed.");
+		m_startFlightFlag = false;
+
+	}
+	else
+	{
+		ROS_INFO("startInitFlight - publishing trajectory successful.");
+		m_startFlightFlag = true;
+	}
 }
 
 void generateWaypoints(
 	std::vector<geometry_msgs::Point> &m_vectorWaypoints)
 {
-	ROS_INFO("Generating waypoints");
 	geometry_msgs::Point m_point;
-	double m_points_num = 10;
+	double m_circumference = 2 * m_radiusInit * PI;
+	double m_k = PI;
+	// Round down value
+	int m_points_num = int(ceil(m_circumference / m_k));
+	std::cout << m_points_num << std::endl;
 	double m_segment = 360 / m_points_num;
 	// Current UAV position
 	geometry_msgs::Point m_current_position = m_currentOdom.pose.pose.position;
 	// CIRCLE around UAV
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < m_points_num; i++)
 	{
 		m_point.x = m_current_position.x + 
 			(m_radiusInit * cos(i * m_segment * DEGTORAD));
@@ -398,60 +387,19 @@ void generateWaypoints(
 			(m_radiusInit * sin(i * m_segment * DEGTORAD));
 		m_point.z = m_takeoffHeight;
 		m_vectorWaypoints.push_back(m_point);
-	}
-	// visualizeGeneratedWaypoints(m_vectorWaypoints, m_points_num);	
-}
-
-
-void visualizeGeneratedWaypoints(
-	std::vector<geometry_msgs::Point> m_vectorWaypoints, double num)
-{
-	visualization_msgs::MarkerArray Markerarr;
-	visualization_msgs::Marker Marker;
-	Markerarr.markers.resize(num);
-
-  for (int i = 0; i < m_vectorWaypoints.size(); i++)
-  {
-    Marker.header.frame_id = m_mapFrame;
-    Marker.header.stamp = ros::Time::now();
-	Marker.id = i;
-    Marker.ns = "init_goals";
-    Marker.type = visualization_msgs::Marker::SPHERE;
-	Marker.pose.position.x = m_vectorWaypoints[i].x;
-    Marker.pose.position.y = m_vectorWaypoints[i].y;
-	Marker.pose.position.z = m_vectorWaypoints[i].z;
-	Marker.pose.orientation.x = 0;
-	Marker.pose.orientation.y = 0;
-	Marker.pose.orientation.z = 0;
-	Marker.pose.orientation.w = 1;
-	
-	Marker.scale.x = 0.25;
-    Marker.scale.y = 0.25;
-    Marker.scale.z = 0.1;
-    Marker.color.a = 1.0;
-    Marker.color.r = 0.0;
-    Marker.color.g = 1.0;
-    Marker.color.b = 0.0;
-	Marker.lifetime = ros::Duration(360);
-
-	Markerarr.markers.push_back(Marker);
- 
-	ROS_INFO("Publishing markers!");
-				
-	m_pubGoalsMarker.publish(Markerarr);
-  }	
+	}	
 }
 
 double quaternion2Yaw(geometry_msgs::Quaternion quaternion)
 {
 	double q0 = quaternion.w;
-    double q1 = quaternion.x;
-    double q2 = quaternion.y;
-    double q3 = quaternion.z;
-    return atan2(2.0 * (q0 * q3 + q1 * q2), 1.0 - 2.0 * (q2 * q2 + q3 * q3));
+	double q1 = quaternion.x;
+	double q2 = quaternion.y;
+	double q3 = quaternion.z;
+	return atan2(2.0 * (q0 * q3 + q1 * q2), 1.0 - 2.0 * (q2 * q2 + q3 * q3));
 }
 
-void publishTrajectory (
+bool publishTrajectory (
 	std::vector<geometry_msgs::Point> &m_vectorOfPoints)	
 {
 	larics_motion_planning::MultiDofTrajectory m_srv;
@@ -461,16 +409,16 @@ void publishTrajectory (
 	m_home_position.y = m_homeOdom.pose.pose.position.y;
 	m_home_position.z = m_homeOdom.pose.pose.position.z;
 
-		trajectory_msgs::JointTrajectoryPoint m_trajectory_point;
-		// Create start point from the current position information
-		std::vector<double> m_points_arr {
-			m_currentOdom.pose.pose.position.x,
-			m_currentOdom.pose.pose.position.y, 
-			m_currentOdom.pose.pose.position.z,
-			quaternion2Yaw(m_currentOdom.pose.pose.orientation)};
-		m_trajectory_point.positions.clear();
-		m_trajectory_point.positions = m_points_arr;
-		m_srv.request.waypoints.points.push_back(m_trajectory_point);
+	trajectory_msgs::JointTrajectoryPoint m_trajectory_point;
+	// Create start point from the current position information
+	std::vector<double> m_points_arr {
+		m_currentOdom.pose.pose.position.x,
+		m_currentOdom.pose.pose.position.y, 
+		m_currentOdom.pose.pose.position.z,
+		quaternion2Yaw(m_currentOdom.pose.pose.orientation)};
+	m_trajectory_point.positions.clear();
+	m_trajectory_point.positions = m_points_arr;
+	m_srv.request.waypoints.points.push_back(m_trajectory_point);
 
 	for (int k = 0; k < m_executeTrajectoryNum; k++)
 	{
@@ -488,58 +436,43 @@ void publishTrajectory (
 			m_srv.request.waypoints.points.push_back(m_trajectory_point);
 		}
 		
-		// Append last point with orientation from the first point
-		m_points_arr = {
-			m_vectorOfPoints[m_vectorOfPoints.size()-1].x,
-			m_vectorOfPoints[m_vectorOfPoints.size()-1].y, 
-			m_vectorOfPoints[m_vectorOfPoints.size()-1].z,
-			atan2(( m_vectorOfPoints[1].y - m_vectorOfPoints[0].y),
-			( m_vectorOfPoints[1].x - m_vectorOfPoints[0].x))};
-		m_trajectory_point.positions.clear();
-		m_trajectory_point.positions = m_points_arr;
-		m_srv.request.waypoints.points.push_back(m_trajectory_point);
-		
-		m_srv.request.publish_path = false;
-		m_srv.request.publish_trajectory = false;
-		m_srv.request.plan_path = false;
-		m_srv.request.plan_trajectory = true;
+	// Append last point with orientation from the first point
+	m_points_arr = {
+		m_vectorOfPoints[m_vectorOfPoints.size()-1].x,
+		m_vectorOfPoints[m_vectorOfPoints.size()-1].y, 
+		m_vectorOfPoints[m_vectorOfPoints.size()-1].z,
+		atan2(( m_vectorOfPoints[1].y - m_vectorOfPoints[0].y),
+		( m_vectorOfPoints[1].x - m_vectorOfPoints[0].x))};
+	m_trajectory_point.positions.clear();
+	m_trajectory_point.positions = m_points_arr;
+	m_srv.request.waypoints.points.push_back(m_trajectory_point);
+	
+	m_srv.request.publish_path = false;
+	m_srv.request.publish_trajectory = false;
+	m_srv.request.plan_path = false;
+	m_srv.request.plan_trajectory = true;
 	}
 	// Call the service
 	bool m_service_succes = m_planTrajectoryClient.call(m_srv);
-	
+
 	if (m_service_succes && m_srv.response.success)
 	{
-		ROS_INFO("MultiDOFTrajectory service successfully called.");
+		ROS_INFO("publishTrajectory - MultiDOFTrajectory service successfully called.");
 		trajectory_msgs::JointTrajectory m_generated_trajectory = 
 			m_srv.response.trajectory; 
 		// Publish trajectory
-		ROS_WARN("Publish trajectory.");
 		m_pubTrajectory.publish(m_generated_trajectory);
-		m_PublishAgainFlag = false;
-		
-	}
-	else
-	{
-		ROS_FATAL("MultiDOFTrajectory service call failed.");
-		m_PublishAgainFlag = true; 
-	}
-}
-
-
-bool checkTrajectoryExecuted()
-{
-	if (m_executingTrajectory.data == 0)
-	{
-		ROS_WARN("Trajectory executed.");
 		return true;
+	
 	}
 	else
 	{
-		return false;
+		ROS_FATAL("publishTrajectory - MultiDOFTrajectory service call failed.");
+		return false; 
 	}
 }
 
-bool msfInitializeHeight()
+void msfInitializeHeight()
 {
 	sensor_fusion_comm::InitHeight m_init_height;
 	m_init_height.request.height = m_currentCartographerPose.pose.position.z;
@@ -551,13 +484,17 @@ bool msfInitializeHeight()
 		//std::cout << "Msf response: "<< m_init_height.response.result << std::endl;
 		
 		ROS_INFO("msfInitHeight: successfully called.");
-		return true;
+		m_msfInitializedHeightFlag = true;
 	}
-	ROS_FATAL("msfInitHeight: call failed.");
-	return false;
+	else
+	{
+		ROS_FATAL("msfInitHeight: call failed.");
+		m_msfInitializedHeightFlag = true;
+	}
 }
 
-bool msfInitializeScale()
+
+void msfInitializeScale()
 {
 	sensor_fusion_comm::InitScale m_init_scale;
 	m_init_scale.request.scale = 1.0;
@@ -568,86 +505,48 @@ bool msfInitializeScale()
 		ros::Duration(0.2).sleep();
 		
 		ROS_INFO("msfInitScale: successfully called.");
-		return true;
+		m_msfInitializedScaleFlag = true;
 	}
-	ROS_FATAL("msfInitScale: call failed.");
-	return false;
+	else
+	{
+		ROS_FATAL("msfInitScale: call failed.");
+		m_msfInitializedScaleFlag = true;
+	}
+}
+
+void startMission()
+{
+	// In every iteration check
+	if (m_takeoffFlag)
+	{
+		if (!m_startFlightFlag)
+		{
+			startInitFlight();
+			ROS_WARN("RUN: publishing trajectory called.");
+		}
+		if (m_mapInitializedFlag && !m_msfInitializedHeightFlag)
+		{
+			// Map is initialized and octomap server is called
+			msfInitializeHeight();
+			if (!m_msfInitializedScaleFlag)
+			msfInitializeScale();
+		}
+	}
 }
 
 void run()
 {
-    ros::Rate loopRate(m_rate);
+  ros::Rate loopRate(m_rate);
 	// Call service to set path and trajectory flags
 	while (ros::ok())
 	{
 		ros::spinOnce();
-		if (m_serviceTakeoffCalledFlag)
-		{	
-			// Enable guided no gps 
-			m_serviceTakeoffCalledFlag = false;
-			bool guided = modeGuided();
-			if (guided)
-			{
-				
-				bool armed = armUAV();
-
-				if (armed)
-				{
-					// Try calling service from uav_ros_control
-					//std::cout << "response: " << int(m_takeoff.response.result) << std::endl;
-					// if (m_takeoffClient.call(m_takeoff) &&
-					// 	int(m_takeoff.response.success))
-					// {
-					bool takeoff_success = takeOffUAV(); 
-					if (takeoff_success)
-					{
-						// Wait 10 seconds for takeoff
-						ros::Duration(15.0).sleep(); 
-						m_takeoffFlag = true;
-					}
-					else
-					{
-						ROS_INFO ("Takeoff failed: Calling arm_and_takeoff service again");
-						m_serviceTakeoffCalledFlag = true;
-					}
-					
-				}
-				else
-				{
-					ROS_INFO ("Arm failed: Calling arm_and_takeoff service again");
-					m_serviceTakeoffCalledFlag = true;
-				}
-				
-			}
-			else
-			{
-				ROS_INFO ("Mode GUIDED_NOGPS failed: Calling arm_and_takeoff service again");
-				m_serviceTakeoffCalledFlag = true;
-			}
-			
-		
-		}
-		if (m_PublishAgainFlag && m_takeoffFlag)
-		{
-			m_start = startInitFlight();
-		}
-		// If takeoff -> Call start flight 	
-		if (m_takeoffFlag && m_start)
-		{
-			publishTrajectory(m_vectorWaypoints);
-			m_start = false;
-		}			
-
-		if (m_takeoffFlag && msfInitializeHeight())
-		{ 
-			ROS_INFO("TU!");
-		}
-        loopRate.sleep();
+		startMission();
+    loopRate.sleep();
 	}
 }
 
 private: 
-
 double m_timeForInit, m_takeoffHeight, m_rate, m_radiusInit;
 std_msgs::Int32 m_executingTrajectory;
 int m_executeTrajectoryNum;
@@ -660,15 +559,13 @@ ros::Subscriber m_subState, m_subGlobalPosition, m_subOdometry, m_subPointReache
 m_subCartographerPose, m_subExecutingTrajectory;
 ros::Publisher m_pubGoalsMarker, m_pubTrajectory, m_pubReadyForExploration;
 ros::Time m_timer;
-bool m_serviceTakeoffCalledFlag = false;
 bool m_takeoffFlag = false;
-bool m_serviceStartFlightCalledFlag = false;
-bool m_isPointReached = true;
+bool m_startFlightFlag = false;
 bool m_firstOdomFlag = true;
-bool m_PublishAgainFlag = true;
-bool m_start = false;
 bool first_time = true;
-bool m_initializedFlag = false;
+bool m_mapInitializedFlag = false;
+bool m_msfInitializedHeightFlag = false;
+bool m_msfInitializedScaleFlag = false;
 std::string m_mapFrame;
 std::vector<geometry_msgs::Point> m_vectorWaypoints = {};
 ros::ServiceServer m_serviceTakeOff, m_serviceStartFlight;
@@ -681,6 +578,8 @@ dynamic_reconfigure::Server<fi_param_t>
 	m_fiConfigServer {m_fiConfigMutex, ros::NodeHandle(FLIGHT_INIT_DYN_RECONF)};
 dynamic_reconfigure::Server<fi_param_t>::CallbackType m_fiParamCallback;
 
+static constexpr double ARM_DURATION = 3.0;
+static constexpr double TAKEOFF_DURATION = 15.0;
 };
 
 }
