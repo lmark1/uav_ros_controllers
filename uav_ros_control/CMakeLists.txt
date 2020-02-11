@@ -10,7 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
 	sensor_msgs
 	mav_msgs
 	tf
-	larics_motion_planning)
+	larics_motion_planning
+	sensor_fusion_comm)
 
 find_package(cmake_modules REQUIRED)
 

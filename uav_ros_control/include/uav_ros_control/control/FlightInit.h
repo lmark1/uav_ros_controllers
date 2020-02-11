@@ -50,6 +50,9 @@
 #include <larics_motion_planning/MultiDofTrajectoryRequest.h>
 #include <larics_motion_planning/MultiDofTrajectoryResponse.h>
 
+#include <sensor_fusion_comm/InitHeight.h>
+#include <sensor_fusion_comm/InitScale.h>
+
 namespace flight_init 
 {
 /**
@@ -100,6 +103,8 @@ public:
 			"flight_init/goals_marker", 20);
 		m_pubTrajectory = nh.advertise<trajectory_msgs::JointTrajectory> (
 			"joint_trajectory", 1);
+		m_pubReadyForExploration = nh.advertise<std_msgs::Bool> (
+			"ready_for_exploration", 1);
 	
 		// Services
     	m_serviceTakeOff = nh.advertiseService(
@@ -113,10 +118,14 @@ public:
             ("mavros/set_mode");
 		m_takeoffClient = nh.serviceClient<uav_ros_control_msgs::TakeOff>
 			("takeoff");
-		// m_startFlightClient = nh.serviceClient<std_srvs::SetBool> (
-		// 	"start_flight");
+		m_initializeMsfHeight = nh.serviceClient<sensor_fusion_comm::InitHeight>
+			("msf_pose_sensor/pose_sensor/initialize_msf_height");
+		m_initializeMsfScale = nh.serviceClient<sensor_fusion_comm::InitScale>
+			("msf_pose_sensor/pose_sensor/initialize_msf_scale");			
 		m_planTrajectoryClient = nh.serviceClient<larics_motion_planning::MultiDofTrajectory> (
 			"multi_dof_trajectory");
+		// m_startFlightClient = nh.serviceClient<std_srvs::SetBool> (
+		// 	"start_flight");
 		// Setup dynamic reconfigure server
 		fi_param_t  fiConfig;
 		setReconfigureParameters(fiConfig);
@@ -186,6 +195,7 @@ void executingTrajectoryCb(const std_msgs::Int32& msg)
 
 void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 {	
+	std_msgs::Bool m_ready;
 	// When we take off
 	if (m_takeoffFlag && !m_initializedFlag)
 	{
@@ -219,12 +229,13 @@ void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 			{
 				// Enough time pass --> map is initialized
 				ROS_INFO("Map initialized.");
+				m_ready.data = true;
 				m_initializedFlag = true;
 			}
 			
 		}
+	m_pubReadyForExploration.publish(m_ready);	
 	}
-	
 }
 
 bool takeOffCb(
@@ -257,8 +268,6 @@ bool startFlightCb(
 	} 
 
 	ROS_INFO("Start flight service called.");
-	m_serviceStartFlightCalledFlag = true;
-	
 	response.success = true;
 	response.message = "Start flight service called.";
 	return true;
@@ -364,10 +373,7 @@ bool startInitFlight()
 		ROS_INFO("startFlightCb: waypoints are not generated.");
 		return false;
 	} 
-	ROS_INFO("Start flight service called without generating waypoints.");
-	// Set timer for map initialization
-	m_timer = ros::Time::now();
-	m_serviceStartFlightCalledFlag = true;
+	ROS_INFO("Start flight service called.");
 	return true;
 }
 
@@ -506,15 +512,13 @@ void publishTrajectory (
 		// Publish trajectory
 		ROS_WARN("Publish trajectory.");
 		m_pubTrajectory.publish(m_generated_trajectory);
-		m_serviceStartFlightCalledFlag = false;
 		m_PublishAgainFlag = false;
 		
 	}
 	else
 	{
 		ROS_FATAL("MultiDOFTrajectory service call failed.");
-		//TODO: edit 
-		//m_serviceStartFlightCalledFlag = true;
+		m_PublishAgainFlag = true; 
 	}
 }
 
@@ -600,7 +604,6 @@ void run()
 		// If takeoff -> Call start flight 	
 		if (m_takeoffFlag && m_start)
 		{
-			m_PublishAgainFlag = false;
 			publishTrajectory(m_vectorWaypoints);
 			m_start = false;
 		}			
@@ -621,7 +624,7 @@ geometry_msgs::PoseStamped m_previousPose, m_newPose;
 nav_msgs::Odometry m_currentOdom, m_homeOdom;
 ros::Subscriber m_subState, m_subGlobalPosition, m_subOdometry, m_subPointReached,
 m_subCartographerPose, m_subExecutingTrajectory;
-ros::Publisher m_pubGoalsMarker, m_pubTrajectory;
+ros::Publisher m_pubGoalsMarker, m_pubTrajectory, m_pubReadyForExploration;
 ros::Time m_timer;
 bool m_serviceTakeoffCalledFlag = false;
 bool m_takeoffFlag = false;
@@ -638,7 +641,8 @@ std::vector<geometry_msgs::Point> m_vectorWaypoints = {};
 std::vector<geometry_msgs::Point> m_vectorWaypointsInit = {};
 ros::ServiceServer m_serviceTakeOff, m_serviceStartFlight;
 ros::ServiceClient m_armingClient, m_setModeClient, m_takeoffClient,
-m_setTrajectoryFlagsClient, m_startFlightClient, m_planTrajectoryClient;
+m_setTrajectoryFlagsClient, m_startFlightClient, m_planTrajectoryClient, 
+m_initializeMsfHeight, m_initializeMsfScale;
 /* Define Dynamic Reconfigure parameters */
 boost::recursive_mutex m_fiConfigMutex;
 dynamic_reconfigure::Server<fi_param_t>
