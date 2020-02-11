@@ -118,9 +118,9 @@ public:
             ("mavros/set_mode");
 		m_takeoffClient = nh.serviceClient<uav_ros_control_msgs::TakeOff>
 			("takeoff");
-		m_initializeMsfHeight = nh.serviceClient<sensor_fusion_comm::InitHeight>
+		m_initializeMsfHeightClient = nh.serviceClient<sensor_fusion_comm::InitHeight>
 			("msf_pose_sensor/pose_sensor/initialize_msf_height");
-		m_initializeMsfScale = nh.serviceClient<sensor_fusion_comm::InitScale>
+		m_initializeMsfScaleClient = nh.serviceClient<sensor_fusion_comm::InitScale>
 			("msf_pose_sensor/pose_sensor/initialize_msf_scale");			
 		m_planTrajectoryClient = nh.serviceClient<larics_motion_planning::MultiDofTrajectory> (
 			"multi_dof_trajectory");
@@ -203,24 +203,27 @@ void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 		if (first_time)
 		{
 			first_time = false;
-			m_previousPose = msg;
-			m_newPose = msg;
+			m_previousCartographerPose = msg;
+			m_currentCartographerPose = msg;
 			// Set timer for map initialization
 			m_timer = ros::Time::now();
 		}
-		m_previousPose = m_newPose;
-		m_newPose = msg;
+		m_previousCartographerPose = m_currentCartographerPose;
+		m_currentCartographerPose = msg;
 		double distance = sqrt(
-				pow(m_previousPose.pose.position.x - m_newPose.pose.position.x, 2) +
-				pow(m_previousPose.pose.position.y - m_newPose.pose.position.y, 2) +
-				pow(m_previousPose.pose.position.z - m_newPose.pose.position.z, 2));
+				pow(m_previousCartographerPose.pose.position.x
+					- m_currentCartographerPose.pose.position.x, 2)
+				+ pow(m_previousCartographerPose.pose.position.y
+					- m_currentCartographerPose.pose.position.y, 2)
+				+ pow(m_previousCartographerPose.pose.position.z
+					- m_currentCartographerPose.pose.position.z, 2));
 		
 		if (distance > 1.0)
 		{
 			// Timer starts when init flight starts
 			// Sudden shift, reset timer
 			m_timer = ros::Time::now(); 
-			m_previousPose = m_newPose;
+			m_previousCartographerPose = m_currentCartographerPose;
 			ROS_INFO("Sudden shift!");
 		}
 		else 
@@ -536,12 +539,39 @@ bool checkTrajectoryExecuted()
 	}
 }
 
-void checkMapInitialization(bool &initialized)
+bool msfInitializeHeight()
 {
-	// m_cartographerPose --> current pose in map
-	// Current pose in map vs. mavros
-	
-	 
+	sensor_fusion_comm::InitHeight m_init_height;
+	m_init_height.request.height = m_currentCartographerPose.pose.position.z;
+	// Call msf init height
+
+	if (m_initializeMsfHeightClient.call(m_init_height))
+	{
+		ros::Duration(0.2).sleep();
+		//std::cout << "Msf response: "<< m_init_height.response.result << std::endl;
+		
+		ROS_INFO("msfInitHeight: successfully called.");
+		return true;
+	}
+	ROS_FATAL("msfInitHeight: call failed.");
+	return false;
+}
+
+bool msfInitializeScale()
+{
+	sensor_fusion_comm::InitScale m_init_scale;
+	m_init_scale.request.scale = 1.0;
+	// Call msf init height
+
+	if (m_initializeMsfHeightClient.call(m_init_scale))
+	{
+		ros::Duration(0.2).sleep();
+		
+		ROS_INFO("msfInitScale: successfully called.");
+		return true;
+	}
+	ROS_FATAL("msfInitScale: call failed.");
+	return false;
 }
 
 void run()
@@ -608,6 +638,10 @@ void run()
 			m_start = false;
 		}			
 
+		if (m_takeoffFlag && msfInitializeHeight())
+		{ 
+			ROS_INFO("TU!");
+		}
         loopRate.sleep();
 	}
 }
@@ -620,7 +654,7 @@ int m_executeTrajectoryNum;
 mavros_msgs::State m_currentState;
 sensor_msgs::NavSatFix m_currentGlobalPosition;
 geometry_msgs::Point m_currGoal;
-geometry_msgs::PoseStamped m_previousPose, m_newPose;
+geometry_msgs::PoseStamped m_previousCartographerPose, m_currentCartographerPose;
 nav_msgs::Odometry m_currentOdom, m_homeOdom;
 ros::Subscriber m_subState, m_subGlobalPosition, m_subOdometry, m_subPointReached,
 m_subCartographerPose, m_subExecutingTrajectory;
@@ -630,7 +664,6 @@ bool m_serviceTakeoffCalledFlag = false;
 bool m_takeoffFlag = false;
 bool m_serviceStartFlightCalledFlag = false;
 bool m_isPointReached = true;
-bool m_publishedTrajectory = false;
 bool m_firstOdomFlag = true;
 bool m_PublishAgainFlag = true;
 bool m_start = false;
@@ -638,11 +671,10 @@ bool first_time = true;
 bool m_initializedFlag = false;
 std::string m_mapFrame;
 std::vector<geometry_msgs::Point> m_vectorWaypoints = {};
-std::vector<geometry_msgs::Point> m_vectorWaypointsInit = {};
 ros::ServiceServer m_serviceTakeOff, m_serviceStartFlight;
 ros::ServiceClient m_armingClient, m_setModeClient, m_takeoffClient,
 m_setTrajectoryFlagsClient, m_startFlightClient, m_planTrajectoryClient, 
-m_initializeMsfHeight, m_initializeMsfScale;
+m_initializeMsfHeightClient, m_initializeMsfScaleClient;
 /* Define Dynamic Reconfigure parameters */
 boost::recursive_mutex m_fiConfigMutex;
 dynamic_reconfigure::Server<fi_param_t>
