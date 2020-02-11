@@ -215,7 +215,7 @@ void uav_reference::CarrotReference::positionRefCb(
 			posMsg->transforms[0].rotation.y,
 			posMsg->transforms[0].rotation.z, 
 			posMsg->transforms[0].rotation.w);
-		ROS_WARN("CarrotReference - Trajectory reference received");
+		ROS_WARN_THROTTLE(5.0, "CarrotReference - Trajectory reference received");
 	}
 	else
 	{
