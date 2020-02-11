@@ -107,7 +107,9 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
   m_magnetOverrideOffCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
-  
+  m_pickupSuccessCaller = t_nh.serviceClient
+    <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/success");
+
   // Advertise service
   m_serviceBrickPickup = t_nh.advertiseService(
     "brick_pickup/global",
@@ -172,6 +174,7 @@ void update_state(const ros::TimerEvent& /* unused */)
     } else {
       ROS_FATAL("BrickPickup::update_state - brick is not picked up, ATTEMPT_PICKUP state activated");
       m_currentStatus.m_status = GlobalPickupStates::SEARCH;
+      advertise_pickup_success(false);
     }
     return;
   }
@@ -182,6 +185,7 @@ void update_state(const ros::TimerEvent& /* unused */)
     m_currentStatus.m_status = GlobalPickupStates::APPROACH;
     clear_current_trajectory();
     toggle_magnet(false);
+    advertise_pickup_success(true); // TODO: Sometimes mighnt not be successful
     return;
   }
 
@@ -393,6 +397,17 @@ bool is_trajectory_active()
   return m_handlerTrajectoryStatus.getData().data;
 }
 
+void advertise_pickup_success(bool success)
+{
+  std_srvs::SetBool::Request req;
+  std_srvs::SetBool::Response resp;
+  req.data = success;
+  if (!m_pickupSuccessCaller.call(req, resp)) {
+    ROS_FATAL("GlobalPickup::advertise_pickup_success - unable to call brick_pickup/success service");
+    return;
+  }
+}
+
 static constexpr double AFTER_PICKUP_SLEEP = 3.0;
 static constexpr double INITIAL_SEARCH_RADIUS = 1.0;
 static constexpr double SEARCH_RADIUS_INCREMENT = 0.5;
@@ -404,7 +419,8 @@ std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
 
 ros::ServiceServer m_serviceBrickPickup;
 ros::ServiceClient m_vssmCaller, m_chooseColorCaller, 
-  m_magnetOverrideOnCaller, m_magnetOverrideOffCaller;
+  m_magnetOverrideOnCaller, m_magnetOverrideOffCaller,
+  m_pickupSuccessCaller;
 
 ros::NodeHandle m_nh;
 ros::Publisher m_pubTrajGen, m_pubGlobalPickupStatus;
