@@ -21,11 +21,6 @@ using namespace ros_util;
 
 namespace uav_sm {
 
-enum class VisualServoState {
-  OFF
-  // Some other states as well
-};
-
 struct BrickPickupStatus {
   BrickPickupStatus() : BrickPickupStatus("red", Eigen::Vector3d(0, 0, 0)) { }
   BrickPickupStatus(const std::string& t_brickColor, const Eigen::Vector3d& t_brickLocal, 
@@ -102,7 +97,7 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
   m_vssmCaller = t_nh.serviceClient
     <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/local");
   m_chooseColorCaller = t_nh.serviceClient
-    <color_filter::color::Request, color_filter::color::Response>("filter_color");
+    <color_filter::color::Request, color_filter::color::Response>("set_color");
   m_magnetOverrideOnCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
   m_magnetOverrideOffCaller = t_nh.serviceClient
@@ -130,8 +125,8 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
 
 private:
 
-inline const VisualServoState getCurrentVisualServoState() {
-  return static_cast<VisualServoState>(m_handlerVSSMState.getData().data);
+inline const LocalPickupState getCurrentVisualServoState() {
+  return static_cast<LocalPickupState>(m_handlerVSSMState.getData().data);
 }
 
 void update_state(const ros::TimerEvent& /* unused */) 
@@ -147,7 +142,7 @@ void update_state(const ros::TimerEvent& /* unused */)
   }
 
   if (m_currentStatus.isSearching() 
-       && getCurrentVisualServoState() == VisualServoState::OFF
+       && getCurrentVisualServoState() == LocalPickupState::OFF
        && toggle_visual_servo_state_machine(true)) {
     ROS_WARN("BrickPickup::update_state - ATTEMPT_PICKUP activated");
     m_currentStatus.m_status = GlobalPickupStates::ATTEMPT_PICKUP;
@@ -157,7 +152,7 @@ void update_state(const ros::TimerEvent& /* unused */)
   }
 
   if (m_currentStatus.isAttemptingPickup() 
-      && getCurrentVisualServoState() == VisualServoState::OFF) {
+      && getCurrentVisualServoState() == LocalPickupState::OFF) {
     ROS_WARN("BrickPickup::update_state - VisualServoState is OFF!.");
 
     clear_current_trajectory();
@@ -201,8 +196,6 @@ void init_filter(const ros::TimerEvent& /* unused */)
 {
   if (m_currentStatus.isSearching()) {
     // TODO: dont use color chooser filter for now...
-    // TODO: Consider removing this from here, only set colors in MasterPickupControl
-    // TODO: Add a brick_pickup/global success service
     // TODO: In MasterPickupControl listen to the success service and determine wheather the task was successful or not
     //ROS_INFO("BrickPickup::init_filter - initializing color %s", 
     //  m_currentStatus.m_brickColor.c_str());
@@ -261,7 +254,7 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
     toggle_visual_servo_state_machine(false);
     return true;
   }
-
+  
   // Enable global brick pickup
   m_currentStatus = BrickPickupStatus(request.brick_color,
     m_global2Local.toLocal(
@@ -291,7 +284,9 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
     m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
     m_currentStatus.m_localBrick.z());
 
+  filter_choose_color(m_currentStatus.m_brickColor);
   clear_current_trajectory();
+  response.status = true;
   return true;
 }
 
