@@ -61,10 +61,25 @@ public:
     m_taskCompleted = false;
     m_currentTask = newTask;
   }
+  
+  const CurrentTask& getCurrentTask()
+  {
+    return m_currentTask;
+  }
 
-  bool currentTaskCompleted()
+  bool isCurrentTaskCompleted()
   {
     return m_taskCompleted;
+  }
+
+  bool setTaskCompleted(bool status)
+  {
+    m_taskCompleted = status;
+  }
+
+  const Eigen::Vector3d& getBrickLocation()
+  {
+    return m_brickLocation;
   }
 
 private:
@@ -83,6 +98,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_handlerCarrotStatus(t_nh, "carrot/status"),
   m_handlerOdometry(t_nh, "mavros/global_position/local"),
   m_handlerPatchCount(t_nh, "n_contours"),
+  m_handlerBrickGlobalStatus(t_nh, "global_pickup/status"),
   m_globalToLocal(t_nh),
   m_currentState(MasterPickupStates::OFF)
 {
@@ -95,6 +111,11 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_serviceMasterPickup = t_nh.advertiseService(
     "brick_pickup/master",
     &uav_sm::MasterPickupControl::master_pickup_cb,
+    this
+  );
+  m_servicePickupSuccess = t_nh.advertiseService(
+    "brick_pickup/success",
+    &uav_sm::MasterPickupControl::pickup_success_cb,
     this
   );
 
@@ -115,6 +136,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
 private:
 
 inline static void sleep_for(double duration) { ros::Duration(duration).sleep(); }
+
 inline bool is_brick_visible() { return m_handlerPatchCount.getData().data > 0; }
 inline bool is_guided_active() { return m_handlerState.getData().mode == "GUIDED_NOGPS"; }
 inline bool is_land_active() { return m_handlerState.getData().mode == "LAND"; }
@@ -125,6 +147,26 @@ inline bool in_task_state() const { return m_currentState == MasterPickupStates:
 inline bool is_uav_airborne() { 
   return m_handlerCarrotStatus.getData().data == "CARROT_ON_AIR" 
     && m_handlerCarrotStatus.getData().data == "HOLD";
+}
+inline bool is_in_global_pickup() { 
+  return static_cast<GlobalPickupStates>(m_handlerBrickGlobalStatus.getData().data) != GlobalPickupStates::OFF;
+}
+
+bool pickup_success_cb(std_srvs::SetBool::Request& request, 
+  std_srvs::SetBool::Response& /*unused*/)
+{
+  const auto task_successful = [&request] () { return request.data; };
+  
+  if (task_successful()) {
+    ROS_INFO("MasterPickupControll::pickup_success_cb - successful task registered.");
+    m_challengeInfo.setTaskCompleted(true);
+    register_completed_task();
+    return true;
+  }
+
+  ROS_FATAL("MasterPickupControl::pickup_success_cb - failed task registered.");
+  // TODO: Do something when pickup fails, maybe disable global pickup and go back to search
+  return true;
 }
 
 void state_timer_cb(const ros::TimerEvent& /* unused */) 
@@ -139,8 +181,8 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
       m_handlerGpsFix.getData().altitude);
     m_challengeInfo.setBrickLocation(
       Eigen::Vector3d {
-        m_handlerOdometry.getData().pose.pose.position.x,
-        m_handlerOdometry.getData().pose.pose.position.y,
+        m_handlerGpsFix.getData().latitude, 
+        m_handlerGpsFix.getData().longitude,
         m_handlerOdometry.getData().pose.pose.position.z
       }
     );
@@ -153,23 +195,77 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
     switch_to_task_state();
   }
 
-  if (in_task_state() && m_challengeInfo.currentTaskCompleted()) {
-    m_challengeInfo.setCurrentTask(generate_new_task());
+  // Try to get new task
+  if (in_task_state() && m_challengeInfo.isCurrentTaskCompleted()) {
+    generate_new_task();
+  }
+
+  // ... or try to dispatch the current task
+  if (in_task_state() && !is_in_global_pickup()) {
     dispatch_new_task();
   }
  }
 
-CurrentTask generate_new_task()
+void generate_new_task()
 {
-  // TODO: Call service client here
-  return CurrentTask();
+  if (!m_challengeInfo.isCurrentTaskCompleted()) {
+    ROS_FATAL("MasterPickupControl::generate_new_taask - uncompleted task pending,  generation denied.");
+    return;
+  }
+
+  mbzirc_mission_control::NextTask::Request request;
+  mbzirc_mission_control::NextTask::Response response;
+  if (!m_clientRequestTask.call(request, response)) {
+    ROS_FATAL("MasterPickupControl::generate_new_task - unable to request task.");
+    m_challengeInfo.setCurrentTask(CurrentTask());
+    m_challengeInfo.setTaskCompleted(true);
+    return;
+  }
+  
+  ROS_INFO_STREAM("MasterPickupControl::generate_new_task - [" 
+    << response.task_id << "] - color: " << response.color);
+  m_challengeInfo.setCurrentTask(response);
+}
+
+void register_completed_task() 
+{
+  if (m_challengeInfo.isCurrentTaskCompleted()) {
+    ROS_FATAL("MasterPickupControl::register_completed_task - unable to register an unfinished task");
+    return;
+  }
+
+  mbzirc_mission_control::CompletedTask::Request request;
+  mbzirc_mission_control::CompletedTask::Response response;
+  request.success = true;
+  request.task_id = m_challengeInfo.getCurrentTask().task_id;
+  if (!m_clienCompleteTask.call(request, response)) {
+    ROS_FATAL("MasterPickupControl::register_completed_task - unable to call complete task service.");
+    return;
+  }
+
+  // TODO: Do something with responses here
 }
 
 void dispatch_new_task()
 {
-  // TODO: Here you will call brick_pickup/global service with the m_challengeInfo
-  // TODO: Additionaly set color for color_filter
-  // TODO: Make a service server for listening to global_pickup success status
+  uav_ros_control_msgs::GeoBrickApproach::Request request;
+  uav_ros_control_msgs::GeoBrickApproach::Response response;
+  request.enable = true;
+  request.brick_color = m_challengeInfo.getCurrentTask().color;
+  request.latitude = m_challengeInfo.getBrickLocation().x();
+  request.longitude = m_challengeInfo.getBrickLocation().y();
+  request.altitude_relative = m_challengeInfo.getBrickLocation().z();
+  if (!m_clientGlobalPickup.call(request, response)) {
+    ROS_FATAL("MasterPickupControl::dispatch_new_task - unable to call brick_pickup/global.");
+    return;
+  }
+  
+  if (response.status) {
+    ROS_INFO("MasterPickupControl::dispatch_new_task - successfuly entered brick_pickup/global.");
+  }
+  else {
+    ROS_INFO("MasterPickupControl::dispatch_new_task - enetering brick_pickup/global failed.");
+  }
 }
 
 bool master_pickup_cb(std_srvs::SetBool::Request& request, 
@@ -256,8 +352,8 @@ void generate_search_trajectory()
   uav_search::GetPoints::Response pointsResponse;
   pointsRequest.request.height = SEARCH_HEIGHT;
   pointsRequest.request.pattern = "lawn";
-  pointsRequest.request.size_x = 20;
-  pointsRequest.request.size_y = 20;
+  pointsRequest.request.size_x = 10;
+  pointsRequest.request.size_y = 10;
   pointsRequest.request.spacing = 2;
 
   if (!m_clientSearchGenerator.call(pointsRequest, pointsResponse)) {
@@ -411,7 +507,7 @@ Global2Local m_globalToLocal;
 PickupChallengeInfo m_challengeInfo;
 MasterPickupStates m_currentState;
   
-ros::ServiceServer m_serviceMasterPickup;
+ros::ServiceServer m_serviceMasterPickup, m_servicePickupSuccess;
 ros::ServiceClient m_clientArming, m_clientTakeoff, 
   m_clientLand, m_clientSearchGenerator,
   m_clientRequestTask, m_clienCompleteTask,
@@ -423,6 +519,7 @@ TopicHandler<sensor_msgs::NavSatFix> m_handlerGpsFix;
 TopicHandler<std_msgs::String> m_handlerCarrotStatus;
 TopicHandler<nav_msgs::Odometry> m_handlerOdometry;
 TopicHandler<std_msgs::Int32> m_handlerPatchCount;
+TopicHandler<std_msgs::Int32> m_handlerBrickGlobalStatus;
 
 ros::Timer m_stateTimer;
 };
