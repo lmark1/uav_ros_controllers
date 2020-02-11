@@ -101,7 +101,7 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
   m_magnetOverrideOnCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
   m_magnetOverrideOffCaller = t_nh.serviceClient
-    <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
+    <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_OFF");
   m_pickupSuccessCaller = t_nh.serviceClient
     <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/success");
 
