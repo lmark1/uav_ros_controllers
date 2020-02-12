@@ -8,8 +8,6 @@ master_pickup:
   search_offset_x: -5
   search_offset_y: -5
   
-  post_arm_sleep: 3
-  post_takeoff_sleep: 10
   takeoff_height: 4
   search_height: 4
   goto_home_tol: 0.25
