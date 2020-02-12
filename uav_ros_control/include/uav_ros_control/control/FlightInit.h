@@ -89,6 +89,8 @@ public:
 				&flight_init::FlightInit::stateCb, this);
 		m_subCartographerPose = nh.subscribe("uav/cartographer/pose", 1,
 			&flight_init::FlightInit::cartographerPoseCb, this);
+		m_subMsfOdometry = nh.subscribe("msf_core/odometry", 1,
+			&flight_init::FlightInit::msfOdometryCb, this);
 
 		// Initialize publishers 
 		m_pubGoalsMarker = nh.advertise<visualization_msgs::MarkerArray>(
@@ -203,7 +205,7 @@ void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 			// Sudden shift, reset timer
 			m_timer = ros::Time::now(); 
 			m_previousCartographerPose = m_currentCartographerPose;
-			ROS_INFO("Sudden shift!");
+			ROS_WARN("Sudden shift!");
 		}
 		else 
 		{
@@ -218,6 +220,12 @@ void cartographerPoseCb(const geometry_msgs::PoseStamped& msg)
 		}
 	m_pubReadyForExploration.publish(m_ready);	
 	}
+}
+
+void msfOdometryCb(const nav_msgs::OdometryConstPtr& msg)
+{
+	ROS_INFO("msfOdometryCb");
+	m_msfOdometryFlag = true;
 }
 
 bool armAndTakeOffCb(
@@ -500,7 +508,7 @@ void msfInitializeScale()
 	m_init_scale.request.scale = 1.0;
 	// Call msf init height
 
-	if (m_initializeMsfHeightClient.call(m_init_scale))
+	if (m_initializeMsfScaleClient.call(m_init_scale))
 	{
 		ros::Duration(0.2).sleep();
 		
@@ -522,14 +530,21 @@ void startMission()
 		if (!m_startFlightFlag)
 		{
 			startInitFlight();
-			ROS_WARN("RUN: publishing trajectory called.");
+			ROS_WARN("START MISSION: publishing trajectory called.");
 		}
 		if (m_mapInitializedFlag && !m_msfInitializedHeightFlag)
 		{
 			// Map is initialized and octomap server is called
 			msfInitializeHeight();
+			ros::Duration(2.0).sleep();
 			if (!m_msfInitializedScaleFlag)
-			msfInitializeScale();
+			{
+				msfInitializeScale();
+			}
+		}
+		if (m_msfOdometryFlag)
+		{
+			ROS_INFO("START MISSION: msf odometry publishing.");
 		}
 	}
 }
@@ -555,8 +570,7 @@ sensor_msgs::NavSatFix m_currentGlobalPosition;
 geometry_msgs::Point m_currGoal;
 geometry_msgs::PoseStamped m_previousCartographerPose, m_currentCartographerPose;
 nav_msgs::Odometry m_currentOdom, m_homeOdom;
-ros::Subscriber m_subState, m_subGlobalPosition, m_subOdometry, m_subPointReached,
-m_subCartographerPose, m_subExecutingTrajectory;
+ros::Subscriber m_subState, m_subOdometry, m_subCartographerPose, m_subMsfOdometry;
 ros::Publisher m_pubGoalsMarker, m_pubTrajectory, m_pubReadyForExploration;
 ros::Time m_timer;
 bool m_takeoffFlag = false;
@@ -566,6 +580,7 @@ bool first_time = true;
 bool m_mapInitializedFlag = false;
 bool m_msfInitializedHeightFlag = false;
 bool m_msfInitializedScaleFlag = false;
+bool m_msfOdometryFlag = false;
 std::string m_mapFrame;
 std::vector<geometry_msgs::Point> m_vectorWaypoints = {};
 ros::ServiceServer m_serviceTakeOff, m_serviceStartFlight;
