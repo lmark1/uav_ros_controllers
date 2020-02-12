@@ -22,7 +22,7 @@ namespace uav_reference
 {
 
 typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
-#define VSSM_DYN_RECONF             "vs_state_machine"
+#define VSSM_DYN_RECONF             "brick_config/vs_state_machine"
 #define PARAM_MIN_ERROR             "visual_servo/state_machine/min_error"
 #define PARAM_MIN_TD_TAR_ERROR_Z      "visual_servo/state_machine/min_touchdown_target_position_error_z"
 #define PARAM_MIN_TD_UAV_VEL_ERROR_Z  "visual_servo/state_machine/min_touchdown_uav_velocity_error_z"
