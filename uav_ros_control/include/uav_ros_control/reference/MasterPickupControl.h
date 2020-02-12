@@ -226,13 +226,13 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
   if (in_task_state() && m_challengeInfo.isCurrentTaskCompleted()) {
     ROS_INFO("MasterPickupControl - in TASK state, generating new task.");
     generate_new_task();
-    activate_global_pickup();
+    toggle_global_pickup();
   }
 
   // ... or try to dispatch the current task
   if (in_task_state() && !is_in_global_pickup() && m_challengeInfo.isBrickLocationSet()) {
     ROS_INFO("MasterPickupControl - in TASK state, entering global pickup");
-    activate_global_pickup();
+    toggle_global_pickup();
   }
  }
 
@@ -276,11 +276,11 @@ void register_completed_task()
   // TODO: Do something with responses here
 }
 
-void activate_global_pickup(bool enablePickup = true)
+void toggle_global_pickup(bool enablePickup = true)
 {
   // If we are trying to enter global pickup, and task ID is invalid (for some reason), do not enter
   if (enablePickup && !m_challengeInfo.isTaskValid()) {
-    ROS_FATAL("MAsterPickupControl:activate_global_pickup - invalid task ID");
+    ROS_FATAL("MAsterPickupControl:toggle_global_pickup - invalid task ID");
     return;
   }
 
@@ -297,15 +297,15 @@ void activate_global_pickup(bool enablePickup = true)
   request.longitude = m_challengeInfo.getBrickLocation().y();
   request.altitude_relative = m_challengeInfo.getBrickLocation().z();
   if (!m_clientGlobalPickup.call(request, response)) {
-    ROS_FATAL("MasterPickupControl::activate_global_pickup - unable to call brick_pickup/global.");
+    ROS_FATAL("MasterPickupControl::toggle_global_pickup - unable to call brick_pickup/global.");
     return;
   }
   
   if (response.status) {
-    ROS_INFO("MasterPickupControl::activate_global_pickup - successfuly entered brick_pickup/global.");
+    ROS_INFO("MasterPickupControl::toggle_global_pickup - successfuly entered brick_pickup/global.");
   }
   else {
-    ROS_INFO("MasterPickupControl::activate_global_pickup - enetering brick_pickup/global failed.");
+    ROS_INFO("MasterPickupControl::toggle_global_pickup - enetering brick_pickup/global failed.");
   }
 }
 
@@ -317,7 +317,7 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
 
   if (deactivation_requested() && in_off_state()) {
     ROS_FATAL("MasterPickupControl - deactivation requested, already in OFF state.");
-    activate_global_pickup(false);
+    toggle_global_pickup(false);
     set_response(false);
     return true;
   }
@@ -377,7 +377,7 @@ void switch_to_off_state()
 {
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::OFF);
   m_currentState = MasterPickupStates::OFF;
-  activate_global_pickup(false);
+  toggle_global_pickup(false);
   clear_current_trajectory();
 }
 
