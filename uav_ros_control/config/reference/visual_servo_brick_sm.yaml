@@ -4,10 +4,10 @@ visual_servo:
     rate: 50
     min_error: 1
     brick_alignment_height: 3
-    min_touchdown_target_position_error_xy: 0.05
-    min_touchdown_target_position_error_z: 0.05
-    min_touchdown_uav_velocity_error_xy: 0.25
-    min_touchdown_uav_velocity_error_z: 0.25
+    min_touchdown_target_position_error_xy: 0.1
+    min_touchdown_target_position_error_z: 0.1
+    min_touchdown_uav_velocity_error_xy: 0.5
+    min_touchdown_uav_velocity_error_z: 0.5
     min_touchdown_align_duration: 5
     min_yaw_error: 0.05
     touchdown_height: 2.5
