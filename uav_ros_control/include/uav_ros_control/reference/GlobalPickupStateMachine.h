@@ -110,14 +110,15 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
   
   // Iniitalize timers
   m_stateTimer = t_nh.createTimer(
-    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/rate")), 
-    &uav_sm::GlobalPickupStateMachine::update_state, this);
-  m_initFilterTimer = t_nh.createTimer(
-    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/color_init_rate")),
-    &uav_sm::GlobalPickupStateMachine::init_filter, this);
+    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/update_rate")), 
+    &uav_sm::GlobalPickupStateMachine::update_state, 
+    this
+  );
   m_publishTrajectoryTimer = t_nh.createTimer(
-    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/search_traj_rate")),
-    &uav_sm::GlobalPickupStateMachine::publish_trajectory, this);
+    ros::Duration(1.0 / getParamOrThrow<double>(t_nh, "brick_pickup/pub_traj_rate")),
+    &uav_sm::GlobalPickupStateMachine::publish_trajectory, 
+    this
+  );
 }
 
 private:
@@ -133,7 +134,7 @@ void update_state(const ros::TimerEvent& /* unused */)
   if (m_currentStatus.isApproaching() && is_close_to_brick()) {
     ROS_WARN("BrickPickup::update_state - SEARCH state activated");
     m_currentStatus.m_status = GlobalPickupStates::SEARCH;
-    m_searchRadius = INITIAL_SEARCH_RADIUS;
+    m_searchRadius = m_pickupConfig->getData().initial_search_radius;
     clear_current_trajectory();
     return;
   }
@@ -151,13 +152,13 @@ void update_state(const ros::TimerEvent& /* unused */)
   if (m_currentStatus.isAttemptingPickup() 
       && getCurrentVisualServoState() == LocalPickupState::OFF) {
     ROS_WARN("BrickPickup::update_state - VisualServoState is OFF!.");
-    m_searchRadius = INITIAL_SEARCH_RADIUS;
+    m_searchRadius = m_pickupConfig->getData().initial_search_radius;
     
     clear_current_trajectory();
     if (is_brick_picked_up()) {
 
       // Update both dropoff and brick pickup global position with current relative height
-      ros::Duration(AFTER_PICKUP_SLEEP).sleep();
+      ros::Duration(m_pickupConfig->getData().after_pickup_sleep).sleep();
       m_currentStatus.m_dropoffPos.z() = m_handlerOdometry.getData().pose.pose.position.z;
       m_currentStatus.m_localBrick.z() = m_handlerOdometry.getData().pose.pose.position.z;
 
@@ -190,17 +191,6 @@ void update_state(const ros::TimerEvent& /* unused */)
   }
 }
 
-void init_filter(const ros::TimerEvent& /* unused */) 
-{
-  if (m_currentStatus.isSearching()) {
-    // TODO: dont use color chooser filter for now...
-    // TODO: In MasterPickupControl listen to the success service and determine wheather the task was successful or not
-    //ROS_INFO("BrickPickup::init_filter - initializing color %s", 
-    //  m_currentStatus.m_brickColor.c_str());
-    //filter_choose_color(m_currentStatus.m_brickColor);
-  }
-}
-
 void publish_trajectory(const ros::TimerEvent& /* unused */) 
 {  
   if (m_currentStatus.isSearching() && !is_trajectory_active()) {    
@@ -215,7 +205,7 @@ void publish_trajectory(const ros::TimerEvent& /* unused */)
         m_searchRadius
       )
     );
-    m_searchRadius += SEARCH_RADIUS_INCREMENT;
+    m_searchRadius += m_pickupConfig->getData().search_readius_increment;
     return;
   }
 
@@ -289,9 +279,12 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
 
 void initialize_parameters(ros::NodeHandle& nh) {
   PickupParams initParams;
-  initParams.brick_approach_tolerance = getParamOrThrow<double>(nh, "brick_pickup/brick_approach_tolerance");
-  initParams.dropoff_approach_tolerance = getParamOrThrow<double>(nh, "brick_pickup/dropoff_approach_tolerance");
-  m_pickupConfig.reset(new ParamHandler<PickupParams>(initParams, "brick_pickup"));
+  getParamOrThrow(nh, "brick_pickup/brick_approach_tolerance", initParams.brick_approach_tolerance);
+  getParamOrThrow(nh, "brick_pickup/dropoff_approach_tolerance", initParams.dropoff_approach_tolerance);
+  getParamOrThrow(nh, "brick_pickup/after_pickup_sleep", initParams.after_pickup_sleep);
+  getParamOrThrow(nh, "brick_pickup/initial_search_radius", initParams.initial_search_radius);
+  getParamOrThrow(nh, "brick_pickup/search_readius_increment", initParams.search_readius_increment);
+  m_pickupConfig.reset(new ParamHandler<PickupParams>(initParams, "brick_config/brick_pickup"));
 }
 
 bool all_services_available()
@@ -386,11 +379,7 @@ void advertise_pickup_success(bool success)
   }
 }
 
-static constexpr double AFTER_PICKUP_SLEEP = 3.0;
-static constexpr double INITIAL_SEARCH_RADIUS = 1.0;
-static constexpr double SEARCH_RADIUS_INCREMENT = 0.5;
-
-double m_searchRadius = INITIAL_SEARCH_RADIUS;
+double m_searchRadius; // Initialized at initializeParameters
 Global2Local m_global2Local;
 BrickPickupStatus m_currentStatus;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
