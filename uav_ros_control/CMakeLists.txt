@@ -38,7 +38,7 @@ generate_dynamic_reconfigure_options(
 	config/reference/VisualServoParameters.cfg
 	config/reference/VisualServoStateMachineParameters.cfg
 	config/reference/GlobalPickupStateMachineParameters.cfg
-)
+	config/reference/MasterPickupStateMachineParameters.cfg)
 
 catkin_package(
 	INCLUDE_DIRS include
