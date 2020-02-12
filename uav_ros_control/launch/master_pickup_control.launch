@@ -7,6 +7,8 @@
       <remap from="n_contours" to="red_color_filter/nContours"/>
     </node>
     <include file="$(find mbzirc_mission_control)/launch/ch2_uav.launch"/>
+
+    <node name="color_filter_init" pkg="color_filter" type="filter_initial_dummy.py" output="screen"/>
   </group>
 
 </launch>
