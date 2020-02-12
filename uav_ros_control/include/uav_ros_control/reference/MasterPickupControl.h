@@ -15,6 +15,7 @@
 #include <nav_msgs/Odometry.h>
 #include <uav_search/GetPoints.h>
 #include <std_msgs/Int32.h>
+#include <uav_ros_control/MasterPickupStateMachineParametersConfig.h>
 
 #include <std_srvs/SetBool.h>
 #include <std_srvs/Empty.h>
@@ -28,6 +29,7 @@ using namespace ros_util;
 using namespace pickup_states;
 using namespace uav_reference;
 typedef mbzirc_mission_control::NextTask::Response CurrentTask;
+typedef uav_ros_control::MasterPickupStateMachineParametersConfig MasterConfig;
 
 namespace uav_sm 
 {
@@ -108,6 +110,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_globalToLocal(t_nh),
   m_currentState(MasterPickupStates::OFF)
 {
+  initialize_parameters(t_nh);
   m_pubTrajGen = t_nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
     "topp/input/trajectory", 1
   );
@@ -157,6 +160,13 @@ inline bool is_in_global_pickup() {
   return static_cast<GlobalPickupStates>(m_handlerBrickGlobalStatus.getData().data) != GlobalPickupStates::OFF;
 }
 
+void initialize_parameters(ros::NodeHandle& t_nh)
+{
+  MasterConfig config;
+  //TODO: Initialize parameters here
+  m_masterConfig.reset(new ParamHandler<MasterConfig>(t_nh, "brick_config/master_pickup"))
+}
+
 bool all_services_available() 
 {
   ROS_FATAL_COND(!m_clientArming.exists(), "MasterPickupControl - [mavros/cmd/arming] service does not exist.");
@@ -197,8 +207,6 @@ bool pickup_success_cb(std_srvs::SetBool::Request& request,
 
 void state_timer_cb(const ros::TimerEvent& /* unused */) 
 {
-  // TODO: When searching consider filtering "all" colors for better patch detection
-
   // Check if we see any bricks
   if (in_search_state() && !m_challengeInfo.isBrickLocationSet() && is_brick_visible()) {
     ROS_INFO("MasterPickupControl::state_timer - BRICK seen at [%.10f, %.10f, %.10f]",
@@ -356,7 +364,7 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
     set_response(false);
     return true;
   }
-  sleep_for(ARM_DURATION);
+  sleep_for(POST_ARM_SLEEP);
   
   // Assume vehicle is armed at this point
   if (!takeoff_uav()) {
@@ -364,7 +372,7 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
     set_response(false);
     return true;
   }
-  sleep_for(TAKEOFF_DURATION);
+  sleep_for(POST_TAEKOFF_SLEEP);
 
   // Assume takeoff is successful at this point
   ROS_INFO("MasterPickupControl - request approved, TAKEOFF successful.");
@@ -484,7 +492,8 @@ void go_to_home()
   while (!is_close_to_home()) {
     ROS_INFO("MasterPickupControl::go_to_home - going home ...");
     ros::Duration(1.0).sleep();
-    ros::spinOnce();
+    // TODO: This might be an issue if multiple calls happen at the same time
+    ros::spinOnce(); // Spin once to check odometry 
   }
 
   // Arrived home
@@ -570,8 +579,8 @@ static constexpr double SEARCH_SIZE_X = 10;
 static constexpr double SEARCH_SIZE_Y = 10;
 static constexpr double SEARCH_SPACING = 2;
 static constexpr double STATE_TIMER = 0.05;
-static constexpr double ARM_DURATION = 3.0;
-static constexpr double TAKEOFF_DURATION = 10.0;
+static constexpr double POST_ARM_SLEEP = 3.0;
+static constexpr double POST_TAEKOFF_SLEEP = 10.0;
 static constexpr double TAKEOFF_HEIGHT = 4.0;
 static constexpr double SEARCH_HEIGHT = 4.0;
 static constexpr double GOTO_HOME_TOL = 1.0;
@@ -579,7 +588,8 @@ static constexpr double GOTO_HOME_TOL = 1.0;
 Global2Local m_globalToLocal;
 PickupChallengeInfo m_challengeInfo;
 MasterPickupStates m_currentState;
-  
+std::unique_ptr<ParamHandler<MasterConfig>> m_masterConfig;
+
 ros::ServiceServer m_serviceMasterPickup, m_servicePickupSuccess;
 ros::ServiceClient m_clientArming, m_clientTakeoff, 
   m_clientLand, m_clientSearchGenerator,
