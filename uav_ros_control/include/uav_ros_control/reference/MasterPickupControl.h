@@ -22,6 +22,7 @@
 #include <mbzirc_mission_control/CompletedTask.h>
 #include <mbzirc_mission_control/NextTask.h>
 #include <uav_ros_control_msgs/GeoBrickApproach.h>
+#include <color_filter/color.h>
 
 using namespace ros_util;
 using namespace pickup_states;
@@ -133,6 +134,8 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_clientRequestTask = t_nh.serviceClient<mbzirc_mission_control::NextTask>("request_next_task");
   m_clientCompleteTask = t_nh.serviceClient<mbzirc_mission_control::CompletedTask>("register_completed_task");
   m_clientGlobalPickup = t_nh.serviceClient<uav_ros_control_msgs::GeoBrickApproach>("brick_pickup/global");
+  m_chooseColorCaller = t_nh.serviceClient
+    <color_filter::color::Request, color_filter::color::Response>("set_color");
 }
 
 private:
@@ -163,6 +166,7 @@ bool all_services_available()
   ROS_FATAL_COND(!m_clientRequestTask.exists(), "MasterPickupControl - [request_next_task] service does not exist");
   ROS_FATAL_COND(!m_clientCompleteTask.exists(), "MasterPickupControl - [register_completed_task] service does not exist.");
   ROS_FATAL_COND(!m_clientGlobalPickup.exists(), "MasterPickupControl - [brick_pickup/global] service does not exist.");
+  ROS_FATAL_COND(!m_chooseColorCaller.exists(), "MasterPickupControl - [set_color] service does not exist.");
 
   return m_clientArming.exists() 
     && m_clientTakeoff.exists()
@@ -272,17 +276,22 @@ void register_completed_task()
   // TODO: Do something with responses here
 }
 
-void activate_global_pickup(bool enable = true)
+void activate_global_pickup(bool enablePickup = true)
 {
   // If we are trying to enter global pickup, and task ID is invalid (for some reason), do not enter
-  if (enable && !m_challengeInfo.isTaskValid()) {
+  if (enablePickup && !m_challengeInfo.isTaskValid()) {
     ROS_FATAL("MAsterPickupControl:activate_global_pickup - invalid task ID");
     return;
   }
 
+  // Set color if pickup is enabled
+  if (enablePickup) {
+    filter_choose_color(m_challengeInfo.getCurrentTask().color);
+  }
+
   uav_ros_control_msgs::GeoBrickApproach::Request request;
   uav_ros_control_msgs::GeoBrickApproach::Response response;
-  request.enable = enable;
+  request.enable = enablePickup;
   request.brick_color = m_challengeInfo.getCurrentTask().color;
   request.latitude = m_challengeInfo.getBrickLocation().x();
   request.longitude = m_challengeInfo.getBrickLocation().y();
@@ -376,6 +385,7 @@ void switch_to_search_state()
 {
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::SEARCH);
   clear_current_trajectory();
+  filter_choose_color("all");
   generate_search_trajectory();
   m_currentState = MasterPickupStates::SEARCH;
 }
@@ -541,6 +551,21 @@ void land_uav()
   ROS_INFO("MasterPickupControl::laun_uav - LAND request succesfful."); 
 }
 
+bool filter_choose_color(const std::string& t_color) {
+  color_filter::color::Request req;
+  color_filter::color::Response resp;
+  req.color = t_color;
+
+  if (!m_chooseColorCaller.call(req, resp)) {
+    ROS_FATAL("MasterPickup - color initialization failed");
+    return false;
+  }
+
+  // At this point color_initialization is assumed to be finished
+  ROS_INFO("MasterPickup - to %s successful", t_color.c_str());
+  return true;
+}
+
 static constexpr double SEARCH_SIZE_X = 10;
 static constexpr double SEARCH_SIZE_Y = 10;
 static constexpr double SEARCH_SPACING = 2;
@@ -559,7 +584,7 @@ ros::ServiceServer m_serviceMasterPickup, m_servicePickupSuccess;
 ros::ServiceClient m_clientArming, m_clientTakeoff, 
   m_clientLand, m_clientSearchGenerator,
   m_clientRequestTask, m_clientCompleteTask,
-  m_clientGlobalPickup;
+  m_clientGlobalPickup, m_chooseColorCaller;
 
 ros::Publisher m_pubTrajGen;
 TopicHandler<mavros_msgs::State> m_handlerState;

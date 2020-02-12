@@ -12,7 +12,6 @@
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/SetBool.h>
 #include <std_srvs/Empty.h>
-#include <color_filter/color.h>
 #include <std_msgs/Bool.h>
 #include <uav_ros_control/reference/PickupStates.h>
 
@@ -96,8 +95,6 @@ GlobalPickupStateMachine(ros::NodeHandle& t_nh) :
   // Initialize service callers
   m_vssmCaller = t_nh.serviceClient
     <std_srvs::SetBool::Request, std_srvs::SetBool::Response>("brick_pickup/local");
-  m_chooseColorCaller = t_nh.serviceClient
-    <color_filter::color::Request, color_filter::color::Response>("set_color");
   m_magnetOverrideOnCaller = t_nh.serviceClient
     <std_srvs::Empty::Request, std_srvs::Empty::Response>("magnet/override_ON");
   m_magnetOverrideOffCaller = t_nh.serviceClient
@@ -285,7 +282,6 @@ bool brick_pickup_global_cb(GeoBrickReq& request, GeoBrickResp& response)
     m_currentStatus.m_localBrick.x(), m_currentStatus.m_localBrick.y(), 
     m_currentStatus.m_localBrick.z());
 
-  filter_choose_color(m_currentStatus.m_brickColor);
   clear_current_trajectory();
   response.status = true;
   return true;
@@ -341,21 +337,6 @@ bool toggle_visual_servo_state_machine(bool t_enable = true) {
   }
   ROS_INFO_COND(resp.success, "BrickPickup - VSSM activated");
   return resp.success;
-}
-
-bool filter_choose_color(const std::string& t_color) {
-  color_filter::color::Request req;
-  color_filter::color::Response resp;
-  req.color = t_color;
-
-  if (!m_chooseColorCaller.call(req, resp)) {
-    ROS_FATAL("BrickPickup - color initialization failed");
-    return false;
-  }
-
-  // At this point color_initialization is assumed to be finished
-  ROS_INFO("[color initialization] - to %s successful", t_color.c_str());
-  return true;
 }
 
 bool is_close_to_brick() 
@@ -415,8 +396,7 @@ BrickPickupStatus m_currentStatus;
 std::unique_ptr<ParamHandler<PickupParams>> m_pickupConfig;
 
 ros::ServiceServer m_serviceBrickPickup;
-ros::ServiceClient m_vssmCaller, m_chooseColorCaller, 
-  m_magnetOverrideOnCaller, m_magnetOverrideOffCaller,
+ros::ServiceClient m_vssmCaller, m_magnetOverrideOnCaller, m_magnetOverrideOffCaller,
   m_pickupSuccessCaller;
 
 ros::NodeHandle m_nh;
