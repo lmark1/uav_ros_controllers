@@ -154,7 +154,8 @@ void update_state(const ros::TimerEvent& /* unused */)
   if (m_currentStatus.isAttemptingPickup() 
       && getCurrentVisualServoState() == LocalPickupState::OFF) {
     ROS_WARN("BrickPickup::update_state - VisualServoState is OFF!.");
-
+    m_searchRadius = INITIAL_SEARCH_RADIUS;
+    
     clear_current_trajectory();
     if (is_brick_picked_up()) {
 
@@ -206,7 +207,7 @@ void init_filter(const ros::TimerEvent& /* unused */)
 void publish_trajectory(const ros::TimerEvent& /* unused */) 
 {  
   if (m_currentStatus.isSearching() && !is_trajectory_active()) {    
-    ROS_INFO("BrickPickup - generating SEARCH trajectory.");
+    ROS_INFO("BrickPickup - generating SEARCH trajectory with radius: %.3f.", m_searchRadius);
     m_pubTrajGen.publish(
       uav_reference::traj_gen::generateCircleTrajectory_topp(
         m_currentStatus.m_localBrick.x(),
@@ -353,6 +354,7 @@ bool filter_choose_color(const std::string& t_color) {
   }
 
   // At this point color_initialization is assumed to be finished
+  ROS_INFO("[color initialization] - to %s successful", t_color.c_str());
   return true;
 }
 
