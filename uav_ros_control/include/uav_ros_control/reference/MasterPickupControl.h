@@ -196,7 +196,7 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
   // TODO: When searching consider filtering "all" colors for better patch detection
 
   // Check if we see any bricks
-  if (!m_challengeInfo.isBrickLocationSet() && is_brick_visible()) {
+  if (in_search_state() && !m_challengeInfo.isBrickLocationSet() && is_brick_visible()) {
     ROS_INFO("MasterPickupControl::state_timer - BRICK seen at [%.10f, %.10f, %.10f]",
       m_handlerGpsFix.getData().latitude, 
       m_handlerGpsFix.getData().longitude,
@@ -214,19 +214,20 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
 
   // If brick location is found start the mission
   if (in_search_state() && m_challengeInfo.isBrickLocationSet()) {
-    ROS_INFO("MasterPickupControl - in search state switching to task_state.");
+    ROS_INFO("MasterPickupControl - in SEARCH state switching to task_state.");
     switch_to_task_state();
   }
 
   // Try to get new task
   if (in_task_state() && m_challengeInfo.isCurrentTaskCompleted()) {
-    ROS_INFO("MasterPickupControl - in task state, generating new task.");
+    ROS_INFO("MasterPickupControl - in TASK state, generating new task.");
     generate_new_task();
+    activate_global_pickup();
   }
 
   // ... or try to dispatch the current task
-  if (in_task_state() && !is_in_global_pickup()) {
-    ROS_INFO("MasterPickupControl - in task state, entering global pickup");
+  if (in_task_state() && !is_in_global_pickup() && m_challengeInfo.isBrickLocationSet()) {
+    ROS_INFO("MasterPickupControl - in TASK state, entering global pickup");
     activate_global_pickup();
   }
  }
@@ -314,7 +315,7 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
 
   if (!all_services_available()) {
     ROS_FATAL("MasterPickupControl - service check failed.");
-    activate_global_pickup(false);
+    switch_to_off_state();
     set_response(false);
     return true;
   }
@@ -322,6 +323,8 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
   if (deactivation_requested() && !in_off_state()) {
     ROS_INFO("MasterPickupControl - deactivation requested.");
     switch_to_off_state();
+    go_to_home();
+    land_uav();
     set_response(false);
     return true;
   }
@@ -364,11 +367,9 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
 void switch_to_off_state()
 {
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::OFF);
+  m_currentState = MasterPickupStates::OFF;
   activate_global_pickup(false);
   clear_current_trajectory();
-  go_to_home();
-  land_uav();
-  m_currentState = MasterPickupStates::OFF;
 }
 
 void switch_to_search_state()
@@ -473,6 +474,7 @@ void go_to_home()
   while (!is_close_to_home()) {
     ROS_INFO("MasterPickupControl::go_to_home - going home ...");
     ros::Duration(1.0).sleep();
+    ros::spinOnce();
   }
 
   // Arrived home
@@ -501,6 +503,9 @@ bool arm_uav()
 
 bool takeoff_uav()
 {
+  // Clear trajectory in case something is generating
+  clear_current_trajectory();
+
   ROS_WARN("MasterPickupControl - UAV takeoff to %.2f", TAKEOFF_HEIGHT);
   uav_ros_control_msgs::TakeOff::Request takeoffRequest;
   uav_ros_control_msgs::TakeOff::Response takeoffResponse;
@@ -541,9 +546,9 @@ static constexpr double SEARCH_SIZE_Y = 10;
 static constexpr double SEARCH_SPACING = 2;
 static constexpr double STATE_TIMER = 0.05;
 static constexpr double ARM_DURATION = 3.0;
-static constexpr double TAKEOFF_DURATION = 5.0;
-static constexpr double TAKEOFF_HEIGHT = 3.0;
-static constexpr double SEARCH_HEIGHT = 5.0;
+static constexpr double TAKEOFF_DURATION = 10.0;
+static constexpr double TAKEOFF_HEIGHT = 4.0;
+static constexpr double SEARCH_HEIGHT = 4.0;
 static constexpr double GOTO_HOME_TOL = 1.0;
 
 Global2Local m_globalToLocal;
