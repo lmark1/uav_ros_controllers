@@ -124,8 +124,9 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
     &uav_sm::MasterPickupControl::pickup_success_cb,
     this
   );
+  double stateTimerRate = getParamOrThrow<double>(t_nh, "master_pickup/state_timer_rate");
   m_stateTimer = t_nh.createTimer(
-    ros::Duration(STATE_TIMER),
+    ros::Duration(1.0 / stateTimerRate),
     &uav_sm::MasterPickupControl::state_timer_cb,
     this
   );
@@ -163,8 +164,16 @@ inline bool is_in_global_pickup() {
 void initialize_parameters(ros::NodeHandle& t_nh)
 {
   MasterConfig config;
-  //TODO: Initialize parameters here
-  m_masterConfig.reset(new ParamHandler<MasterConfig>(t_nh, "brick_config/master_pickup"))
+  getParamOrThrow(t_nh, "master_pickup/search_size_x", config.search_size_x);
+  getParamOrThrow(t_nh, "master_pickup/search_size_y", config.search_size_y);
+  getParamOrThrow(t_nh, "master_pickup/search_spacing", config.search_spacing);
+  getParamOrThrow(t_nh, "master_pickup/search_yaw_correction", config.search_yaw_correction);
+  getParamOrThrow(t_nh, "master_pickup/search_offset_x", config.search_offset_x);
+  getParamOrThrow(t_nh, "master_pickup/search_offset_y", config.search_offset_y);
+  getParamOrThrow(t_nh, "master_pickup/takeoff_height", config.takeoff_height);
+  getParamOrThrow(t_nh, "master_pickup/search_height", config.search_height);
+  getParamOrThrow(t_nh, "master_pickup/goto_home_tol", config.goto_home_tol);
+  m_masterConfig.reset(new ParamHandler<MasterConfig>(config, "brick_config/master_pickup"));
 }
 
 bool all_services_available() 
@@ -409,11 +418,11 @@ void generate_search_trajectory()
 {
   uav_search::GetPoints::Request pointsRequest;
   uav_search::GetPoints::Response pointsResponse;
-  pointsRequest.request.height = SEARCH_HEIGHT;
+  pointsRequest.request.height = m_masterConfig->getData().search_height;
   pointsRequest.request.pattern = "lawn";
-  pointsRequest.request.size_x = SEARCH_SIZE_X;
-  pointsRequest.request.size_y = SEARCH_SIZE_Y;
-  pointsRequest.request.spacing = SEARCH_SPACING;
+  pointsRequest.request.size_x = m_masterConfig->getData().search_size_x;
+  pointsRequest.request.size_y = m_masterConfig->getData().search_size_y;
+  pointsRequest.request.spacing = m_masterConfig->getData().search_spacing;
 
   if (!m_clientSearchGenerator.call(pointsRequest, pointsResponse)) {
     ROS_FATAL("MasterPickupcontrol::generate_search_trajectory - unable to call TRAJECTORY generator.");
@@ -457,7 +466,7 @@ void generate_search_trajectory()
 
     searchtrajectory.points.push_back(
       traj_gen::toTrajectoryPointMsg(
-        newX, newY, SEARCH_HEIGHT,
+        newX, newY, m_masterConfig->getData().search_height,
         q.getX(), q.getY(), q.getZ(), q.getW()
       )
     ); 
@@ -486,7 +495,8 @@ void go_to_home()
   const auto is_close_to_home = [this, &homeAltitude] () {
     return traj_gen::isCloseToReference(
       traj_gen::toTrajectoryPointMsg(0, 0, homeAltitude, 0), 
-      this->m_handlerOdometry.getData(), GOTO_HOME_TOL);
+      this->m_handlerOdometry.getData(), 
+      this->m_masterConfig->getData().goto_home_tol);
   };
 
   while (!is_close_to_home()) {
@@ -525,10 +535,10 @@ bool takeoff_uav()
   // Clear trajectory in case something is generating
   clear_current_trajectory();
 
-  ROS_WARN("MasterPickupControl - UAV takeoff to %.2f", TAKEOFF_HEIGHT);
+  ROS_WARN("MasterPickupControl - UAV takeoff to %.2f", m_masterConfig->getData().takeoff_height);
   uav_ros_control_msgs::TakeOff::Request takeoffRequest;
   uav_ros_control_msgs::TakeOff::Response takeoffResponse;
-  takeoffRequest.rel_alt = TAKEOFF_HEIGHT;
+  takeoffRequest.rel_alt = m_masterConfig->getData().takeoff_height;
   if (!m_clientTakeoff.call(takeoffRequest, takeoffResponse)) {
     ROS_FATAL("MasterPickupControl::takeoff_uav - call to TAKEOFF service failed.");
     return false;
@@ -575,15 +585,8 @@ bool filter_choose_color(const std::string& t_color) {
   return true;
 }
 
-static constexpr double SEARCH_SIZE_X = 10;
-static constexpr double SEARCH_SIZE_Y = 10;
-static constexpr double SEARCH_SPACING = 2;
-static constexpr double STATE_TIMER = 0.05;
 static constexpr double POST_ARM_SLEEP = 3.0;
 static constexpr double POST_TAEKOFF_SLEEP = 10.0;
-static constexpr double TAKEOFF_HEIGHT = 4.0;
-static constexpr double SEARCH_HEIGHT = 4.0;
-static constexpr double GOTO_HOME_TOL = 1.0;
 
 Global2Local m_globalToLocal;
 PickupChallengeInfo m_challengeInfo;
