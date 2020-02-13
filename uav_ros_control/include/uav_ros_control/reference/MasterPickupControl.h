@@ -15,6 +15,7 @@
 #include <nav_msgs/Odometry.h>
 #include <uav_search/GetPoints.h>
 #include <std_msgs/Int32.h>
+#include <std_msgs/Bool.h>
 #include <uav_ros_control/MasterPickupStateMachineParametersConfig.h>
 
 #include <std_srvs/SetBool.h>
@@ -107,6 +108,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
   m_handlerOdometry(t_nh, "mavros/global_position/local"),
   m_handlerPatchCount(t_nh, "n_contours"),
   m_handlerBrickGlobalStatus(t_nh, "global_pickup/status"),
+  m_handlerTrajectoryStatus(t_nh, "topp/status"),
   m_globalToLocal(t_nh),
   m_currentState(MasterPickupStates::OFF)
 {
@@ -146,6 +148,7 @@ private:
 
 inline static void sleep_for(double duration) { ros::Duration(duration).sleep(); }
 
+inline bool is_trajectory_active() { return m_handlerTrajectoryStatus.getData().data; }
 inline bool is_brick_visible() { return m_handlerPatchCount.getData().data > 0; }
 inline bool is_guided_active() { return m_handlerState.getData().mode == "GUIDED_NOGPS"; }
 inline bool is_land_active() { return m_handlerState.getData().mode == "LAND"; }
@@ -231,7 +234,9 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
     );
   }
 
-  // TODO: Add check for wall location
+  if (in_search_state() && !is_trajectory_active() && !is_in_global_pickup()) {
+    generate_search_trajectory();
+  } 
 
   // If brick location is found start the mission
   if (in_search_state() && m_challengeInfo.isBrickLocationSet()) {
@@ -400,10 +405,11 @@ void switch_to_off_state()
 
 void switch_to_search_state()
 {
+  ros::spinOnce();
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::SEARCH);
   clear_current_trajectory();
-  filter_choose_color("all");
   generate_search_trajectory();
+  filter_choose_color("all");
   m_currentState = MasterPickupStates::SEARCH;
 }
 
@@ -455,24 +461,33 @@ void generate_search_trajectory()
   for (std::size_t i = 0; 
       i < pointsResponse.response.data.size(); 
       i+= pointsResponse.response.size_y) {
-    const double newX = pointsResponse.response.data[i];
-    const double newY = pointsResponse.response.data[i+1];
+
+    const double newX = pointsResponse.response.data[i] 
+      + m_masterConfig->getData().search_offset_x;
+    const double newY = pointsResponse.response.data[i+1]
+      + m_masterConfig->getData().search_offset_y;
+
+    double angle = m_masterConfig->getData().search_yaw_correction;
+    const double newX_rot = newX * cos(angle) + newY * sin(angle);
+    const double newY_rot = - newX * sin(angle) + newY * cos(angle);
     
     tf2::Quaternion q = traj_gen::getHeadingQuaternion(
       searchtrajectory.points.back().transforms[0].translation.x,
       searchtrajectory.points.back().transforms[0].translation.y,
-      newX, newY
+      newX_rot, newY_rot
     );
 
     searchtrajectory.points.push_back(
       traj_gen::toTrajectoryPointMsg(
-        newX, newY, m_masterConfig->getData().search_height,
+        newX_rot, newY_rot, m_masterConfig->getData().search_height,
         q.getX(), q.getY(), q.getZ(), q.getW()
       )
     ); 
   } // end for
   clear_current_trajectory();
+  ROS_INFO("MasterPickup - generating search trajectory.");
   m_pubTrajGen.publish(searchtrajectory);
+  ros::Duration(1.0).sleep();
 }
 
 void clear_current_trajectory() 
@@ -599,6 +614,7 @@ ros::ServiceClient m_clientArming, m_clientTakeoff,
   m_clientRequestTask, m_clientCompleteTask,
   m_clientGlobalPickup, m_chooseColorCaller;
 
+ros::Timer m_stateTimer;
 ros::Publisher m_pubTrajGen;
 TopicHandler<mavros_msgs::State> m_handlerState;
 TopicHandler<sensor_msgs::NavSatFix> m_handlerGpsFix;
@@ -606,8 +622,7 @@ TopicHandler<std_msgs::String> m_handlerCarrotStatus;
 TopicHandler<nav_msgs::Odometry> m_handlerOdometry;
 TopicHandler<std_msgs::Int32> m_handlerPatchCount;
 TopicHandler<std_msgs::Int32> m_handlerBrickGlobalStatus;
-
-ros::Timer m_stateTimer;
+TopicHandler<std_msgs::Bool> m_handlerTrajectoryStatus;
 };
 
 }
