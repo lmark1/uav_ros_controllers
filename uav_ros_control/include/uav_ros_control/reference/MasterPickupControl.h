@@ -242,25 +242,26 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
   }
 
   if (in_search_state() && !is_trajectory_active() && !is_in_global_pickup()) {
+    ROS_INFO("MasterPickupControl::state_timer_cb - in SEARCH state, generate trajectory");
     generate_search_trajectory();
   } 
 
   // If brick location is found start the mission
   if (in_search_state() && m_challengeInfo.isBrickLocationSet()) {
-    ROS_INFO("MasterPickupControl - in SEARCH state switching to task_state.");
+    ROS_INFO("MasterPickupControl::state_timer_cb - in SEARCH state switching to task_state.");
     switch_to_task_state();
   }
 
   // Try to get new task
   if (in_task_state() && m_challengeInfo.isCurrentTaskCompleted()) {
-    ROS_INFO("MasterPickupControl - in TASK state, generating new task.");
+    ROS_INFO("MasterPickupControl::state_timer_cb - in TASK state, generating new task.");
     generate_new_task();
     toggle_global_pickup();
   }
 
   // ... or try to dispatch the current task
   if (in_task_state() && !is_in_global_pickup() && m_challengeInfo.isBrickLocationSet()) {
-    ROS_INFO("MasterPickupControl - in TASK state, entering global pickup");
+    ROS_INFO("MasterPickupControl::state_timer_cb - in TASK state, entering global pickup");
     toggle_global_pickup();
   }
  }
@@ -422,10 +423,8 @@ void switch_to_off_state()
 
 void switch_to_search_state()
 {
-  ros::spinOnce();
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::SEARCH);
   clear_current_trajectory();
-  generate_search_trajectory();
   filter_choose_color("all");
   m_currentState = MasterPickupStates::SEARCH;
 }
@@ -461,6 +460,7 @@ void generate_search_trajectory()
     return;
   }
 
+  ros::spinOnce(); // Get new odometry information
   trajectory_msgs::MultiDOFJointTrajectory searchtrajectory;
   searchtrajectory.header.stamp = ros::Time::now();
   searchtrajectory.points.push_back(
