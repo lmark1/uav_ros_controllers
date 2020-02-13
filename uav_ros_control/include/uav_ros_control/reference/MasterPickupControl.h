@@ -132,6 +132,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
     &uav_sm::MasterPickupControl::state_timer_cb,
     this
   );
+  // TODO: Setup timer containing challenge duration
 
   m_clientArming = t_nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
   m_clientTakeoff = t_nh.serviceClient<uav_ros_control_msgs::TakeOff>("takeoff");
@@ -277,6 +278,16 @@ void generate_new_task()
   ROS_INFO_STREAM("MasterPickupControl::generate_new_task - [" 
     << response.task_id << "] - color: " << response.color);
   m_challengeInfo.setCurrentTask(response);
+
+  // Check if current task is valid
+  if (!m_challengeInfo.isTaskValid()) {
+    // Invalid task we are finished with challenge :D
+    // TODO: Test this behaviour
+    ROS_WARN("MAsterPickupControl:toggle_global_pickup - challenge FINISHED, going HOME.");
+    switch_to_off_state();
+    go_to_home();
+    land_uav();
+  }
 }
 
 void register_completed_task() 
@@ -344,7 +355,7 @@ bool master_pickup_cb(std_srvs::SetBool::Request& request,
     return true;
   }
 
-  if (!all_services_available()) {
+  if (!all_services_available() && in_off_state()) {  
     ROS_FATAL("MasterPickupControl - service check failed.");
     switch_to_off_state();
     set_response(false);
