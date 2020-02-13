@@ -145,9 +145,8 @@ bool uav_reference::CarrotReference::landServiceCb(std_srvs::SetBool::Request& r
 	}
 
 	_positionHold = false;
-	_takeoffHappened = false;
 	_carrotOnLand = true;
-	ROS_INFO("Carrotreference::landServiceCb - land initialized");
+	ROS_INFO("Carrotreference::landServiceCb - LAND finished");
 	set_response(true);
 	return true;
 }
@@ -405,6 +404,7 @@ void uav_reference::CarrotReference::updateCarrotStatus()
 		if (_carrotEnabled) {
 			_carrotOnLand = true;
 		}
+		resetCarrot();
 	}
 
 	// Detect enable button - rising edge
