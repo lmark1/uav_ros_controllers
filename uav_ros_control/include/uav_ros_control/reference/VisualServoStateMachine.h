@@ -16,12 +16,13 @@
 #include <uav_ros_control/VisualServoStateMachineParametersConfig.h>
 #include <uav_ros_control_msgs/VisualServoProcessValues.h>
 #include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/reference/PickupStates.h>
 
 namespace uav_reference 
 {
 
 typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
-#define VSSM_DYN_RECONF             "vs_state_machine"
+#define VSSM_DYN_RECONF             "brick_config/vs_state_machine"
 #define PARAM_MIN_ERROR             "visual_servo/state_machine/min_error"
 #define PARAM_MIN_TD_TAR_ERROR_Z      "visual_servo/state_machine/min_touchdown_target_position_error_z"
 #define PARAM_MIN_TD_UAV_VEL_ERROR_Z  "visual_servo/state_machine/min_touchdown_uav_velocity_error_z"
@@ -41,14 +42,7 @@ typedef uav_ros_control::VisualServoStateMachineParametersConfig vssm_param_t;
 #define PARAM_BRICK_ALIGN_HEIGHT    "visual_servo/state_machine/brick_alignment_height"
 #define INVALID_DISTANCE -1
 
-enum VisualServoState {
-    OFF,
-    BRICK_ALIGNMENT,
-    DESCENT,
-    TOUCHDOWN_ALIGNMENT,
-    TOUCHDOWN
-};
-
+using namespace pickup_states;
 class VisualServoStateMachine
 {
 
@@ -65,6 +59,7 @@ VisualServoStateMachine(ros::NodeHandle& nh)
     _pubRelativeDistance_local = nh.advertise<std_msgs::Float32>("visual_servo_sm/distance/local", 1);
     _pubVelError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/velocity_error", 1);
     _pubTargetError = nh.advertise<geometry_msgs::Vector3>("visual_servo_sm/pos_error", 1);
+    _pubLoopStatus = nh.advertise<std_msgs::Int32>("visual_servo_sm/loop_status", 1);
 
     // Define Subscribers
     _subOdom =
@@ -104,8 +99,8 @@ VisualServoStateMachine(ros::NodeHandle& nh)
 void nContoursCb(const std_msgs::Int32ConstPtr& msg)
 {
     _nContours = msg->data;
-    if (msg->data == 0 && _currentState != VisualServoState::TOUCHDOWN && 
-        _currentState !=VisualServoState::OFF)
+    if (msg->data == 0 && _currentState != LocalPickupState::TOUCHDOWN && 
+        _currentState != LocalPickupState::OFF)
     {
         ROS_FATAL("VSSM - patch count is 0.");
         turnOffVisualServo();
@@ -132,8 +127,8 @@ void globalCentroidPointCb(const geometry_msgs::Vector3& msg)
     static constexpr double MIN_CENTROID_DISTANCE = 1;
 
     // Check if global centroid is same as previous centroid
-    if (_currentState != VisualServoState::OFF              // Not in OFF state
-        && _currentState != VisualServoState::TOUCHDOWN     // .. and Not in TOUCHDOWN state
+    if (_currentState != LocalPickupState::OFF              // Not in OFF state
+        && _currentState != LocalPickupState::TOUCHDOWN     // .. and Not in TOUCHDOWN state
         && isRelativeDistanceValid(msg.z)                   // .. and relative distance is valid
         && sqrt(                                             
                 pow(_globalCentroid.x - msg.x, 2) 
@@ -181,17 +176,17 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
     if (!request.data || stateMachineDisableConditions() || !healthyNumberOfPublishers() )
     {
         if (!healthyNumberOfPublishers())
-            ROS_FATAL("VSSM::brickPickupServiceCb - check connected publishers.");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPickupServiceCb - check connected publishers.");
         
         if (!request.data)
-            ROS_FATAL("VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPickupServiceCb - brick pickup deactivation requested.");
         
         if (_nContours == 0)
-            ROS_FATAL("VSSM::brickPickupServiceCb - no contours found.");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPickupServiceCb - no contours found.");
 
         if (!isRelativeDistanceValid(_relativeBrickDistance_local)
             || !isRelativeDistanceValid(_relativeBrickDistance_global))
-            ROS_FATAL("VSSM::brickPIckupServiceCb - distances invalid");
+            ROS_FATAL_THROTTLE(THROTTLE_TIME, "VSSM::brickPIckupServiceCb - distances invalid");
 
         turnOffVisualServo();
         _brickPickupActivated = false;
@@ -218,7 +213,7 @@ bool brickPickupServiceCb(std_srvs::SetBool::Request& request, std_srvs::SetBool
         ROS_FATAL("VSSM::brickPickupServiceCb - calling visual servo failed.");
         response.success = false;
         response.message = "Service caller for visual servo failed.";
-        _currentState = VisualServoState::OFF;
+        _currentState = LocalPickupState::OFF;
         return true;
     }
 
@@ -341,12 +336,12 @@ void turnOffVisualServo()
 
     if (!resp.success)
     {
-        ROS_INFO("VSSM::updateStatus - visual servo successfully deactivated");
+        ROS_INFO_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - visual servo successfully deactivated");
         // Visual servo successfully activated
-        _currentState = VisualServoState::OFF;
-        ROS_INFO("VSSM::updateStatus - OFF state activated. ");
+        _currentState = LocalPickupState::OFF;
+        ROS_INFO_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - OFF state activated. ");
         _brickPickupActivated = false; 
-        ROS_INFO("VSSM::updateStatus - Brick pickup finished.");
+        ROS_INFO_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - Brick pickup finished.");
         return;
     }
     else
@@ -366,58 +361,58 @@ bool stateMachineDisableConditions()
 
 void updateState()
 {
-    if (_currentState != VisualServoState::OFF && !_brickPickupActivated ||  // If visual servo is 
-        _currentState == VisualServoState::DESCENT && stateMachineDisableConditions() ||
-        _currentState == VisualServoState::BRICK_ALIGNMENT && stateMachineDisableConditions() ||
-        _currentState == VisualServoState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
+    if (_currentState != LocalPickupState::OFF && !_brickPickupActivated ||  // If visual servo is 
+        _currentState == LocalPickupState::DESCENT && stateMachineDisableConditions() ||
+        _currentState == LocalPickupState::BRICK_ALIGNMENT && stateMachineDisableConditions() ||
+        _currentState == LocalPickupState::TOUCHDOWN_ALIGNMENT && stateMachineDisableConditions())
     {
         // deactivate state machine
-        ROS_WARN("VSSM::updateStatus - Visual servo is inactive.");
-        _currentState = VisualServoState::OFF;
+        ROS_WARN_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - Visual servo is inactive.");
+        _currentState = LocalPickupState::OFF;
         _brickPickupActivated = false;
         turnOffVisualServo();
-        ROS_WARN("VSSM::updateStatus - OFF State activated.");
+        ROS_WARN_THROTTLE(THROTTLE_TIME, "VSSM::updateStatus - OFF State activated.");
         return;
     }
 
     // If brick pickup is activate start brick alignment first
-    if (_currentState == VisualServoState::OFF 
+    if (_currentState == LocalPickupState::OFF 
         && _brickPickupActivated
         && isRelativeDistanceValid(_relativeBrickDistance_local))
     {
         ROS_INFO("VSSM::updateStatus - Brick pickup requested");
         _currHeightReference = _currOdom.pose.pose.position.z;
         _descentTransitionCounter = 0;
-        _currentState = VisualServoState::BRICK_ALIGNMENT;
+        _currentState = LocalPickupState::BRICK_ALIGNMENT;
         ROS_INFO("VSSM::updateStatus - BRICK_ALIGNMENT state activated with height: %2f.", _currHeightReference);
         return;
     }
 
     // Update the transition counter
-    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
+    if (_currentState == LocalPickupState::BRICK_ALIGNMENT &&
         isTargetInThreshold(_minTargetError, _minTargetError, _minTargetError, _brickAlignHeight) &&
         fabs(_currYawError) < _minYawError) {
         _descentTransitionCounter++;
     }
 
     // If brick alignemnt is activated and target error is withing range start descent
-    if (_currentState == VisualServoState::BRICK_ALIGNMENT &&
+    if (_currentState == LocalPickupState::BRICK_ALIGNMENT &&
         _descentTransitionCounter > _descentCounterMax)
     {
-        _currentState = VisualServoState::DESCENT;
+        _currentState = LocalPickupState::DESCENT;
         _relativeBrickDistanceGlobal_lastValid = _relativeBrickDistance_global;
         ROS_INFO("VSSM::updateStatus - DESCENT state activated");
         return;
     }
 
     // When brick alignment passes touchdown height, start alignmennt.
-    if (_currentState == VisualServoState::DESCENT && 
+    if (_currentState == LocalPickupState::DESCENT && 
         isRelativeDistanceValid(_relativeBrickDistance_local) &&
         _relativeBrickDistance_local <= _touchdownHeight)
     {
         _afterTouchdownHeight_GPS = _currOdom.pose.pose.position.z + 
             (_afterTouchdownHeight - _relativeBrickDistance_local);
-        _currentState = VisualServoState::TOUCHDOWN_ALIGNMENT;
+        _currentState = LocalPickupState::TOUCHDOWN_ALIGNMENT;
         _currHeightReference = _currOdom.pose.pose.position.z;
         _touchdownAlignDuration = 0.1;
         ROS_INFO("VSSM::updateStatus - TOUCHDOWN_ALIGNMENT state activated");
@@ -430,12 +425,12 @@ void updateState()
             _minTouchdownTargetPositionError_xy,
             _minTouchdownTargetPositionError_z,
             _touchdownHeight) & enabled;
-    if (_currentState == VisualServoState::TOUCHDOWN_ALIGNMENT &&
+    if (_currentState == LocalPickupState::TOUCHDOWN_ALIGNMENT &&
         isRelativeDistanceValid(_relativeBrickDistance_local) && 
         enabled &&
         _touchdownAlignDuration >= _minTouchdownAlignDuration)
     {
-        _currentState = VisualServoState::TOUCHDOWN;
+        _currentState = LocalPickupState::TOUCHDOWN;
         _touchdownTime = 0;
         _touchdownDelta = _touchdownHeight // _relativeBrickDistance_local
             //- fabs(_currHeightReference - _currOdom.pose.pose.position.z)   // Take into account position tracking error
@@ -447,7 +442,7 @@ void updateState()
     }
 
     // If touchdown time is exceeded, touchdown state is considered finished
-    if (_currentState == VisualServoState::TOUCHDOWN &&
+    if (_currentState == LocalPickupState::TOUCHDOWN &&
         _currHeightReference >= _afterTouchdownHeight_GPS &&
 	    _touchdownTime >  _touchdownDuration)
     {
@@ -532,17 +527,17 @@ void publishVisualServoSetpoint(double dt)
         
     switch (_currentState)
     {
-        case VisualServoState::OFF :
+        case LocalPickupState::OFF :
             // pass
             break;
         
-        case VisualServoState::BRICK_ALIGNMENT : 
+        case LocalPickupState::BRICK_ALIGNMENT : 
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
                 double(_descentCounterMax) / 100.0 * (_brickAlignHeight - _relativeBrickDistance_local);
             _currHeightReference  = _currVisualServoFeed.z;
             break;
         
-        case VisualServoState::DESCENT : 
+        case LocalPickupState::DESCENT : 
             
             if (_currHeightReference < _relativeBrickDistanceGlobal_lastValid) {
                 _currVisualServoFeed.z = _relativeBrickDistanceGlobal_lastValid;
@@ -553,7 +548,7 @@ void publishVisualServoSetpoint(double dt)
             _currVisualServoFeed.yaw = 0;
             break;
         
-        case VisualServoState::TOUCHDOWN_ALIGNMENT :
+        case LocalPickupState::TOUCHDOWN_ALIGNMENT :
             _currVisualServoFeed.z = _currOdom.pose.pose.position.z + 
                 double(_descentCounterMax) / 100.0 * (_touchdownHeight - _relativeBrickDistance_local);
             _currHeightReference  = _currVisualServoFeed.z;
@@ -561,7 +556,7 @@ void publishVisualServoSetpoint(double dt)
             _touchdownAlignDuration += dt;
             break;
 
-        case VisualServoState::TOUCHDOWN :
+        case LocalPickupState::TOUCHDOWN :
             if (_relativeBrickDistance_local < _visualServoDisableHeight) {
                 _currVisualServoFeed.x = 0;
                 _currVisualServoFeed.y = 0;
@@ -589,7 +584,7 @@ void publishVisualServoSetpoint(double dt)
 
     // Publish currrent state
     std_msgs::Int32 stateMsg;
-    stateMsg.data = _currentState;
+    stateMsg.data = static_cast<int>(_currentState);
     _pubVssmState.publish(stateMsg);
 }
 
@@ -612,10 +607,12 @@ void run()
 	while (ros::ok())
 	{
 		ros::spinOnce();
+        _pubLoopStatus.publish(1);
+        
         updateState();
         publishVisualServoSetpoint(dt);
 
-        if (_currentState == VisualServoState::DESCENT 
+        if (_currentState == LocalPickupState::DESCENT 
             && !isRelativeDistanceValid(_relativeBrickDistance_local))
             ROS_FATAL("*** FATAL - BLIND DESCENT ***"); // TODO: :) (?)
 
@@ -625,12 +622,13 @@ void run()
 
 private:
 
+    static constexpr double THROTTLE_TIME = 3.0;
     double _rate = 50;
 
     /* Service brick pickup */
 	ros::ServiceServer _serviceBrickPickup;
     bool _brickPickupActivated = false;
-    VisualServoState _currentState = VisualServoState::OFF;
+    LocalPickupState _currentState = LocalPickupState::OFF;
     
     /* Client for calling visual servo */
     ros::ServiceClient _vsClienCaller;
@@ -643,6 +641,7 @@ private:
     ros::Publisher _pubRelativeDistance_global;
     ros::Publisher _pubRelativeDistance_local;
     ros::Publisher _pubVelError, _pubTargetError;
+    ros::Publisher _pubLoopStatus;
     uav_ros_control_msgs::VisualServoProcessValues _currVisualServoFeed;
 
     /* Odometry subscriber */
