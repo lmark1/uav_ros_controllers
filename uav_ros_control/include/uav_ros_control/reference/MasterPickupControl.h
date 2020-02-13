@@ -226,6 +226,11 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
   //Always try to publish current state
   m_pubMasterState.publish(static_cast<int>(m_currentState));
   
+  // If master pickup is activated, disable everything if(when) Antun takes over :)
+  if (!in_off_state() && !is_guided_active()) {
+    switch_to_off_state();
+  }
+
   // Check if we see any bricks
   if (in_search_state() && !m_challengeInfo.isBrickLocationSet() && is_brick_visible()) {
     ROS_INFO("MasterPickupControl::state_timer - BRICK seen at [%.10f, %.10f, %.10f]",
@@ -241,6 +246,7 @@ void state_timer_cb(const ros::TimerEvent& /* unused */)
     );
   }
 
+  // Check if search trajectory needs regenerating
   if (in_search_state() && !is_trajectory_active() && !is_in_global_pickup()) {
     ROS_INFO("MasterPickupControl::state_timer_cb - in SEARCH state, generate trajectory");
     generate_search_trajectory();
