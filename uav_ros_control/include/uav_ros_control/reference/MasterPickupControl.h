@@ -507,6 +507,16 @@ void generate_search_trajectory()
       newX_rot, newY_rot
     );
 
+    // Quick hack
+    searchtrajectory.points.push_back(
+      traj_gen::toTrajectoryPointMsg(
+        searchtrajectory.points.back().transforms[0].translation.x,
+        searchtrajectory.points.back().transforms[0].translation.y,
+        m_masterConfig->getData().search_height,
+        q.getX(), q.getY(), q.getZ(), q.getW()
+      )
+    );
+
     searchtrajectory.points.push_back(
       traj_gen::toTrajectoryPointMsg(
         newX_rot, newY_rot, m_masterConfig->getData().search_height,
