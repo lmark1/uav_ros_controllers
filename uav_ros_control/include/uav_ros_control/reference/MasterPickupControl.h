@@ -129,12 +129,7 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
     &uav_sm::MasterPickupControl::pickup_success_cb,
     this
   );
-  double stateTimerRate = getParamOrThrow<double>(t_nh, "master_pickup/state_timer_rate");
-  m_stateTimer = t_nh.createTimer(
-    ros::Duration(1.0 / stateTimerRate),
-    &uav_sm::MasterPickupControl::state_timer_cb,
-    this
-  );
+  
   // TODO: Setup timer containing challenge duration
 
   m_clientArming = t_nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
@@ -148,10 +143,22 @@ MasterPickupControl(ros::NodeHandle& t_nh) :
     <color_filter::color::Request, color_filter::color::Response>("set_color");
 }
 
+void run(ros::NodeHandle& t_nh) 
+{
+  double rate = getParamOrThrow<double>(t_nh, "master_pickup/state_timer_rate");
+  ros::Rate loopRate(rate);
+
+  while (ros::ok())
+  {
+    ros::spinOnce();
+    run_internal();
+    loopRate.sleep();
+  }  
+}
+
 private:
 
 inline static void sleep_for(double duration) { ros::Duration(duration).sleep(); }
-
 inline bool is_trajectory_active() { return m_handlerTrajectoryStatus.getData().data; }
 inline bool is_brick_visible() { return m_handlerPatchCount.getData().data > 0; }
 inline bool is_guided_active() { return m_handlerState.getData().mode == "GUIDED_NOGPS"; }
@@ -221,7 +228,7 @@ bool pickup_success_cb(std_srvs::SetBool::Request& request,
   return true;
 }
 
-void state_timer_cb(const ros::TimerEvent& /* unused */) 
+void run_internal() 
 {
   //Always try to publish current state
   m_pubMasterState.publish(static_cast<int>(m_currentState));
@@ -341,7 +348,7 @@ void toggle_global_pickup(bool enablePickup = true)
   request.brick_color = m_challengeInfo.getCurrentTask().color;
   request.latitude = m_challengeInfo.getBrickLocation().x();
   request.longitude = m_challengeInfo.getBrickLocation().y();
-  request.altitude_relative = m_challengeInfo.getBrickLocation().z();
+  request.altitude_relative = m_challengeInfo.getBrickLocation().z(); //TODO: Pub current odometry here
   if (!m_clientGlobalPickup.call(request, response)) {
     ROS_FATAL("MasterPickupControl::toggle_global_pickup - unable to call brick_pickup/global.");
     return;
@@ -432,6 +439,7 @@ void switch_to_search_state()
   ROS_WARN_STREAM(m_currentState << " -> " << MasterPickupStates::SEARCH);
   clear_current_trajectory();
   filter_choose_color("all");
+  ros::spinOnce();
   m_currentState = MasterPickupStates::SEARCH;
 }
 
@@ -466,7 +474,6 @@ void generate_search_trajectory()
     return;
   }
 
-  ros::spinOnce(); // Get new odometry information
   trajectory_msgs::MultiDOFJointTrajectory searchtrajectory;
   searchtrajectory.header.stamp = ros::Time::now();
   searchtrajectory.points.push_back(
@@ -522,6 +529,7 @@ void clear_current_trajectory()
 
 void go_to_home() 
 {
+  ros::spinOnce();
   ROS_INFO("MasterPickupControl::go_to_home");
   double homeAltitude = m_handlerOdometry.getData().pose.pose.position.z; 
   m_pubTrajGen.publish(traj_gen::generateLinearTrajectory_topp(
@@ -637,7 +645,6 @@ ros::ServiceClient m_clientArming, m_clientTakeoff,
   m_clientRequestTask, m_clientCompleteTask,
   m_clientGlobalPickup, m_chooseColorCaller;
 
-ros::Timer m_stateTimer;
 ros::Publisher m_pubTrajGen, m_pubMasterState;
 TopicHandler<mavros_msgs::State> m_handlerState;
 TopicHandler<sensor_msgs::NavSatFix> m_handlerGpsFix;
