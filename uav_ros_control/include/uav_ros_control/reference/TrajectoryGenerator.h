@@ -198,7 +198,7 @@ generateCircleTrajectory_topp(const double t_x, const double t_y, const double t
 
   const double DEG_TO_RAD = M_PI / 180.0;
   double angleInc = 360.0 / t_numberOfPoints * DEG_TO_RAD;
-  for(int i = 0; i < t_numberOfPoints; i ++) {
+  for(int i = 0; i <= t_numberOfPoints; i ++) {
     const double newX = t_x + t_circleRadius * cos(i * angleInc);
     const double newY = t_y + t_circleRadius * sin(i * angleInc);
 
@@ -233,7 +233,7 @@ generateCircleTrajectory_topp(const double t_x, const double t_y, const double t
 
   const double DEG_TO_RAD = M_PI / 180.0;
   double angleInc = 360.0 / t_numberOfPoints * DEG_TO_RAD;
-  for(int i = 0; i < t_numberOfPoints; i ++) {
+  for(int i = 0; i <= t_numberOfPoints; i ++) {
     const double newX = t_x + t_circleRadius * cos(i * angleInc);
     const double newY = t_y + t_circleRadius * sin(i * angleInc);
 
