@@ -9,6 +9,7 @@
 #include <iostream>
 #include "yaml-cpp/yaml.h"
 #include <vector>
+#include <stdbool.h>
 
 
 namespace uav_reference
@@ -23,12 +24,13 @@ namespace uav_reference
 	private:
 
 		void referenceCb(const trajectory_msgs::MultiDOFJointTrajectoryPointConstPtr& msg);
-		bool checkInside(geometry_msgs::Vector3 current, int n);
+		bool checkInside(geometry_msgs::Vector3 current);
 		int isLeft(geometry_msgs::Vector3 P0, geometry_msgs::Vector3 P1, geometry_msgs::Vector3 P2);
 
-		Global2Local _global_to_local;
-		trajectory_msgs::MultiDOFJointTrajectoryPoint _last_valid_position;
-		std::vector<geometry_msgs::Vector3> _vertices;
+		Global2Local _global_to_local;  // Object for converting GPS points
+		trajectory_msgs::MultiDOFJointTrajectoryPoint _last_valid_position;  // Last received position within fence
+		std::vector<geometry_msgs::Vector3> _vertices;  // GPS points definining fence polygon
+		double _max_z;  // Maximum allowed flying height
 
 		ros::Publisher _pub;
 		ros::Subscriber _sub;

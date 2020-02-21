@@ -19,7 +19,7 @@
         <arg name="odom" value="$(arg odometry)"/>
     </include>
 
-    <param name="$(arg namespace)/gps_constraints_filename" value="$(find uav_ros_control)/config/ch$(arg ch_num)_gps_constraints.yaml"/>
+    <param name="$(arg namespace)/gps_constraints_filename" value="$(find uav_ros_control)/config/reference/ch$(arg ch_num)_gps_constraints.yaml"/>
     <node name="geo_fence" pkg="uav_ros_control" type="geo_fence_node" output="screen" ns="$(arg namespace)">
         <remap from="geofence_in" to="$(arg carrot_out)"/>
         <remap from="geofence_out" to="$(arg pid_in)"/>
