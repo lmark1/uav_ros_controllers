@@ -1,28 +1,28 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(uav_ros_control)
 
-find_package(catkin REQUIRED COMPONENTS
-	roscpp
-	uav_ros_control_msgs
-	rospy
-	std_msgs
-	dynamic_reconfigure
-	sensor_msgs
-	mav_msgs
-	tf
-	sensor_fusion_comm
-	mavros
-	color_filter
-	larics_motion_planning
-	uav_search
-	mbzirc_mission_control)
-
+find_package(
+  catkin REQUIRED
+  COMPONENTS roscpp
+             uav_ros_control_msgs
+             rospy
+             std_msgs
+             dynamic_reconfigure
+             sensor_msgs
+             mav_msgs
+             tf
+             sensor_fusion_comm
+             mavros
+             color_filter
+             larics_motion_planning
+             uav_search
+             mbzirc_mission_control)
 
 list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
 find_package(GeographicLib REQUIRED)
 find_package(cmake_modules REQUIRED)
 
-## Find Eigen
+# Find Eigen
 find_package(Eigen3)
 if(NOT EIGEN3_FOUND)
   # Fallback to cmake_modules
@@ -33,23 +33,25 @@ if(NOT EIGEN3_FOUND)
 endif()
 
 generate_dynamic_reconfigure_options(
-	config/control/PositionControlParameters.cfg
-	config/control/DistanceControlParameters.cfg
-	config/control/FlightInitParameters.cfg
-	config/reference/VisualServoParameters.cfg
-	config/reference/VisualServoStateMachineParameters.cfg
-	config/reference/GlobalPickupStateMachineParameters.cfg
-	config/reference/MasterPickupStateMachineParameters.cfg)
+  config/control/PositionControlParameters.cfg
+  config/control/DistanceControlParameters.cfg
+  config/control/FlightInitParameters.cfg
+  config/reference/VisualServoParameters.cfg
+  config/reference/VisualServoStateMachineParameters.cfg
+  config/reference/GlobalPickupStateMachineParameters.cfg
+  config/reference/MasterPickupStateMachineParameters.cfg)
 
 catkin_package(
-	INCLUDE_DIRS include
-	LIBRARIES my_pid nfilt my_kalman
-	CATKIN_DEPENDS uav_ros_control_msgs)
+  INCLUDE_DIRS
+  include
+  LIBRARIES
+  my_pid
+  nfilt
+  my_kalman
+  CATKIN_DEPENDS
+  uav_ros_control_msgs)
 
-include_directories(
-	include
-	${catkin_INCLUDE_DIRS}
-  ${GeographicLib_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${GeographicLib_INCLUDE_DIRS})
 
 # PID controller library
 add_library(my_pid src/control/PID.cpp)
@@ -116,5 +118,4 @@ target_link_libraries(flight_init_node control_lib nfilt)
 add_executable(geo_fence_node nodes/reference/GeoFenceNode.cpp)
 target_link_libraries(geo_fence_node reference_lib ${catkin_LIBRARIES} nfilt)
 
-install(DIRECTORY include/${PROJECT_NAME}/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
