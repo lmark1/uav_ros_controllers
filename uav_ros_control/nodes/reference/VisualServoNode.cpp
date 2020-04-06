@@ -1,4 +1,4 @@
-#include<uav_ros_control/reference/VisualServo.h>
+#include<uav_ros_control/reference/VisualServo.hpp>
 
 int main(int argc, char **argv)
 {

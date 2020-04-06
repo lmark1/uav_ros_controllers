@@ -1,4 +1,4 @@
-#include "uav_ros_control/control/FlightInit.h"
+#include "uav_ros_control/control/FlightInit.hpp"
 #include <ros/ros.h>
 
 int main(int argc, char **argv)

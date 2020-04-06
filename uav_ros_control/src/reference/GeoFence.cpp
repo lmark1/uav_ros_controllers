@@ -1,4 +1,4 @@
-#include <uav_ros_control/reference/GeoFence.h>
+#include <uav_ros_control/reference/GeoFence.hpp>
 #include <typeinfo>
 
 uav_reference::GeoFence::GeoFence(ros::NodeHandle& nh, std::string filename) :

@@ -4,8 +4,8 @@
  *  Created on: Apr 11, 2019
  *      Author: lmark
  */
-#include <uav_ros_control/control/ControlBase.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/control/ControlBase.hpp>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
 
 #include <mavros_msgs/AttitudeTarget.h>
 #include <nav_msgs/Odometry.h>

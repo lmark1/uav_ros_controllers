@@ -15,10 +15,10 @@
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <std_srvs/SetBool.h>
 
-#include <uav_ros_control/filters/Util.h>
+#include <uav_ros_control/filters/Util.hpp>
 #include <uav_ros_control/VisualServoStateMachineParametersConfig.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
-#include <uav_ros_control/reference/TrajectoryGenerator.h>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
+#include <uav_ros_control/reference/TrajectoryGenerator.hpp>
 
 namespace uav_reference 
 {

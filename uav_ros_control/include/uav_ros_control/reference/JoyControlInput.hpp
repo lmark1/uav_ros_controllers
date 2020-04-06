@@ -2,7 +2,7 @@
 #define JOY_CONTROL_INPUT_H
 
 // Own includes
-#include <uav_ros_control/reference/JoyStructure.h>
+#include <uav_ros_control/reference/JoyStructure.hpp>
 
 // ROS includes 
 #include <sensor_msgs/Joy.h>

@@ -1,4 +1,4 @@
-#include "uav_ros_control/reference/MasterPickupControl.h"
+#include "uav_ros_control/reference/MasterPickupControl.hpp"
 
 int main(int argc, char **argv)
 {

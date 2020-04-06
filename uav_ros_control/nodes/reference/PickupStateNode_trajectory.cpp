@@ -1,4 +1,4 @@
-#include "uav_ros_control/reference/PickupStateMachine.h"
+#include "uav_ros_control/reference/PickupStateMachine.hpp"
 
 int main(int argc, char **argv)
 {

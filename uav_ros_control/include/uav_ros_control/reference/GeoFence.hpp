@@ -2,7 +2,7 @@
 #define GEO_FENCE_H
 
 #include <ros/ros.h>
-#include <uav_ros_control/reference/Global2Local.h>
+#include <uav_ros_control/reference/Global2Local.hpp>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Twist.h>

@@ -5,7 +5,7 @@
  *      Author: lmark
  */
 
-#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
 #include <iostream>
 #include <math.h>
 

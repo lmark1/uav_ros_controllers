@@ -1,5 +1,5 @@
-#include <uav_ros_control/filters/NonlinearFilters.h>
-#include <uav_ros_control/reference/CarrotReference.h>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
+#include <uav_ros_control/reference/CarrotReference.hpp>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float64.h>

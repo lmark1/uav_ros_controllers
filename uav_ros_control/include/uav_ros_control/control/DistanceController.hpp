@@ -8,8 +8,8 @@
 #ifndef DISTANCE_CONTROL_H
 #define DISTANCE_CONTROL_H
 
-#include <uav_ros_control/control/CascadePID.h>
-#include <uav_ros_control/reference/JoyStructure.h>
+#include <uav_ros_control/control/CascadePID.hpp>
+#include <uav_ros_control/reference/JoyStructure.hpp>
 #include <uav_ros_control/DistanceControlParametersConfig.h>
 
 // ROS Includes

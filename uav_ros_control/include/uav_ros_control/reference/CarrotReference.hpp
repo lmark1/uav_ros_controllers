@@ -1,14 +1,14 @@
 #ifndef CARROT_REFERENCE_H
 #define CARROT_REFERENCE_H
 
-#include <uav_ros_control/reference/JoyControlInput.h>
+#include <uav_ros_control/reference/JoyControlInput.hpp>
 #include <geometry_msgs/Vector3.h>
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/Empty.h>
 #include <std_srvs/SetBool.h>
 #include <uav_ros_control_msgs/TakeOff.h>
 #include <mavros_msgs/State.h>
-#include <uav_ros_control/filters/Util.h>
+#include <uav_ros_control/filters/Util.hpp>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 
 namespace uav_reference 

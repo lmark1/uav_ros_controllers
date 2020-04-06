@@ -1,4 +1,4 @@
-#include <uav_ros_control/reference/GeoFence.h>
+#include <uav_ros_control/reference/GeoFence.hpp>
 
 int main(int argc, char **argv)
 {

@@ -1,4 +1,4 @@
-#include "uav_ros_control/reference/VisualServoStateMachine.h"
+#include "uav_ros_control/reference/VisualServoStateMachine.hpp"
 
 int main(int argc, char **argv)
 {

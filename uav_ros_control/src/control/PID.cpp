@@ -1,4 +1,4 @@
-#include <uav_ros_control/control/PID.h>
+#include <uav_ros_control/control/PID.hpp>
 #include <limits>
 #include <iostream>
 

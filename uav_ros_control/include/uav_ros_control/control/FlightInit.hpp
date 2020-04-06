@@ -37,7 +37,7 @@
 // Service for path/trajectory flags
 #include <dynamic_reconfigure/server.h>
 #include <uav_ros_control/FlightInitParametersConfig.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
 #include <uav_ros_control_msgs/TakeOff.h>
 #include <tf2/LinearMath/Quaternion.h>
 

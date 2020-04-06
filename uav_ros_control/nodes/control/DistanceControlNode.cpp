@@ -1,4 +1,4 @@
-#include <uav_ros_control/control/DistanceController.h>
+#include <uav_ros_control/control/DistanceController.hpp>
 
 int main(int argc, char** argv)
 {

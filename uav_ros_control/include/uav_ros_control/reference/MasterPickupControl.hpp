@@ -2,10 +2,10 @@
 #define MASTER_PICKUP_CONTROL_H
 
 #include <ros/ros.h>
-#include <uav_ros_control/filters/Util.h>
-#include <uav_ros_control/reference/PickupStates.h>
-#include <uav_ros_control/reference/TrajectoryGenerator.h>
-#include <uav_ros_control/reference/Global2Local.h>
+#include <uav_ros_control/filters/Util.hpp>
+#include <uav_ros_control/reference/PickupStates.hpp>
+#include <uav_ros_control/reference/TrajectoryGenerator.hpp>
+#include <uav_ros_control/reference/Global2Local.hpp>
 #include <Eigen/Dense>
 
 #include <mavros_msgs/State.h>

@@ -5,15 +5,15 @@
 #include <ros/ros.h>
 #include <uav_ros_control/GlobalPickupStateMachineParametersConfig.h>
 #include <uav_ros_control_msgs/GeoBrickApproach.h>
-#include <uav_ros_control/filters/Util.h>
+#include <uav_ros_control/filters/Util.hpp>
 #include <iostream>
-#include <uav_ros_control/reference/Global2Local.h>
-#include <uav_ros_control/reference/TrajectoryGenerator.h>
+#include <uav_ros_control/reference/Global2Local.hpp>
+#include <uav_ros_control/reference/TrajectoryGenerator.hpp>
 #include <nav_msgs/Odometry.h>
 #include <std_srvs/SetBool.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Bool.h>
-#include <uav_ros_control/reference/PickupStates.h>
+#include <uav_ros_control/reference/PickupStates.hpp>
 
 using namespace pickup_states;
 using namespace ros_util;

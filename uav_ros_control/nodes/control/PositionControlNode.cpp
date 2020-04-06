@@ -1,4 +1,4 @@
-#include <uav_ros_control/control/CascadePID.h>
+#include <uav_ros_control/control/CascadePID.hpp>
 
 int main(int argc, char** argv)
 {

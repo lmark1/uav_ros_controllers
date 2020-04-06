@@ -15,8 +15,8 @@
 #include <std_srvs/SetBool.h>
 #include <uav_ros_control/VisualServoStateMachineParametersConfig.h>
 #include <uav_ros_control_msgs/VisualServoProcessValues.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
-#include <uav_ros_control/reference/PickupStates.h>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
+#include <uav_ros_control/reference/PickupStates.hpp>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 
 namespace uav_reference 

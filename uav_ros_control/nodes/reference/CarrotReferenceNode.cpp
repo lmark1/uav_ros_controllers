@@ -1,4 +1,4 @@
-#include <uav_ros_control/reference/CarrotReference.h>
+#include <uav_ros_control/reference/CarrotReference.hpp>
 
 int main(int argc, char **argv) 
 {

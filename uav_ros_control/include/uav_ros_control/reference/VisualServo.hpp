@@ -24,8 +24,8 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <uav_ros_control/VisualServoParametersConfig.h>
-#include <uav_ros_control/control/PID.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/control/PID.hpp>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
 #include <uav_ros_control_msgs/VisualServoProcessValues.h>
 
 namespace uav_reference {

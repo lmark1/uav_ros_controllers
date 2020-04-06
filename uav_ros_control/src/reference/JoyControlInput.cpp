@@ -1,5 +1,5 @@
-#include <uav_ros_control/reference/JoyControlInput.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/reference/JoyControlInput.hpp>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
 #include <math.h>
 
 /** Minimum value for joy to be considered active. */

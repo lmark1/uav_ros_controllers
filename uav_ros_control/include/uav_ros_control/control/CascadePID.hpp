@@ -1,8 +1,8 @@
 #ifndef CASCADE_PID_H
 #define CASCADE_PID_H
 
-#include <uav_ros_control/control/ControlBase.h>
-#include <uav_ros_control/control/PID.h>
+#include <uav_ros_control/control/ControlBase.hpp>
+#include <uav_ros_control/control/PID.hpp>
 #include <dynamic_reconfigure/server.h>
 #include <uav_ros_control/PositionControlParametersConfig.h>
 
