@@ -227,7 +227,9 @@ private:
   void run_internal()
   {
     // Always try to publish current state
-    m_pubMasterState.publish(static_cast<int>(m_currentState));
+    std_msgs::Int32 stateMsg;
+    stateMsg.data = static_cast<int>(m_currentState);
+    m_pubMasterState.publish(stateMsg);
 
     // If master pickup is activated, disable everything if(when) Antun takes over :)
     if (!in_off_state() && !is_guided_active()) { switch_to_off_state(); }

@@ -181,7 +181,7 @@ public:
 
   bool healthyNumberOfPublishers()
   {
-    ROS_FATAL_COND(!_subNContours.getNumPublishers() > 0,
+    ROS_FATAL_COND((!_subNContours.getNumPublishers()) > 0,
       "VSSM - 'n_contours' topic publisher missing");
     ROS_FATAL_COND(
       !_subOdom.getNumPublishers() > 0, "VSSM - 'odometry' topic publisher missing");
@@ -646,7 +646,9 @@ public:
     double dt = 1.0 / _rate;
     while (ros::ok()) {
       ros::spinOnce();
-      _pubLoopStatus.publish(1);
+      std_msgs::Int32 testMsg;
+      testMsg.data = 1;
+      _pubLoopStatus.publish(testMsg);
 
       updateState();
       publishVisualServoSetpoint(dt);

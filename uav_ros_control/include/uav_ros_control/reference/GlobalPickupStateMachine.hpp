@@ -115,7 +115,9 @@ private:
 
   void update_state(const ros::TimerEvent & /* unused */)
   {
-    m_pubGlobalPickupStatus.publish(static_cast<int>(m_currentStatus.m_status));
+    std_msgs::Int32 stateMsg;
+    stateMsg.data = static_cast<int>(m_currentStatus.m_status);
+    m_pubGlobalPickupStatus.publish(stateMsg);
 
     if (m_currentStatus.isApproaching() && is_close_to_brick()) {
       ROS_WARN("BrickPickup::update_state - SEARCH state activated");
