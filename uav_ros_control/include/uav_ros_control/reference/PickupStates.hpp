@@ -1,6 +1,8 @@
 #ifndef PICKUP_STATES_H
 #define PICKUP_STATES_H
 
+#include <iostream>
+
 namespace pickup_states {
 enum class MasterPickupStates { OFF, SEARCH, ACTION };
 
