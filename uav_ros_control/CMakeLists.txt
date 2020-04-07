@@ -1,16 +1,8 @@
 cmake_minimum_required(VERSION 3.10.0)
 project(uav_ros_control)
 
-find_package(
-  catkin REQUIRED
-  COMPONENTS roscpp
-             uav_ros_control_msgs
-             dynamic_reconfigure
-             mavros
-             color_filter
-             larics_motion_planning
-             uav_search
-             mbzirc_mission_control)
+find_package(catkin REQUIRED COMPONENTS roscpp uav_ros_control_msgs dynamic_reconfigure
+                                        mavros)
 
 list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
 find_package(GeographicLib REQUIRED)
@@ -28,11 +20,7 @@ endif()
 
 generate_dynamic_reconfigure_options(
   config/control/PositionControlParameters.cfg
-  config/control/DistanceControlParameters.cfg
-  config/reference/VisualServoParameters.cfg
-  config/reference/VisualServoStateMachineParameters.cfg
-  config/reference/GlobalPickupStateMachineParameters.cfg
-  config/reference/MasterPickupStateMachineParameters.cfg)
+  config/control/DistanceControlParameters.cfg config/reference/VisualServoParameters.cfg)
 
 catkin_package(
   INCLUDE_DIRS
@@ -78,23 +66,6 @@ target_link_libraries(visual_servo_node reference_lib)
 
 add_executable(visual_servo_idle nodes/reference/VisualServoIdleNode.cpp)
 target_link_libraries(visual_servo_idle reference_lib)
-
-# visual servo state machine
-add_executable(visual_servo_sm nodes/reference/VisualServoStateNode.cpp)
-target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
-
-# Global pickup state machine
-add_executable(brick_pickup_sm nodes/reference/GlobalPickupStateNode.cpp)
-target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt
-                      ${GeographicLib_LIBRARIES})
-
-# pickup state machine - with trajectories
-add_executable(pickup_sm nodes/reference/PickupStateNode_trajectory.cpp)
-target_link_libraries(pickup_sm ${catkin_LIBRARIES} nfilt)
-
-# master pickup state machnie
-add_executable(master_brick_pickup nodes/reference/MasterPickupControlNode.cpp)
-target_link_libraries(master_brick_pickup ${catkin_LIBRARIES} nfilt)
 
 # PID cascade node
 add_executable(pid_cascade_node nodes/control/PositionControlNode.cpp)
