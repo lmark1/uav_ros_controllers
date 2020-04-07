@@ -92,7 +92,8 @@ target_link_libraries(visual_servo_sm ${catkin_LIBRARIES} nfilt)
 
 # Global pickup state machine
 add_executable(brick_pickup_sm nodes/reference/GlobalPickupStateNode.cpp)
-target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt ${GeographicLib_LIBRARIES})
+target_link_libraries(brick_pickup_sm ${catkin_LIBRARIES} nfilt
+                      ${GeographicLib_LIBRARIES})
 
 # pickup state machine - with trajectories
 add_executable(pickup_sm nodes/reference/PickupStateNode_trajectory.cpp)
@@ -118,4 +119,5 @@ target_link_libraries(flight_init_node control_lib nfilt)
 add_executable(geo_fence_node nodes/reference/GeoFenceNode.cpp)
 target_link_libraries(geo_fence_node reference_lib ${catkin_LIBRARIES} nfilt)
 
-install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

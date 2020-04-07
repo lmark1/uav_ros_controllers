@@ -3,9 +3,9 @@
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "flight_init_node");
-    ros::NodeHandle nh;
+  ros::init(argc, argv, "flight_init_node");
+  ros::NodeHandle nh;
 
-    std::shared_ptr<flight_init::FlightInit> fiObj{new flight_init::FlightInit(nh)};
-    fiObj->run();
+  std::shared_ptr<flight_init::FlightInit> fiObj{ new flight_init::FlightInit(nh) };
+  fiObj->run();
 }

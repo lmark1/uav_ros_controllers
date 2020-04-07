@@ -11,132 +11,125 @@
 #include <std_srvs/Empty.h>
 #include <std_msgs/String.h>
 
-namespace uav_controller 
+namespace uav_controller {
+/** Name of dynamic reconfigure node. */
+#define CASCADE_DYN_RECONF "cascade_config"
+
+/**
+ * PID cascade controller.
+ */
+class CascadePID : public ControlBase
 {
-	/** Name of dynamic reconfigure node. */
-	#define CASCADE_DYN_RECONF "cascade_config"
+public:
+  /**
+   * Default constructor. Used for reading ROS parameters and initalizing
+   * private variables.
+   */
+  CascadePID(ros::NodeHandle &nh);
+  virtual ~CascadePID();
 
-	/**
-	 * PID cascade controller.
-	 */
-	class CascadePID : 
-		public ControlBase
-	{
-	public:
+  /**
+   * Calculate new attitude and thrust setpoint.
+   *
+   * @oaram dt - Discretization time
+   */
+  void calculateAttThrustSp(double dt);
+  bool activationPermission();
 
-		/**
- 		 * Default constructor. Used for reading ROS parameters and initalizing 
-		 * private variables.
-		 */
-		CascadePID(ros::NodeHandle& nh);
-		virtual ~CascadePID();
-		
-		/**
-		 * Calculate new attitude and thrust setpoint.
-		 * 
-		 * @oaram dt - Discretization time
-		 */
-		void calculateAttThrustSp(double dt);
-		bool activationPermission();
+  /**
+   * Reset all position PIDs.
+   */
+  void resetPositionPID();
 
-		/**
-		 * Reset all position PIDs.
-		 */
-		void resetPositionPID();
-		
-		/**
-		 * Reset all velociy PIDs.
-		 */
-		void resetVelocityPID();
+  /**
+   * Reset all velociy PIDs.
+   */
+  void resetVelocityPID();
 
-	private:
-		
-		/** 
-		 * Reset integrator service callback.OS 
-		 */
-		bool intResetServiceCb(std_srvs::Empty::Request& request, 
-			std_srvs::Empty::Response& response);
+private:
+  /**
+   * Reset integrator service callback.OS
+   */
+  bool intResetServiceCb(std_srvs::Empty::Request &request,
+    std_srvs::Empty::Response &response);
 
-		/**
-		 * Yaw reference callback function.
-		 */
-		void yawRefCb(const std_msgs::Float64ConstPtr&);
-		void carrotStatusCb(const std_msgs::StringConstPtr&);
+  /**
+   * Yaw reference callback function.
+   */
+  void yawRefCb(const std_msgs::Float64ConstPtr &);
+  void carrotStatusCb(const std_msgs::StringConstPtr &);
 
-        /**
-		 * Do all the parameter initialization here.
-		 */
-		void initializeParameters(ros::NodeHandle& nh);
+  /**
+   * Do all the parameter initialization here.
+   */
+  void initializeParameters(ros::NodeHandle &nh);
 
-        /**
-		 * Callback function used for setting various parameters.
-		 */
-		void positionParamsCb(
-			uav_ros_control::PositionControlParametersConfig& configMsg,
-			uint32_t level);
-	
-		/**
-		 * Set reconfigure parameters in the given config object.
-		 */
-		void setPositionReconfigureParams(
-			uav_ros_control::PositionControlParametersConfig& config);
+  /**
+   * Callback function used for setting various parameters.
+   */
+  void positionParamsCb(uav_ros_control::PositionControlParametersConfig &configMsg,
+    uint32_t level);
 
-		/** PID controller for position along the y-axis.*/
-		std::unique_ptr<PID> _posYPID;
-		
-		/** PID controller for velocity along the y-axis */
-		std::unique_ptr<PID> _velYPID;
+  /**
+   * Set reconfigure parameters in the given config object.
+   */
+  void setPositionReconfigureParams(
+    uav_ros_control::PositionControlParametersConfig &config);
 
-		/** PID controller for position along the x-axis.*/
-		std::unique_ptr<PID> _posXPID;
-		
-		/** PID controller for velocity along the x-axis */
-		std::unique_ptr<PID> _velXPID;
+  /** PID controller for position along the y-axis.*/
+  std::unique_ptr<PID> _posYPID;
 
-		/** PID controller for position along the z-axis.*/
-		std::unique_ptr<PID> _posZPID;
+  /** PID controller for velocity along the y-axis */
+  std::unique_ptr<PID> _velYPID;
 
-		/** PID controller for velocity along the y-axis */
-		std::unique_ptr<PID> _velZPID;
+  /** PID controller for position along the x-axis.*/
+  std::unique_ptr<PID> _posXPID;
 
-		/** Value from 0 to 1, hover thrust */
-		double _hoverThrust = 0;
+  /** PID controller for velocity along the x-axis */
+  std::unique_ptr<PID> _velXPID;
 
-		/** Feed-forward gain for linear velocity reference. */
-		double _ffGainVelocityX = 0, _ffGainVelocityY = 0, _ffGainVelocityZ = 0;
+  /** PID controller for position along the z-axis.*/
+  std::unique_ptr<PID> _posZPID;
 
-		/** Feed-forward gain for linear acceleration reference. */
-		double _ffGainAccelerationX = 0, _ffGainAccelerationY = 0, _ffGainAccelerationZ = 0;
+  /** PID controller for velocity along the y-axis */
+  std::unique_ptr<PID> _velZPID;
 
-		/** Yaw reference */
-		double _yawRef = 0;
+  /** Value from 0 to 1, hover thrust */
+  double _hoverThrust = 0;
 
-		/** Define Dynamic Reconfigure parameters **/
-		boost::recursive_mutex _posConfigMutex;
-		dynamic_reconfigure::
-			Server<uav_ros_control::PositionControlParametersConfig>
-			_posConfigServer {_posConfigMutex, ros::NodeHandle(CASCADE_DYN_RECONF)};
-		dynamic_reconfigure::
-			Server<uav_ros_control::PositionControlParametersConfig>::CallbackType
-			_posParamCallback;
-		
-		/** Define all the services */
-		ros::ServiceServer _serviceResetIntegrators;
+  /** Feed-forward gain for linear velocity reference. */
+  double _ffGainVelocityX = 0, _ffGainVelocityY = 0, _ffGainVelocityZ = 0;
 
-		/** Velocity ref publisher */
-		ros::Publisher _velRefPub;
-		ros::Publisher _velCurrPub;
-		
-		/** Yaw reference subscriber. */
-		ros::Subscriber _yawRefSub;
-		ros::Subscriber _carrotStateSub;
-		std::string _carrotStatus;
-	};
+  /** Feed-forward gain for linear acceleration reference. */
+  double _ffGainAccelerationX = 0, _ffGainAccelerationY = 0, _ffGainAccelerationZ = 0;
 
-	/**
-	 * Default position control program
-	 */
-	void runDefault(uav_controller::CascadePID& cc, ros::NodeHandle& nh);	
-}
+  /** Yaw reference */
+  double _yawRef = 0;
+
+  /** Define Dynamic Reconfigure parameters **/
+  boost::recursive_mutex _posConfigMutex;
+  dynamic_reconfigure::Server<uav_ros_control::PositionControlParametersConfig>
+    _posConfigServer{ _posConfigMutex, ros::NodeHandle(CASCADE_DYN_RECONF) };
+  dynamic_reconfigure::Server<
+    uav_ros_control::PositionControlParametersConfig>::CallbackType _posParamCallback;
+
+  /** Define all the services */
+  ros::ServiceServer _serviceResetIntegrators;
+
+  /** Velocity ref publisher */
+  ros::Publisher _velRefPub;
+  ros::Publisher _velCurrPub;
+
+  /** Yaw reference subscriber. */
+  ros::Subscriber _yawRefSub;
+  ros::Subscriber _carrotStateSub;
+  std::string _carrotStatus;
+};
+
+/**
+ * Default position control program
+ */
+void runDefault(uav_controller::CascadePID &cc, ros::NodeHandle &nh);
+}// namespace uav_controller
 
 #endif /** CASCADE_PID_H */

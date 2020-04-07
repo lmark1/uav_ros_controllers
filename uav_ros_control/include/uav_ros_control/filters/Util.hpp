@@ -9,7 +9,10 @@ namespace ros_util {
 
 struct EnumClassHash
 {
-  template<typename T> std::size_t operator()(T t) const { return static_cast<std::size_t>(t); }
+  template<typename T> std::size_t operator()(T t) const
+  {
+    return static_cast<std::size_t>(t);
+  }
 };
 
 struct PairHash
@@ -20,7 +23,10 @@ struct PairHash
   }
 };
 
-template<class T> void getParamOrThrow(ros::NodeHandle &t_nh, const std::string &t_paramName, T &t_paramContainer)
+template<class T>
+void getParamOrThrow(ros::NodeHandle &t_nh,
+  const std::string &t_paramName,
+  T &t_paramContainer)
 {
   bool gotParam = t_nh.getParam(t_paramName, t_paramContainer);
   ROS_INFO_STREAM("Got param [" << t_paramName << "] = " << t_paramContainer);
@@ -40,14 +46,17 @@ template<class T> T getParamOrThrow(ros::NodeHandle &nh, const std::string &para
 template<class T> class TopicHandler
 {
 public:
-  TopicHandler(ros::NodeHandle &t_nh, const std::string &t_topicName, const double t_timeoutDuration = 2)
-    : m_topicName(t_topicName), m_topicTimeout(t_timeoutDuration), m_lastMessgeTime(0), m_isResponsive(false),
-      m_messageRecieved(false)
+  TopicHandler(ros::NodeHandle &t_nh,
+    const std::string &t_topicName,
+    const double t_timeoutDuration = 2)
+    : m_topicName(t_topicName), m_topicTimeout(t_timeoutDuration), m_lastMessgeTime(0),
+      m_isResponsive(false), m_messageRecieved(false)
   {
     m_subT = t_nh.subscribe(m_topicName, 1, &TopicHandler::callback, this);
 
     if (t_timeoutDuration > 0) {
-      m_watchdogTimer = t_nh.createTimer(ros::Duration(t_timeoutDuration), &TopicHandler::watchdog_callback, this);
+      m_watchdogTimer = t_nh.createTimer(
+        ros::Duration(t_timeoutDuration), &TopicHandler::watchdog_callback, this);
     }
   }
 
@@ -93,14 +102,16 @@ public:
     const std::string &t_topicName,
     std::function<void(const T &)> t_postCallbackFunction,
     const double t_timeoutDuration = 2)
-    : m_topicName(t_topicName), m_topicTimeout(t_timeoutDuration), m_lastMessgeTime(0), m_isResponsive(false),
-      m_postCallbackFunction(t_postCallbackFunction), m_messageRecieved(false)
+    : m_topicName(t_topicName), m_topicTimeout(t_timeoutDuration), m_lastMessgeTime(0),
+      m_isResponsive(false), m_postCallbackFunction(t_postCallbackFunction),
+      m_messageRecieved(false)
   {
     m_subT = t_nh.subscribe(m_topicName, 1, &TopicHandlerWithFunction::callback, this);
 
     if (t_timeoutDuration > 0) {
-      m_watchdogTimer =
-        t_nh.createTimer(ros::Duration(t_timeoutDuration), &TopicHandlerWithFunction::watchdog_callback, this);
+      m_watchdogTimer = t_nh.createTimer(ros::Duration(t_timeoutDuration),
+        &TopicHandlerWithFunction::watchdog_callback,
+        this);
     }
   }
 
@@ -155,7 +166,10 @@ public:
   const T &getData() { return m_currentConfig; }
 
 private:
-  void paramCallback(const T &cfgParams, uint32_t /* unused */) { m_currentConfig = std::move(cfgParams); }
+  void paramCallback(const T &cfgParams, uint32_t /* unused */)
+  {
+    m_currentConfig = std::move(cfgParams);
+  }
 
   boost::recursive_mutex m_configMutex;
   dynamic_reconfigure::Server<T> m_configServer;
