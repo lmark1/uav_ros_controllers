@@ -4,20 +4,6 @@ project(uav_ros_control)
 find_package(catkin REQUIRED COMPONENTS roscpp uav_ros_control_msgs dynamic_reconfigure
                                         mavros)
 
-list(INSERT CMAKE_MODULE_PATH 0 "/usr/share/cmake/geographiclib/")
-find_package(GeographicLib REQUIRED)
-find_package(cmake_modules REQUIRED)
-
-# Find Eigen
-find_package(Eigen3)
-if(NOT EIGEN3_FOUND)
-  # Fallback to cmake_modules
-  find_package(cmake_modules REQUIRED)
-  find_package(Eigen REQUIRED)
-  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
-  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})
-endif()
-
 generate_dynamic_reconfigure_options(
   config/control/PositionControlParameters.cfg
   config/control/DistanceControlParameters.cfg config/reference/VisualServoParameters.cfg)
