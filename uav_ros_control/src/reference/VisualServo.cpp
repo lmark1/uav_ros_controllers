@@ -190,6 +190,11 @@ bool uav_reference::VisualServo::startVisualServoServiceCb(std_srvs::SetBool::Re
   _y_frozen = false;
   _yaw_frozen = false;
   response.success = _visualServoEnabled;
+  if (_visualServoEnabled) {
+    _setpointPosition[0] = _uavPos[0];
+    _setpointPosition[1] = _uavPos[1];
+    _setpointPosition[2] = _uavPos[2];
+  }
   return true;
 }
 
