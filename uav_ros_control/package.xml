@@ -20,10 +20,12 @@
   <build_depend>uav_ros_control_msgs</build_depend>
   <build_depend>geographiclib</build_depend>
   <build_depend>geographiclib-tools</build_depend>
+  <build_depend>mavros</build_depend>
 
   <run_depend>geographiclib</run_depend>
   <run_depend>geographiclib-tools</run_depend>
   <run_depend>uav_ros_control_msgs</run_depend>
+  <run_depend>mavros</run_depend>
   
   <!-- The export tag contains other, unspecified, tags -->
   <export>
