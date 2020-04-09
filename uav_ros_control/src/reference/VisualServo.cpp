@@ -2,8 +2,8 @@
 // Created by robert on 20. 09. 2019..
 //
 
-#include <uav_ros_control/reference/VisualServo.h>
-#include <uav_ros_control/filters/NonlinearFilters.h>
+#include <uav_ros_control/reference/VisualServo.hpp>
+#include <uav_ros_control/filters/NonlinearFilters.hpp>
 #include <math.h>
 #include <tf/LinearMath/Transform.h>
 
