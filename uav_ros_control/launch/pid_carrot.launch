@@ -4,11 +4,13 @@
     <arg name="pid_in"          default="carrot/trajectory"/>
     <arg name="odometry"            default="mavros/global_position/local"/>
     <arg name="msf_callback_enable"     default="false"/>
+    <arg name="manual_takeoff"  default="true"/>
 
     <include file="$(find uav_ros_control)/launch/carrot_reference.launch">
         <arg name="namespace" value="$(arg namespace)"/>
         <arg name="ref" value="$(arg carrot_out)"/>
         <arg name="odom" value="$(arg odometry)"/>
+        <arg name="manual_takeoff"  default="$(arg manual_takeoff)"/>
     </include>
     
     <include file="$(find uav_ros_control)/launch/position_control.launch">
