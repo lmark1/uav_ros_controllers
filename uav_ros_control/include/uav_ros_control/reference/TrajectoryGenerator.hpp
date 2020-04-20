@@ -205,7 +205,7 @@ namespace traj_gen {
     const double t_z,
     const trajectory_msgs::MultiDOFJointTrajectoryPoint &currentPoint,
     const int t_numberOfPoints = 10,
-    const int t_circleRadius = 1)
+    const double t_circleRadius = 1)
   {
     trajectory_msgs::MultiDOFJointTrajectory trajectory;
     trajectory.header.stamp = ros::Time::now();
@@ -234,7 +234,7 @@ namespace traj_gen {
     const double t_z,
     const nav_msgs::Odometry &odom,
     const int t_numberOfPoints = 10,
-    const int t_circleRadius = 1)
+    const double t_circleRadius = 1)
   {
     trajectory_msgs::MultiDOFJointTrajectory trajectory;
     trajectory.header.stamp = ros::Time::now();
