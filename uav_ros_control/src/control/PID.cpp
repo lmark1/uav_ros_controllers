@@ -3,18 +3,14 @@
 #include <iostream>
 
 // Parameter path constants
-#define KP "/kp"
-#define KD "/kd"
-#define KI "/ki"
-#define LIM_LOW "/lim_low"
-#define LIM_HIGH "/lim_high"
+const std::string PIDParamPrefix::KP = "/kp";
+const std::string PIDParamPrefix::KI = "/ki";
+const std::string PIDParamPrefix::KD = "/kd";
+const std::string PIDParamPrefix::LIM_HIGH = "/lim_high";
+const std::string PIDParamPrefix::LIM_LOW = "/lim_low";
 
-PID::PID(std::string name) : _name(name)
+PID::PID(std::string name) : _name(std::move(name))
 {
-  /*
-      Initializes PID gains (proportional - kp, integral - ki, derivative - kd) and
-     control values to zero.
-  */
 
   // initialize gains
   kp = 0;// proportional gain
@@ -27,8 +23,8 @@ PID::PID(std::string name) : _name(name)
   ui_old = 0;// I part from previous step
   ud = 0;// D part
   u = 0;// total control value
-  lim_high = std::numeric_limits<float>::max();// control value upper limit
-  lim_low = -std::numeric_limits<float>::max();// control value lower limit
+  lim_high = std::numeric_limits<double>::max();// control value upper limit
+  lim_low = -std::numeric_limits<double>::max();// control value lower limit
 
   // init referent control value (set-value)
   ref = 0;
@@ -63,77 +59,61 @@ void PID::resetIntegrator()
   ROS_DEBUG("PID %s is reset.", _name.c_str());
 }
 
-void PID::set_kp(float invar)
+void PID::set_kp(const double kp_)
 {
-  /* Set proportional gain. */
-  kp = invar;
+  kp = kp_;
 }
 
-float PID::get_kp()
+const double &PID::get_kp()
 {
-  /* Returns proportional gain */
   return kp;
 }
 
-void PID::set_ki(float invar)
+void PID::set_ki(const double ki_)
 {
-  /* Set integral gain. */
-  ki = invar;
+  ki = ki_;
 }
 
-float PID::get_ki()
+const double &PID::get_ki()
 {
-  /* Returns integral gain */
   return ki;
 }
 
-void PID::set_kd(float invar)
+void PID::set_kd(const double kd_)
 {
-  /* Set derivative gain. */
-  kd = invar;
+  kd = kd_;
 }
 
-float PID::get_kd()
+const double &PID::get_kd()
 {
-  /* Returns derivative gain */
   return kd;
 }
 
-void PID::set_lim_high(float invar)
+void PID::set_lim_high(const double lim_high_)
 {
-  /* Set PID upper limit value */
-  lim_high = invar;
+  lim_high = lim_high_;
 }
 
-float PID::get_lim_high()
+const double &PID::get_lim_high()
 {
-  /* Returns PID upper limit value */
   return lim_high;
 }
 
-void PID::set_lim_low(float invar)
+void PID::set_lim_low(const double lim_low_)
 {
-  /* Set PID lower limit value */
-  lim_low = invar;
+  lim_low = lim_low_;
 }
 
-float PID::get_lim_low()
+const double& PID::get_lim_low()
 {
-  /* Returns PID lower limit value */
   return lim_low;
 }
 
-float PID::compute(float ref_, float meas_, float dt_)
+double PID::compute(const double ref_, const double meas_, const double dt_)
 {
-  /*
-  Performs a PID computation and returns a control value based on
-  the elapsed time (dt) and the error signal.
-      :param ref: referent value
-      :param meas: measured value
-      :return: control value
-  */
-
-  float error, de, dt;
+  double error;
+  double de;
+  double dt;
 
   ref = ref_;
   meas = meas_;
@@ -145,30 +125,17 @@ float PID::compute(float ref_, float meas_, float dt_)
     error_old = ref - meas;
     firstPass = false;
   } else {
-    /*//////////////////////////////////////////////
-    //////////////////////////////////////////////*/
-    // Add your code here
-    // You should compute elapsed time from the previous step (dt, in seconds),
-    // compute proportional part (self.up),
-    // compute integral part (self.ui),
-    // compute derivative part (self.ud),
-    // compute total control value (self.u),
-    // implement saturation function and antiwind-up,
-
     error = ref - meas;
-
-
     de = error - error_old;// diff error
     up = kp * error;// proportional term
 
-
-    if (ki == 0)
+    if (ki == 0) {
       ui = 0;
-    else
+    } else {
       ui = ui_old + ki * error * dt;// integral term
+    }
 
     ud = kd * de / dt;// derivative term
-
     u = up + ui + ud;
 
     if (u > lim_high) {
@@ -180,32 +147,22 @@ float PID::compute(float ref_, float meas_, float dt_)
     }
 
     ui_old = ui;// save ui for next step
-
     error_old = error;
-
-    /* End of added code
-    ///////////////////////////////////////////////
-    ///////////////////////////////////////////////
-    */
   }
 
   return u;
 }
 
-void PID::get_pid_values(float *up_, float *ui_, float *ud_, float *u_)
+void PID::get_pid_values(double &up_, double &ui_, double &ud_, double &u_)
 {
-  /*Returns P, I, D components and total control value */
-
-  *up_ = up;
-  *ui_ = ui;
-  *ud_ = ud;
-  *u_ = u;
+  up_ = up;
+  ui_ = ui;
+  ud_ = ud;
+  u_ = u;
 }
 
 void PID::create_msg(uav_ros_control_msgs::PIDController &msg)
 {
-  /* Returns ros message of type PIDController */
-
   msg.ref = ref;
   msg.meas = meas;
   msg.P = up;
@@ -223,12 +180,13 @@ std::ostream &operator<<(std::ostream &out, const PID &pid)
   return out;
 }
 
-void PID::initializeParameters(ros::NodeHandle &nh, std::string prefix)
+void PID::initializeParameters(ros::NodeHandle &nh, const std::string& prefix)
 {
-  bool initialized = nh.getParam(prefix + KP, kp) && nh.getParam(prefix + KI, ki)
-                     && nh.getParam(prefix + KD, kd)
-                     && nh.getParam(prefix + LIM_LOW, lim_low)
-                     && nh.getParam(prefix + LIM_HIGH, lim_high);
+  bool initialized = nh.getParam(prefix + PIDParamPrefix::KP, kp)
+                     && nh.getParam(prefix + PIDParamPrefix::KI, ki)
+                     && nh.getParam(prefix + PIDParamPrefix::KD, kd)
+                     && nh.getParam(prefix + PIDParamPrefix::LIM_LOW, lim_low)
+                     && nh.getParam(prefix + PIDParamPrefix::LIM_HIGH, lim_high);
   ROS_INFO_STREAM(*this);
   if (!initialized) {
     ROS_FATAL("PID() - parameter initialization failed.");
