@@ -19,7 +19,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
-#include <math.h>
+#include <cmath>
 
 uav_controller::ControlBase::ControlBase(ros::NodeHandle &nh)
 {
@@ -31,7 +31,9 @@ uav_controller::ControlBase::ControlBase(ros::NodeHandle &nh)
     throw std::runtime_error("Parameters not loaded");
   }
   auto odomCallback = &uav_controller::ControlBase::odomCb;
-  if (msf_callback) odomCallback = &uav_controller::ControlBase::msfOdomCb;
+  if (msf_callback) {
+    odomCallback = &uav_controller::ControlBase::msfOdomCb;
+  }
 
   // Initialize all subscribers
   _subOdom = nh.subscribe("odometry", 1, odomCallback, this);
@@ -48,8 +50,6 @@ uav_controller::ControlBase::ControlBase(ros::NodeHandle &nh)
   _currentReference.velocities = std::vector<geometry_msgs::Twist>(1);
   _currentReference.accelerations = std::vector<geometry_msgs::Twist>(1);
 }
-
-uav_controller::ControlBase::~ControlBase() {}
 
 void uav_controller::ControlBase::odomCb(const nav_msgs::OdometryConstPtr &message)
 {
@@ -88,8 +88,7 @@ void uav_controller::ControlBase::msfOdomCb(const nav_msgs::OdometryConstPtr &me
 void uav_controller::ControlBase::trajPointCb(
   const trajectory_msgs::MultiDOFJointTrajectoryPointConstPtr &msg)
 {
-  if (msg->transforms.size() == 0 || msg->velocities.size() == 0
-      || msg->accelerations.size() == 0) {
+  if (msg->transforms.empty() || msg->velocities.empty() || msg->accelerations.empty()) {
     ROS_FATAL("ControlBase::trajPointCb - Trajectory point incomplete.");
     return;
   }
@@ -112,8 +111,8 @@ const std::array<double, 3> &uav_controller::ControlBase::getCurrVelocity()
 void uav_controller::ControlBase::publishAttitudeTarget(int typeMask, double yawRate)
 {
   tf2::Quaternion q;
-  q.setEulerZYX(_attThrustSp[2], _attThrustSp[1], _attThrustSp[0]);
-
+  q.setRPY(_attThrustSp[0], _attThrustSp[1], _attThrustSp[2]);
+  
   mavros_msgs::AttitudeTarget newMessage;
   newMessage.header.stamp = ros::Time::now();
   newMessage.type_mask = typeMask;

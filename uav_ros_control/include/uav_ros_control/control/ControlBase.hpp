@@ -35,8 +35,9 @@ public:
    *
    * @param nh - ROS node handle, used for initializing subscribers and publishers
    */
-  ControlBase(ros::NodeHandle &nh);
-  virtual ~ControlBase();
+  explicit ControlBase(ros::NodeHandle &nh);
+  virtual ~ControlBase() = default;
+  
 
   /**
    * Set roll, pitch, yaw attitude setpoint.
@@ -87,9 +88,9 @@ public:
    */
   const trajectory_msgs::MultiDOFJointTrajectoryPoint &getCurrentReference();
 
-  void overridePitchTarget(const double newPitch);
-  void overrideRollTarget(const double newRoll);
-  void overrideYawTarget(const double newYaw);
+  void overridePitchTarget(double newPitch);
+  void overrideRollTarget(double newRoll);
+  void overrideYawTarget(double newYaw);
 
 private:
   /**
