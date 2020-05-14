@@ -25,8 +25,8 @@ public:
    * Default constructor. Used for reading ROS parameters and initalizing
    * private variables.
    */
-  CascadePID(ros::NodeHandle &nh);
-  virtual ~CascadePID();
+  explicit CascadePID(ros::NodeHandle &nh);
+  ~CascadePID() = default;
 
   /**
    * Calculate new attitude and thrust setpoint.

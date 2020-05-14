@@ -54,16 +54,15 @@ uav_controller::CascadePID::CascadePID(ros::NodeHandle &nh)
     "reset_integrator", &uav_controller::CascadePID::intResetServiceCb, this);
 }
 
-bool uav_controller::CascadePID::intResetServiceCb(std_srvs::Empty::Request &request,
-  std_srvs::Empty::Response &response)
+bool uav_controller::CascadePID::intResetServiceCb(
+  std_srvs::Empty::Request & /* unused */,
+  std_srvs::Empty::Response & /* unused */)
 {
   ROS_WARN("Resetting all PID controllers");
   resetPositionPID();
   resetVelocityPID();
   return true;
 }
-
-uav_controller::CascadePID::~CascadePID() {}
 
 bool uav_controller::CascadePID::activationPermission()
 {
@@ -82,7 +81,7 @@ void uav_controller::CascadePID::yawRefCb(const std_msgs::Float64ConstPtr &msg)
 
 void uav_controller::CascadePID::positionParamsCb(
   uav_ros_control::PositionControlParametersConfig &configMsg,
-  uint32_t level)
+  uint32_t /* unused */)
 {
   ROS_WARN("CascadePID::parametersCallback");
 
@@ -270,9 +269,9 @@ void uav_controller::CascadePID::calculateAttThrustSp(double dt)
 }
 
 void uav_controller::runDefault(uav_controller::CascadePID &cascadeObj,
-  ros::NodeHandle &nh)
+  ros::NodeHandle & /* unused */)
 {
-  double rate = 50;
+  constexpr auto rate = 50;
   double dt = 1.0 / rate;
   ros::Rate loopRate(rate);
 
